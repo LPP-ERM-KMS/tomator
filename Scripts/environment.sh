@@ -2,7 +2,7 @@
 
 # Set up environment for compilation
 source /usr/share/Modules/init/sh
-module use /work/imas/etc/modules/all
+module use /work/imas/etc/modules/all # What was inside the module file?? 
 
 module load GCCcore/10.2.0
 module load Python/3.8.6-GCCcore-10.2.0
