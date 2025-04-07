@@ -1,0 +1,12 @@
+#!/bin/bash
+#SBATCH --job-name=T1D-tomas                # job name reflecting your run
+#SBATCH --mail-user=tom.wauters@iter.org    # Where to send mail
+#SBATCH --mail-type=END                     # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --partition=gen10                # Partition: most probably gen9_ib or gen10_ib (use sinfo to list all)
+#SBATCH --ntasks=1                          # Number of tasks: here run on a single CPU
+#SBATCH --mem=1gb                           # Job memory request: here 1GB
+#SBATCH --time=11:59:59                     # Time limit in format hrs:min:sec
+#SBATCH --output=Log_tomas.log          # Standard output and error log file
+
+./Tomator1D SimParams/Public/TOMAS_Elise_fixPRFe.json
+#./Tomator1D SimParams/Public/TOMAS_Elise.json

@@ -1,0 +1,16 @@
+#! /bin/tcsh
+
+#SBATCH  -M genius
+#SBATCH  --account=lp_opt_plasma_edge_conf
+#SBATCH  --cluster=genius
+#SBATCH  --nodes=1
+#SBATCH  --ntasks=1
+#SBATCH  --cpus-per-task=1
+#SBATCH  --time=02:59:00
+#SBATCH  --mail-type=END,FAIL
+#SBATCH  --job-name=tomator1d
+#SBATCH  --export=ALL
+#SBATCH  --mail-user="anthony.piras@kuleuven.be"
+#SBATCH  --output=%x.%j
+
+./Tomator1D SimParams/Private/mysim.json

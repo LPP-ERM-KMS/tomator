@@ -1,0 +1,197 @@
+{
+    "magnetic_field": {
+        "Bt": 3.8,
+        "Bv": 0.028,
+        "Bh": 0.0001
+    },
+    "toroidal_machine_geometry": {
+        "R": 250.0,
+        "a": 67.0,
+        "b": 70.0,
+        "lHFS": 184.3,
+        "lLFS": 312.4,
+        "nlimiters": 6,
+        "Vpl": 22400.0
+    },
+    "neutral_pressure": {
+        "pHe": 1e-08,
+        "pH2": 5e-05
+    },
+    "rf_power": {
+        "Prf": 50.0,
+        "bselfcol": false,
+        "freq": 48.0,
+        "dtpramp": 0.0001
+    },
+    "type": {
+        "bgray": false,
+        "bram": false,
+        "bfixpowerfrac": false,
+        "bnefix": false,
+        "bTOMAS": false,
+        "bproptone": false,
+        "bnopower": false,
+        "bkipt": false,
+        "blhr": false,
+        "bmanuel": false,
+        "bICWC": true
+    },
+    "general_ec": {
+        "Rdep": 89.4,
+        "pecabs0": 0.1,
+        "widthech": 1.8666666666666667,
+        "echbackground": 1e-07,
+        "harmonic": 2.0,
+        "muw": 0.01
+    },
+    "gray": {},
+    "ram": {},
+    "necfix": {
+        "ic": 86,
+        "necfix": 10584000000000.0,
+        "Pini": 3.0,
+        "tauP": 5e-05
+    },
+    "tomas": {
+        "Rdep1": 86.1875,
+        "PRdep1": 0.0,
+        "Rdep2": 97.65,
+        "PRdep2": 1.0,
+        "Rdep3": 72.4325,
+        "PRdep3": 0.0,
+        "Rdep4": 72.4325,
+        "PRdep4": 0.0
+    },
+    "general_ic": {
+        "Rant": 310.0,
+        "bantlr": false,
+        "avlr": 0.23,
+        "alphalaw": 0.002,
+        "HtoHD": 0.02
+    },
+    "kipt": {},
+    "lhr": {
+        "fracpne": 1.0,
+        "fraclhr": 0.25,
+        "widthlhr": 2.5,
+        "lhrbackground": 1e-07
+    },
+    "erm": {},
+    "pppl": {},
+    "other": {
+        "fixedTe": false
+    },
+    "diffusion": {
+        "bDfix": false,
+        "Dfix": 10000.0,
+        "bDbohm": false,
+        "bDscaling": true,
+        "Dfact": 1.0
+    },
+    "convection": {
+        "bVfix": false,
+        "Vfix": 100.0,
+        "bVscaling": true,
+        "veq": 8,
+        "Vfact": 5.0
+    },
+    "tune_d_and_v": {
+        "btunedv": false,
+        "btunevleft": false,
+        "il": 73,
+        "nelfix": 3189800000000.0,
+        "ir": 114,
+        "nerfix": 6430100000000.0,
+        "Vini": -2.0,
+        "tauV": 0.01,
+        "Dini": 1.0,
+        "tauD": 0.0005
+    },
+    "physics_to_include": {
+        "bH": true,
+        "bH2": true,
+        "bHe": true,
+        "bion": true,
+        "bcx": true,
+        "belas": true,
+        "bcoulomb": true,
+        "bimpur": false,
+        "btranspions": true,
+        "btranspneut": true,
+        "bedge": true,
+        "bpol": true,
+        "vdrift": true,
+        "bcoll": true
+    },
+    "initial_conditions": {
+        "rmaxini": 310.0,
+        "widthini": 20.0,
+        "nebackgroundl": 1e-05,
+        "nebackgroundr": 0.001,
+        "Ta0": 0.02587,
+        "Te0": 3.0,
+        "nevac": 1.0,
+        "nH0": 200000000.0,
+        "nHi0": 5.0e10,
+        "nH2i0": 1000000000.0,
+        "nH3i0": 1000000.0,
+        "nHeII0": 2000000.0,
+        "nHeIII0": 2000000.0,
+        "nCII0": 10.0,
+        "nCIII0": 10.0,
+        "nCIV0": 10.0,
+        "nCV0": 10.0
+    },
+    "edge_conditions": {
+        "RH": 0.5,
+        "REH": 0.9,
+        "gEd": 2.5,
+        "gEv": 1.5,
+        "gEdn": 2.0,
+        "gEe": 2.5
+    },
+    "simulation_grid": {
+        "nmeshp": 301
+    },
+    "input_file": {
+        "bfinput": false
+    },
+    "time_step": {
+        "t0": 0.0,
+        "tmainend": 0.1,
+        "accur": 0.05,
+        "dtmax": 2e-06,
+        "dtmin": 2.5e-08,
+        "dtinit": 2.5e-08
+    },
+    "time_step_for_rf_coupling": {
+        "bupdateRFstep": true,
+        "updateRF": 100,
+        "dtRF": 1e-07,
+        "dtRFvar": false,
+        "dtRFmax": 5e-06,
+        "dtRFmin": 1e-08,
+        "dtRFconv": false
+    },
+    "advanced_time_step_settings": {
+        "dtsmooth": true,
+        "shokparam": 2.0,
+        "maxtstepincrement": 1.5,
+        "btendvar": false,
+        "convcrit": 100.0,
+        "convsavetime": 0.01,
+        "baccurvar": true,
+        "accurcrit": 500.0,
+        "minaccur": 0.05
+    },
+    "output_parameters": {
+        "Nlog": 500,
+        "cc": 80,
+        "Nloopsave": 5000,
+        "bOutdt": true,
+        "dtsave": 0.0001
+    },
+    "solver_parameters": {
+        "solvertolerance": 1e-10
+    }
+}

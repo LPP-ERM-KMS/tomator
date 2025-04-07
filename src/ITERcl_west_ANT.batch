@@ -1,0 +1,28 @@
+#!/bin/bash
+#SBATCH --job-name=T1D-ANT               # job name reflecting your run
+#SBATCH --mail-user=tom.wauters@iter.org    # Where to send mail
+#SBATCH --mail-type=END                     # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --partition=gen10_ib                # Partition: most probably gen9_ib or gen10_ib (use sinfo to list all)
+#SBATCH --ntasks=1                          # Number of tasks: here run on a single CPU
+#SBATCH --mem=1gb                           # Job memory request: here 1GB
+#SBATCH --time=47:59:59                     # Time limit in format hrs:min:sec
+#SBATCH --output=WEST_ANT.log          # Standard output and error log file
+
+# Set up environment for compilation
+cd .. && source Scripts/environment.sh # Set up environment for compilation
+# cd src && make clean && make all # Compile the code
+
+# Set up environment for running executable from
+cd src/Tomator_exe
+singularity pull docker://ubuntu:22.04 # Pull the docker image for running the executable
+
+# Run the executable
+cd ..
+./Tomator1D SimParams/Public/WEST_0.9HtoHD_3.2T_48MHz.json
+
+# Notes from Manuel:
+# - The script is a bash script, so it should be run with the command "sbatch ITERcl_west.batch"
+# - To follow the output of the job, use the command "tail -f WESTlhr.log"
+# - To cancel the job, use the command "scancel <job_id>"
+# - To get the job id, use the command "squeue | grep <your_username>"
+# - After doing git pull if the TOMATOR executable from ANTITER is changed you need to run the command "chmod +x src/Tomator_exe/TOMATOR" to give the executable permission to run
