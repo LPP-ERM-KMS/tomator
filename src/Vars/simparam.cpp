@@ -1,6 +1,6 @@
 #include "simparam.h"
 
-int nmeshp = 160;    // index of the center grid point for output to logfile
+int nmeshp = 300;    // index of the center grid point for output to logfile
 int cc = 80;    // index of the center grid point for output to logfile
 
 // MAIN DISCHARGE PARAMETERS:

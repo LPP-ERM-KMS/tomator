@@ -38,9 +38,9 @@
     },
     "general_ec": {
         "Rdep": 91.85,
-        "pecabs0": 0.1,
+        "pecabs0": 0.0808,
         "widthech": 1.8666666666666667,
-        "echbackground": 1e-05,
+        "echbackground": 1e-07,
         "harmonic": 2.0,
         "muw": 0.01
     },
@@ -82,29 +82,29 @@
         "fixedTe": false
     },
     "diffusion": {
-        "bDfix": true,
+        "bDfix": false,
         "Dfix": 3330.0,
         "bDbohm": false,
-        "bDscaling": false,
+        "bDscaling": true,
         "Dfact": 1.0
     },
     "convection": {
-        "bVfix": true,
+        "bVfix": false,
         "Vfix": 333.0,
-        "bVscaling": false,
+        "bVscaling": true,
         "veq": 8,
         "Vfact": 5.0
     },
     "tune_d_and_v": {
-        "btunedv": false,
+        "btunedv": true,
         "btunevleft": false,
-        "il": 73,
-        "nelfix": 3189800000000.0,
+        "il": 79,
+        "nelfix": 3.5358e12,
         "ir": 114,
-        "nerfix": 6430100000000.0,
-        "Vini": -2.0,
+        "nerfix": 5.2173e12,
+        "Vini": -2.5,
         "tauV": 0.01,
-        "Dini": 1.0,
+        "Dini": 0.0,
         "tauD": 0.0005
     },
     "physics_to_include": {
@@ -151,7 +151,7 @@
         "gEe": 1.6667
     },
     "simulation_grid": {
-        "nmeshp": 161
+        "nmeshp": 301
     },
     "input_file": {
         "bfinput": false

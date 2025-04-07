@@ -607,7 +607,6 @@ void getSimParams(const char *json_file, int timeSteps) {
     extract_output_parameters(file_content);
     extract_solver_parameters(file_content);
 
-
     if (NMESHP != nmeshp) { 
         // Error, print red message and exit
         cout << "\033[1;31m";

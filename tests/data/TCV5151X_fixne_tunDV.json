@@ -151,7 +151,7 @@
         "gEe": 1.6667
     },
     "simulation_grid": {
-        "nmeshp": 161
+        "nmeshp": 301
     },
     "input_file": {
         "bfinput": false
