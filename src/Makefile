@@ -32,7 +32,7 @@ debug: $(F90_OBJ) $(C_OBJ) $(CPP_OBJ) $(HEADERS)
 	gcc -c -o $@ $< $(FLAGS) $(CFLAGS)
 
 %.o: %.f90
-	gfortran -c -o $@ $< -I../Data/Fortran -J../Data/Fortran -fopenmp
+	gfortran -c -o $@ $< -I./Fortran -J./Fortran -fopenmp
 
 clean:
 	rm -f Tomator1D
