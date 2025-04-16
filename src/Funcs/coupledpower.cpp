@@ -51,9 +51,9 @@ void coupledpower(const double &freq, double &alr) //, double PTEST[] )
     // cout << "bICWC = " << bICWC << endl;
     // exit(EXIT_SUCCESS);
 
-    if (bkipt) { // KIPT module
-        bkipt_func(alr);
-    }
+    //if (bkipt) { // KIPT module
+    //    bkipt_func(alr);
+    //}
 
     /////// Prop-to-ne, cylindrical coordinates
     if (bproptone) {
