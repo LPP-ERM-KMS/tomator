@@ -1,5 +1,6 @@
 #include "positions.h"
 
+// assumption: entries at every mesh point for the matrix
 double TLfa[NMESHP], TLfb[NMESHP], TLdfa[NMESHP], TLdfb[NMESHP];
 double TRfb[NMESHP], TRfc[NMESHP], TRdfb[NMESHP], TRdfc[NMESHP];
 double DLfaba[NMESHP], DLfabb[NMESHP];
@@ -20,8 +21,6 @@ double VRdfbvb[NMESHP], VRdfbvc[NMESHP];
 double VRdfcvb[NMESHP], VRdfcvc[NMESHP];
 double SLsa[NMESHP], SLsb[NMESHP];
 double SRsb[NMESHP], SRsc[NMESHP];
-double ELfa[NMESHP], ELfb[NMESHP], ELdfa[NMESHP], ELdfb[NMESHP];
-double ERfb[NMESHP], ERfc[NMESHP], ERdfb[NMESHP], ERdfc[NMESHP];
 
 double dTLfa[NMESHP], dTLfb[NMESHP], dTLdfa[NMESHP], dTLdfb[NMESHP];
 double dTRfb[NMESHP], dTRfc[NMESHP], dTRdfb[NMESHP], dTRdfc[NMESHP];
@@ -43,11 +42,11 @@ double dVRdfbvb[NMESHP], dVRdfbvc[NMESHP];
 double dVRdfcvb[NMESHP], dVRdfcvc[NMESHP];
 double dSLsa[NMESHP], dSLsb[NMESHP];
 double dSRsb[NMESHP], dSRsc[NMESHP];
-double dELfa[NMESHP], dELfb[NMESHP], dELdfa[NMESHP], dELdfb[NMESHP];
+//double dELfa[NMESHP], dELfb[NMESHP], dELdfa[NMESHP], dELdfb[NMESHP];
 double dERfb[NMESHP], dERfc[NMESHP], dERdfb[NMESHP], dERdfc[NMESHP];
 
-double Br[NMESHP];
-double aR[NMESHP];
+double Br[NMESHP]; //assumption: radial magnetic field
+double aR[NMESHP]; //assumption: physical positions from -a to a
 
 Eigen::SparseMatrix<double, Eigen::RowMajor> Ts(2*NMESHP,2*NMESHP);
 Eigen::SparseMatrix<double, Eigen::RowMajor> Ss(2*NMESHP,2*NMESHP);

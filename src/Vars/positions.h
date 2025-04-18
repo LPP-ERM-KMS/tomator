@@ -24,7 +24,6 @@ extern double VRdfbvb[NMESHP], VRdfbvc[NMESHP];
 extern double VRdfcvb[NMESHP], VRdfcvc[NMESHP];
 extern double SLsa[NMESHP], SLsb[NMESHP];
 extern double SRsb[NMESHP], SRsc[NMESHP];
-extern double ELfa[NMESHP], ELfb[NMESHP], ELdfa[NMESHP], ELdfb[NMESHP];
 extern double ERfb[NMESHP], ERfc[NMESHP], ERdfb[NMESHP], ERdfc[NMESHP];
 
 extern double dTLfa[NMESHP], dTLfb[NMESHP], dTLdfa[NMESHP], dTLdfb[NMESHP];
@@ -47,7 +46,6 @@ extern double dVRdfbvb[NMESHP], dVRdfbvc[NMESHP];
 extern double dVRdfcvb[NMESHP], dVRdfcvc[NMESHP];
 extern double dSLsa[NMESHP], dSLsb[NMESHP];
 extern double dSRsb[NMESHP], dSRsc[NMESHP];
-extern double dELfa[NMESHP], dELfb[NMESHP], dELdfa[NMESHP], dELdfb[NMESHP];
 extern double dERfb[NMESHP], dERfc[NMESHP], dERdfb[NMESHP], dERdfc[NMESHP];
 
 extern double Br[NMESHP];

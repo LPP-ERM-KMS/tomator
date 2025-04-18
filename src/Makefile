@@ -22,7 +22,7 @@ all: FLAGS = -fopenmp -O3 -lpthread -Wall
 all: $(C_OBJ) $(CPP_OBJ) $(HEADERS)
 	g++ -std=c++17 -o Tomator1D $(C_OBJ) $(CPP_OBJ) $(FLAGS)
 
-debug: CFLAGS += -g -Ddebug -ggdb3
+debug: CFLAGS += -g  -ggdb3 -Ddebug
 #debug: $(F90_OBJ) $(C_OBJ) $(CPP_OBJ) $(HEADERS)
 debug: $(C_OBJ) $(CPP_OBJ) $(HEADERS)
 	g++ -std=c++17 -o Tomator1D $(C_OBJ) $(CPP_OBJ) $(FLAGS) $(CFLAGS)
