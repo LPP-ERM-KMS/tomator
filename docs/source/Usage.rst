@@ -1,11 +1,12 @@
 Usage
 =====
-Tomator 1D is a standalone binary which, altough useful for homebrew interfaces, in itself not very accessible, 
-as such python interfaces were created located in the 'gui' folder. Their functionalities will be discussed
-in this section.
+Tomator 1D is a standalone binary which may be 
+interfaced using python through software located in the 'gui' folder. Their functionalities are discussed below
 
 SimulationInterface
 -------------------
+We will describe the software in this section but for those interested there is
+also a video introduction that can be found here: https://youtu.be/qyPUr26huhY
 
 PlotterInterface
 ----------------
