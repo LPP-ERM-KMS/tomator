@@ -16,3 +16,12 @@ first before rebuilding:
 ::
     make clean && make -j8
 
+
+Troubleshooting
+---------------
+
+arm-macs are not yet supported due to the use of C++17 (see https://github.com/LPP-ERM-KMS/tomator/issues/5)
+as soon as they will be, the code should be compiled by first installing libomp from homebrew and then running:
+
+::
+        clang -Xclang -fopenmp -L/opt/homebrew/opt/libomp/lib -I/opt/homebrew/opt/libomp/include -lomp -std=c++23 Tomator1D.cpp -o Tomator1D
