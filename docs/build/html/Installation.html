@@ -87,8 +87,13 @@
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">tomator</span><span class="o">/</span><span class="n">src</span>
 </pre></div>
 </div>
-<p>and build the software (replace the number after j with the number you get when running nproc):</p>
+<p>build the software (replace the number after j with the number you get when running nproc):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="o">-</span><span class="n">j8</span>
+</pre></div>
+</div>
+<p>And finally export the TOMATOR environmental variable as the absolute location of the tomator folder,
+e.g in bashrc add:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">TOMATOR</span><span class="o">=/</span><span class="n">home</span><span class="o">/</span><span class="n">lpp</span><span class="o">/</span><span class="n">programs</span><span class="o">/</span><span class="n">tomator</span>
 </pre></div>
 </div>
 <p>This will have built an executable called ‘Tomator1D’ which is the primary

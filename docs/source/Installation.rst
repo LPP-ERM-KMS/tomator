@@ -12,9 +12,14 @@ Then navigate to the src folder in tomator::
 
     cd tomator/src
 
-and build the software (replace the number after j with the number you get when running nproc)::
+build the software (replace the number after j with the number you get when running nproc)::
 
     make -j8
+
+And finally export the TOMATOR environmental variable as the absolute location of the tomator folder,
+e.g in bashrc add::
+
+    export TOMATOR=/home/lpp/programs/tomator
 
 This will have built an executable called 'Tomator1D' which is the primary
 binary, you are now done and may move on to :doc:`Usage`.  If modifications were made
