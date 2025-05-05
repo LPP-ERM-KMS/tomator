@@ -161,10 +161,10 @@ void initAuxiliarPos() {
         VLdfbvb[i] = t1 * (r_b - r_a) * (0.3e1 * r_a + 0.5e1 * r_b);
         SLsa[i] = (r_a / 0.15e2 + r_b / 0.12e2) * (r_b - r_a);
         SLsb[i] = (r_a / 0.12e2 + 0.4e1 / 0.15e2 * r_b) * (r_b - r_a);
-        ELfa[i] = -0.11e2 / 0.35e2 * r_a - 0.13e2 / 0.70e2 * r_b;
-        ELfb[i] = 0.24e2 / 0.35e2 * r_b - 0.13e2 / 0.70e2 * r_a;
-        ELdfa[i] = (-r_a / 0.70e2 - 0.3e1 / 0.70e2 * r_b) * r_b + 0.2e1 / 0.35e2 * r_a * r_a;
-        ELdfb[i] = (0.2e1 / 0.35e2 * r_b - r_a / 0.70e2) * r_b - 0.3e1 / 0.70e2 * r_a * r_a;
+        //ELfa[i] = -0.11e2 / 0.35e2 * r_a - 0.13e2 / 0.70e2 * r_b; //assumption: not used
+        //ELfb[i] = 0.24e2 / 0.35e2 * r_b - 0.13e2 / 0.70e2 * r_a;
+        //ELdfa[i] = (-r_a / 0.70e2 - 0.3e1 / 0.70e2 * r_b) * r_b + 0.2e1 / 0.35e2 * r_a * r_a;
+        //ELdfb[i] = (0.2e1 / 0.35e2 * r_b - r_a / 0.70e2) * r_b - 0.3e1 / 0.70e2 * r_a * r_a;
         t1 = r_b - r_a;
         dTLfa[i] = -pow(t1, 0.2e1) * (0.7e1 * r_a + 0.6e1 * r_b) / 0.420e3;
         t1 = r_b - r_a;
@@ -205,12 +205,6 @@ void initAuxiliarPos() {
         dSLsa[i] = t2 * (r_a + r_b) * pow(t1, 0.2e1);
         t1 = r_b - r_a;
         dSLsb[i] = (-r_a / 0.60e2 - r_b / 0.30e2) * pow(t1, 0.2e1);
-        dELfa[i] = (0.11e2 / 0.420e3 * r_b + r_a / 0.21e2) * r_b - 0.31e2 / 0.420e3 * r_a * r_a;
-        dELfb[i] = (0.5e1 / 0.42e2 * r_a - 0.23e2 / 0.210e3 * r_b) * r_b - r_a * r_a / 0.105e3;
-        t1 = r_a * r_a;
-        dELdfa[i] = ((r_a / 0.420e3 + r_b / 0.210e3) * r_b - 0.2e1 / 0.105e3 * t1) * r_b + r_a * t1 / 0.84e2;
-        t1 = 0.1e1 / 0.210e3;
-        dELdfb[i] = t1 * (-pow(r_a, 0.3e1) + pow(r_b, 0.3e1)) + r_a * r_b * (r_a - r_b) / 0.70e2;
     }
 
     // right sides
@@ -257,17 +251,10 @@ void initAuxiliarPos() {
         VRdfcvc[i] = (r_b / 0.70e2 - r_c / 0.28e2) * r_c + 0.3e1 / 0.140e3 * r_b * r_b;
         SRsb[i] = (0.4e1 / 0.15e2 * r_b + r_c / 0.12e2) * (r_c - r_b);
         SRsc[i] = (r_b / 0.12e2 + r_c / 0.15e2) * (r_c - r_b);
-        ERfb[i] = -0.24e2 / 0.35e2 * r_b + 0.13e2 / 0.70e2 * r_c;
-        ERfc[i] = 0.13e2 / 0.70e2 * r_b + 0.11e2 / 0.35e2 * r_c;
-        ERdfb[i] = (0.3e1 / 0.70e2 * r_c + r_b / 0.70e2) * r_c - 0.2e1 / 0.35e2 * r_b * r_b;
-        ERdfc[i] = (r_b / 0.70e2 - 0.2e1 / 0.35e2 * r_c) * r_c + 0.3e1 / 0.70e2 * r_b * r_b;
         t1 = r_c - r_b;
         dTRfb[i] = (r_b / 0.28e2 + r_c / 0.60e2) * pow(t1, 0.2e1);
-        t1 = r_c - r_b;
         dTRfc[i] = (r_b / 0.70e2 + r_c / 0.60e2) * pow(t1, 0.2e1);
-        t1 = r_c - r_b;
         dTRdfb[i] = (-r_b * r_b / 0.168e3 - (-0.2e1 * r_b - 0.3e1 * r_c) * r_c / 0.840e3) * pow(t1, 0.2e1);
-        t1 = r_c - r_b;
         t2 = -0.1e1 / 0.280e3;
         dTRdfc[i] = t2 * (-r_b * r_b + r_c * r_c) * pow(t1, 0.2e1);
         t1 = -0.1e1 / 0.35e2;
@@ -294,12 +281,6 @@ void initAuxiliarPos() {
         dSRsb[i] = pow(t1, 0.2e1) * (r_c + 0.2e1 * r_b) / 0.60e2;
         t1 = r_c - r_b;
         dSRsc[i] = pow(t1, 0.2e1) * (r_b + r_c) / 0.60e2;
-        dERfb[i] = (r_c / 0.105e3 - 0.5e1 / 0.42e2 * r_b) * r_c + 0.23e2 / 0.210e3 * r_b * r_b;
-        dERfc[i] = (0.31e2 / 0.420e3 * r_c - r_b / 0.21e2) * r_c - 0.11e2 / 0.420e3 * r_b * r_b;
-        t1 = -0.1e1 / 0.210e3;
-        dERdfb[i] = r_c * r_b * (r_b - r_c) / 0.70e2 + t1 * (pow(r_b, 0.3e1) - pow(r_c, 0.3e1));
-        t1 = r_b * r_b;
-        dERdfc[i] = ((0.2e1 / 0.105e3 * r_b - r_c / 0.84e2) * r_c - t1 / 0.420e3) * r_c - r_b * t1 / 0.210e3;
     }
 }
 

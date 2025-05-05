@@ -1,5 +1,4 @@
 .vscode/
-tests/
 *.o
 src/Tomator1D
 src/AUG4/*

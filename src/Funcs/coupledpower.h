@@ -27,7 +27,7 @@ Eigen::VectorXd interpolateData(const Eigen::VectorXd &, const Eigen::VectorXd &
 std::string trim(const std::string &);
 void coupledpower(const double &, double &);
 
-void bkipt_func(double &);
+//void bkipt_func(double &);
 void bproptone_func();
 void bgray_func();
 void bram_func();
