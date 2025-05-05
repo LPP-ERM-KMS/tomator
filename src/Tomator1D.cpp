@@ -89,12 +89,12 @@ int main(int argc, char *argv[]) {
         Er1 = Er;
         tstartloop = omp_get_wtime();
 
+
         string basefolder = std::getenv("TOMATOR");
         string filename_ = basefolder + "/src/SimParams/Public/hydhel.tex";
         int n = filename_.length();
         char filename[n];
         std::strcpy(filename,filename_.c_str());
-        cout << filename << endl;
 
         if (timeSteps > 0) {
             initReactionDataMap(filename);
