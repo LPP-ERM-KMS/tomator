@@ -10,18 +10,18 @@ C_OBJ = $(patsubst %.c,%.o,$(C_FILES))
 
 HEADERS = $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.h))
 
-all: FLAGS = -fopenmp -O3 -lpthread -Wall 
+all: FLAGS = -fopenmp -O3 -lpthread #-Wall 
 
 all: $(C_OBJ) $(CPP_OBJ) $(HEADERS)
-	g++ -std=c++17 -o Tomator1D $(C_OBJ) $(CPP_OBJ) $(FLAGS)
+	g++ -std=c++23 -o Tomator1D $(C_OBJ) $(CPP_OBJ) $(FLAGS)
 
 debug: CFLAGS += -g  -ggdb3 -Ddebug
 
 debug: $(C_OBJ) $(CPP_OBJ) $(HEADERS)
-	g++ -std=c++17 -o Tomator1D $(C_OBJ) $(CPP_OBJ) $(FLAGS) $(CFLAGS)
+	g++ -std=c++23 -o Tomator1D $(C_OBJ) $(CPP_OBJ) $(FLAGS) $(CFLAGS)
 
 %.o: %.cpp $(HEADERS)
-	g++ -std=c++17 -c -o $@ $< $(FLAGS) $(CFLAGS)
+	g++ -std=c++23 -c -o $@ $< $(FLAGS) $(CFLAGS)
 
 %.o: %.c $(HEADERS)
 	gcc -c -o $@ $< $(FLAGS) $(CFLAGS)

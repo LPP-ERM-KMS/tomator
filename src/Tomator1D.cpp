@@ -1,8 +1,11 @@
 // Last update: 2021-10-05
 
 // Libraries
-#include <filesystem>
 #include <omp.h>
+#include <string>
+#include <cstring>
+#include <cstdlib>
+#include <filesystem>
 
 // Function definitions
 #include "Funcs/coupledpower.h"
@@ -85,14 +88,18 @@ int main(int argc, char *argv[]) {
         nr1 = nr;
         Er1 = Er;
         tstartloop = omp_get_wtime();
-        char filename[100];
+
+        string basefolder = std::getenv("TOMATOR");
+        string filename_ = basefolder + "/src/SimParams/Public/hydhel.tex";
+        int n = filename_.length();
+        char filename[n];
+        std::strcpy(filename,filename_.c_str());
+        cout << filename << endl;
 
         if (timeSteps > 0) {
-            strcpy(filename, "src/SimParams/Public/hydhel.tex");
             initReactionDataMap(filename);
             cout << "Running simulation for " << timeSteps << " time steps." << endl;
         } else {
-            strcpy(filename, "SimParams/Public/hydhel.tex");
             initReactionDataMap(filename);
             cout << "Running full simulation." << endl;
         }
