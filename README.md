@@ -1,5 +1,7 @@
 # **Tomator: A 1D Plasma Simulation inside a Tokamak** 
 
+![logo](logo/logocolor.svg)
+
 Tomator is an innovative project that offers a 1D simulation of the plasma inside a tokamak. The project comprises two main interfaces: one for setting up and executing the simulation, and another for the real-time visualization of simulation results. 
 
 ## **Videos** 
