@@ -20,7 +20,7 @@ This will show an interface with two options:
 * Select Pre-defined Parameters
 
 The parameters are defined in a json file which may be created using the first option or loaded using
-the second option, example files are located in examples/SimParams. When clicking on "define parameters" you will be presented with a dialog where you may specify the various parameters such as:
+the second option, example files are located in examples/InputFiles. When clicking on "define parameters" you will be presented with a dialog where you may specify the various parameters such as:
 
 * Main discharge
     * Magnetic field
