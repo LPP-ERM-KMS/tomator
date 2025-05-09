@@ -45,7 +45,6 @@
               <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#cloning-building">Cloning &amp; Building</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="Usage.html">Usage</a></li>
@@ -87,26 +86,43 @@
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">tomator</span><span class="o">/</span><span class="n">src</span>
 </pre></div>
 </div>
-<p>build the software (replace the number after j with the number you get when running nproc):</p>
+<p>Create a build directory in this location:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="n">build</span>
+</pre></div>
+</div>
+<p>navigate into this directory:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">build</span>
+</pre></div>
+</div>
+<p>Generate the make file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cmake</span> <span class="o">..</span>
+</pre></div>
+</div>
+<p>and finally build the software (replace the number after j with the number
+of threads, or if you don’t know omit the flag):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="o">-</span><span class="n">j8</span>
 </pre></div>
 </div>
-<p>And finally export the TOMATOR environmental variable as the absolute location of the tomator folder,
-e.g in bashrc add:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">TOMATOR</span><span class="o">=/</span><span class="n">home</span><span class="o">/</span><span class="n">lpp</span><span class="o">/</span><span class="n">programs</span><span class="o">/</span><span class="n">tomator</span>
+<p>This will have built an executable called ‘Tomator1D’ which is the primary
+binary. Optionally you may install the software by running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">make</span> <span class="n">install</span>
 </pre></div>
 </div>
-<p>This will have built an executable called ‘Tomator1D’ which is the primary
-binary, you are now done and may move on to <a class="reference internal" href="Usage.html"><span class="doc">Usage</span></a>.  If modifications were made
-to the software or you wish to rebuild for other reasons make sure to clean
-first before rebuilding:</p>
+<p>Now export the TOMATORSOURCE and  TOMATORRESULTS environmental
+variable as the absolute location of the tomator source folder and the location
+of where you want your results stored, e.g in bashrc add:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">export</span> <span class="n">TOMATORSOURCE</span><span class="o">=/</span><span class="n">home</span><span class="o">/</span><span class="n">lpp</span><span class="o">/</span><span class="n">programs</span><span class="o">/</span><span class="n">tomator</span>
+<span class="n">export</span> <span class="n">TOMATORRESULTS</span><span class="o">=/</span><span class="n">home</span><span class="o">/</span><span class="n">lpp</span><span class="o">/</span><span class="n">TomatorResults</span>
+</pre></div>
+</div>
+<p>adding these to bashrc will make the variables persist across sessions. You are
+now done and may move on to <a class="reference internal" href="Usage.html"><span class="doc">Usage</span></a>.  If modifications were made to the
+software or you wish to rebuild for other reasons make sure to clean first
+before rebuilding:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">clean</span> <span class="o">&amp;&amp;</span> <span class="n">make</span> <span class="o">-</span><span class="n">j8</span>
 </pre></div>
 </div>
-</section>
-<section id="troubleshooting">
-<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
-<p>arm-macs are not yet supported (see <a class="reference external" href="https://github.com/LPP-ERM-KMS/tomator/issues/5">https://github.com/LPP-ERM-KMS/tomator/issues/5</a>)</p>
+<p>And optionally re-install.</p>
 </section>
 </section>
 

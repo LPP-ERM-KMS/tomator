@@ -22,7 +22,6 @@ Data/*
 Data/Fortran/*
 !Data/Fortran/.gitkeep
 src/InterfaceFuncs/*.txt
-*.txt
 *.dat
 *.log
 *.mod
