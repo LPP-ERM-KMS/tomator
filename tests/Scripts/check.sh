@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python3 tests/Scripts/compare.py
+python3 Scripts/compare.py

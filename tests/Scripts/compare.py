@@ -44,7 +44,7 @@ def compare_with_tolerance(file1, file2, default_tolerance=1.0, special_toleranc
 
 
 
-solution_file = "tests/Solution/output.csv"
+solution_file = "Solution/output.csv"
 test_file = "Data/Test/output.csv"
 tolerance_percentage = 1.0  # 1% tolerance
 

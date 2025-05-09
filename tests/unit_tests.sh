@@ -6,7 +6,5 @@ parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
 cd "$parent_path"
 
-cd ../src && make clean && cd ..
-sh tests/Scripts/compile.sh
-sh tests/Scripts/run.sh
-sh tests/Scripts/check.sh
+sh Scripts/run.sh
+sh Scripts/check.sh
