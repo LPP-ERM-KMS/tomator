@@ -59,7 +59,7 @@ class ParamSelector(tk.Tk):
         self.style.configure("TLabel", font=("Futura", 16))
 
     def run_simulation(self, filename):
-        executable_path = "./../src/Tomator1D"
+        executable_path = "./../src/build/Tomator1D"
         
         if not os.path.exists(executable_path):
             print("Executable not found... Compiling...")
