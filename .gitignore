@@ -3,6 +3,5 @@
 *.dat
 *.log
 *.mod
-docs/build
 src/build
 tests/*.txt
