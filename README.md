@@ -2,13 +2,15 @@
 
 ![logo](logo/logocolor.svg)
 
-Tomator is an innovative project that offers a 1D simulation of the plasma inside a tokamak. The project comprises two main interfaces: one for setting up and executing the simulation, and another for the real-time visualization of simulation results. 
+Tomator performs a 1D simulation of the plasma inside a tokamak. The project is
+built in C++ and uses cmake to build it's binary.  The binary takes as argument
+a json file which specifies the simulation. The software comes with two main
+interfaces: one for setting up the json file and executing the simulation, and another for
+the real-time visualization of simulation results. 
 
-## **Videos** 
-
-[Tomator Simulation Interface](https://youtu.be/qyPUr26huhY) 
-
-[Tomator Plotter Interface](https://youtu.be/1ATl7nQellM) 
+The documentation can be found "here" (to be turned into website link),
+for those already familiar with the software, a quick start guide is found
+below
 
 ## **Table of Contents** 
 
@@ -22,7 +24,61 @@ Tomator is an innovative project that offers a 1D simulation of the plasma insid
 
 ## **Getting Started** 
 
-### **Setting Up & Running a Simulation** 
+### **Installation** 
+
+First, clone the repository to a location you'd like::
+
+```console
+LPP@ERM/KMS:~$ git clone https://github.com/LPP-ERM-KMS/tomator.git
+```
+
+Then navigate to the src folder in tomator::
+
+```console
+LPP@ERM/KMS:~$ cd tomator/src
+
+```
+
+Create a build directory in this location::
+
+```console
+LPP@ERM/KMS:~$ mkdir build
+
+```
+
+navigate into this directory::
+
+    cd build
+
+Generate the make file::
+
+    cmake ..
+
+and finally build the software (replace the number after j with the number 
+of threads, or if you don't know omit the flag)::
+
+    make -j8
+
+This will have built an executable called 'Tomator1D' which is the primary
+binary. Optionally you may install the software by running::
+
+    sudo make install
+
+Now export the TOMATORSOURCE and  TOMATORRESULTS environmental
+variable as the absolute location of the tomator source folder and the location
+of where you want your results stored, e.g in bashrc add::
+
+    export TOMATORSOURCE=/home/lpp/programs/tomator
+    export TOMATORRESULTS=/home/lpp/TomatorResults
+
+adding these to bashrc will make the variables persist across sessions. You are
+now done and may move on to :doc:`Usage`.  If modifications were made to the
+software or you wish to rebuild for other reasons make sure to clean first
+before rebuilding::
+
+    make clean && make -j8
+
+And optionally re-install.
 
 To kickstart the simulation interface, utilize the following command: 
 
