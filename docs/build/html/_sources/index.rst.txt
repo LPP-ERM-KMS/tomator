@@ -17,3 +17,4 @@ use of the Braginskii continuity and heat balance equations.
 .. toctree::
         Installation
         Usage
+        RF power
