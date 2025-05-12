@@ -43,8 +43,8 @@ the first directory to the one where you installed tomator and the second
 to where you want the results stored, make sure you created the directory)::
 
 ```console
-    echo "export TOMATORSOURCE=~/tomator" >> ~/.bashrc
-    echo "export TOMATORRESULTS=~/TomatorResults" >> ~/.bashrc
+LPP@ERM/KMS:~$ echo "export TOMATORSOURCE=~/tomator" >> ~/.bashrc
+LPP@ERM/KMS:~$ echo "export TOMATORRESULTS=~/TomatorResults" >> ~/.bashrc
 ```
 
 Adding these to bashrc will make the variables persist across sessions.  If
