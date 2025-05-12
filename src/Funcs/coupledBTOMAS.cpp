@@ -226,7 +226,7 @@ void bTOMAS_func() {
 
         // cout << id << "  " << eprof[id]*(pow(aR[NMESHP-1],2.0)-pow(aR[0],2.0))/(pow(aR[id+1],2.0)-pow(aR[id],2.0)) << endl;
     }
-    // #pragma omp parallel for
+    #pragma omp parallel for
     for (int id = 0; id < NMESHP; ++id) {
         // PRFe[id] =  6.24e18 * (PRdep1*Pabs*eprof1[id]+ PRdep2*eprof2[id] +PRdep3*eprof3[id] ) *(Prf*1e3);  // 20181016
 

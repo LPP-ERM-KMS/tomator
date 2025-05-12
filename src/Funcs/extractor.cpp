@@ -309,16 +309,6 @@ int extract_type(const char *json) {
     int returnv = 0;
     char *json_object = get_group(json, "type");
 
-    if (!extract_boolean_value(json_object, "bgray", &bgray)) {
-        printf("[Warning]: Parameter \"bgray\" not found on \"type\" \n");
-        returnv = -1;
-    }
-
-    if (!extract_boolean_value(json_object, "bram", &bram)) {
-        printf("[Warning]: Parameter \"bram\" not found on \"type\" \n");
-        returnv = -1;
-    }
-
     if (!extract_boolean_value(json_object, "bfixpowerfrac", &bfixpowerfrac)) {
         printf("[Warning]: Parameter \"bfixpowerfrac\" not found on \"type\" \n");
         returnv = -1;

@@ -46,6 +46,7 @@
               <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#cloning-building">Cloning &amp; Building</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="Usage.html">Usage</a></li>
@@ -125,6 +126,15 @@ before rebuilding:</p>
 </pre></div>
 </div>
 <p>And optionally re-install.</p>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<p>If you are running macos on one of the ARM macs, openmp is not directly supported under the latest
+clang, to fix this install llvm using homebrew and export the variables:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>export CC=$(brew --prefix llvm)/bin/clang
+export CXX=$(brew --prefix llvm)/bin/clang++
+</pre></div>
+</div>
 </section>
 </section>
 

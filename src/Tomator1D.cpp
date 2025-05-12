@@ -58,8 +58,7 @@ int main(int argc, char *argv[]) {
 
     printf("Start time: %s\n", timestamp);
 
-    omp_set_dynamic(0);
-    // #pragma omp parallel num_threads(ISCAN)
+    omp_set_dynamic(0); //dynamic thread adjustment
     {
 
         ofstream outFile;
@@ -77,7 +76,7 @@ int main(int argc, char *argv[]) {
         nCI0 = 0.001 * (pH2 + pHe) * 100.0 / (Ta0 * 11600.0 * kb) / 1.0e6;
 
         if (bfinput == false) {
-            writeToOutFile(&outFile, timestamp);
+            writeToOutFile(&outFile);
             initializeSpecies();
         } else {
             infile(sinputfile);
@@ -188,31 +187,6 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
         }
 
         transpCoef(); // present in transport.cpp
-
-        // if (bICWC)	{
-        //     double rc;
-        //     for (int im=0; im<NMESHP; ++im){
-        //             rc = sqrt(1.0*me * (Tr.Te[im]+0.1) / qe) / Br[im] *1e2;
-        //             colrateRF.nue[im]+=Dion[im]/pow(rc,2.0) * ndamp(nr.ne[im]); if (colrateRF.nue[im]<0) {cout << " colrateRF.nue[im] " << endl;}
-        //             //colrateRF.nue[im]*= ndamp(nr.ne[im]); if (colrateRF.nue[im]<0) {cout << " colrateRF.nue[im] " << endl;}
-        //             //
-        //             rc = sqrt(1.0*mi * (Tr.THi[im]+0.1) / qe) / Br[im] *1e2; // cout << rc << endl;
-        //             colrateRF.nuHi[im]+=Dion[im]/pow(rc,2.0) * ndamp(nr.nHi[im]); if (colrateRF.nuHi[im]<0) {cout << " colrateRF.nHi[im] " << endl;}
-        //             //colrateRF.nuHi[im]*=ndamp(nr.nHi[im]); if (colrateRF.nuHi[im]<0) {cout << " colrateRF.nHi[im] " << endl;}
-        //             rc = sqrt(2.0*mi * (Tr.TH2i[im]+0.1) / qe) / Br[im] *1e2;
-        //             colrateRF.nuH2i[im]+=Dion[im]/pow(rc,2.0) * ndamp(nr.nH2i[im]); if (colrateRF.nuH2i[im]<0) {cout << " colrateRF.nH2i[im] " << endl;}
-        //             //colrateRF.nuH2i[im]*=ndamp(nr.nH2i[im]); if (colrateRF.nuH2i[im]<0) {cout << " colrateRF.nH2i[im] " << endl;}
-        //             rc = sqrt(3.0*mi * (Tr.TH3i[im]+0.1) / qe) / Br[im] *1e2;
-        //             colrateRF.nuH3i[im]+=Dion[im]/pow(rc,2.0) * ndamp(nr.nH3i[im]); if (colrateRF.nuH3i[im]<0) {cout << " colrateRF.nH3i[im] " << endl;}
-        //             //colrateRF.nuH3i[im]*=ndamp(nr.nH3i[im]); if (colrateRF.nuH3i[im]<0) {cout << " colrateRF.nH3i[im] " << endl;}
-        //             rc = sqrt(4.0*mi * (Tr.THeII[im]+0.1) / qe) / Br[im] *1e2;
-        //             colrateRF.nuHeII[im]+=Dion[im]/pow(rc,2.0) * ndamp(nr.nHeII[im]); if (colrateRF.nuHeII[im]<0) {cout << " colrateRF.nHeII[im] " << endl;}
-        //             //colrateRF.nuHeII[im]*=ndamp(nr.nHeII[im]); if (colrateRF.nuHeII[im]<0) {cout << " colrateRF.nHeII[im] " << endl;}
-        //             rc = sqrt(4.0*mi * (Tr.THeIII[im]+0.1) / qe / 2.0) / Br[im] *1e2;
-        //             colrateRF.nuHeIII[im]+=Dion[im]/pow(rc,2.0) * ndamp(nr.nHeIII[im]); if (colrateRF.nuHeIII[im]<0) {cout << " colrateRF.nHeIII[im] " << endl;}
-        //             //colrateRF.nuHeIII[im]*=ndamp(nr.nHeIII[im]); if (colrateRF.nuHeIII[im]<0) {cout << " colrateRF.nHeIII[im] " << endl;}
-        //     }
-        // }
 
         if (bpol) {
             bpol_function(); // present in file functions.cpp
@@ -329,7 +303,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             // 							PIerrorP, mytid, dtnew,
             //               PRFe_array, PRFHi_array, PRFH2i_array, PRFH3i_array, PRFHeII_array, PRFHeIII_array);
 
-            coupledpower(freq, alr);
+            coupledpower();
 
             // if (bkipt == true) {cout << " Wall clock time " << (omp_get_wtime()-tstart) << " s " << endl;}
             if (dtRFvar) {
@@ -337,7 +311,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
                 ERF_save = Er;
             }
 
-#pragma omp parallel for
+            #pragma omp parallel for
             for (int im = 0; im < NMESHP; ++im) {
                 if ((bkipt == true) && (bantlr == true)) // use antenna resistance
                 {
@@ -387,6 +361,8 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
                 // mTe += 0.5*(Tr.Te[id]*aR[id]+Tr.Te[id+1]*aR[id+1])*(aR[id+1]-aR[id])/(pow(aR[NMESHP-1],2.0)-pow(aR[0],2.0)); // some average Te...
             }
             alphaval = lne / lnn;
+
+            #pragma omp parallel for
             for (int im = 0; im < NMESHP; ++im) {
                 // Shouldn't lne and lnn be set to 0 for every MESHPoint??, indeed!
                 PRFe_id[im] = PRFe_array_stat[im] * (1.0 - exp(-10.0 * alphaval / alphalaw));
@@ -398,6 +374,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             }
         }
         else {
+            #pragma omp parallel for
             for (int im = 0; im < NMESHP; ++im) {
                 PRFe_id[im] = PRFe_array_stat[im];
                 PRFHi_id[im] = PRFHi_array_stat[im];
@@ -408,6 +385,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             }
         }
 
+        #pragma omp parallel for
         for (int im = 0; im < NMESHP; ++im) {
             dEr.dEe[im] += PRFe_id[im];
             dEr.dEHi[im] += PRFHi_id[im];

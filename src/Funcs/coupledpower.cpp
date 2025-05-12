@@ -29,7 +29,7 @@ std::string trim(const std::string &str) {
     return str.substr(strBegin, strRange);
 }
 
-void coupledpower(const double &freq, double &alr) //, double PTEST[] )
+void coupledpower() //, double PTEST[] )
 {
     // static double alphaval, ionalpha;
     // alphaval=(nr.ne[centerval])/(nH2[centerval] + nHeI[centerval] + nr.ne[centerval]);
@@ -60,16 +60,6 @@ void coupledpower(const double &freq, double &alr) //, double PTEST[] )
         bproptone_func();
     }
 
-    /////// Gray - central deposition
-    if (bgray) {
-        bgray_func();
-    }
-
-    ///// Tulchhi Ram IPR - central deposition
-    if (bram) {
-        bram_func();
-    }
-
     ///// Tune coupled power for fixed density at ic
     if (bnefix) {
         bnefix_func();
@@ -83,11 +73,6 @@ void coupledpower(const double &freq, double &alr) //, double PTEST[] )
     ///// couple fixed fraction of launched power
     if (blhr) {
         bicatlhr_func();
-    }
-
-    /////// no power
-    if (bnopower) {
-        bnopower_func();
     }
 
     //////////////////////////////////////////

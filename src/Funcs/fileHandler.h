@@ -12,7 +12,7 @@
 
 void infile(string);
 void writeHeader(ofstream *outFile, const string *sfilenamechar);
-void writeToOutFile(ofstream *outFile, char *timestamp);
+void writeToOutFile(ofstream *outFile);
 void writeLast(ofstream *outFile, double tstartcalculation, double currentTime);
 void writePhysicalStates(ofstream *outFile);
 

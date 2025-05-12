@@ -115,7 +115,7 @@ void infile(string name) {
     return;
 }
 
-void writeToOutFile(ofstream *outFile, char *timestamp) {
+void writeToOutFile(ofstream *outFile) {
 
     *outFile << "tmain,RadialPositions,"
              << "ne,Ee,dne,dEe,nue,"

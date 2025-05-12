@@ -5,11 +5,11 @@
 
 Welcome to tomator's documentation!
 ===================================
-**tomator 1D** is a 1D Plasma Simulation inside a Tokamak, it is
-open source licensed under the EUPL written primarely in C++.  It
-is a 1-dimensional reaction-diffusion-convection code which
-describes plasma production by RF waves inside a tokamak making
-use of the Braginskii continuity and heat balance equations.
+**tomator 1D** is a 1D Plasma Simulation inside a Tokamak, it is open source
+licensed under the EUPL written primarely in C++ making use of the MIT-licensed
+Eigen library.  It is a 1-dimensional reaction-diffusion-convection code which
+describes plasma production by RF waves inside a tokamak making use of the
+Braginskii continuity and heat balance equations.
 
 .. note::
    The documentation is under active development

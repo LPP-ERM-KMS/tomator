@@ -25,15 +25,12 @@ extern "C" void CALL_FORTRAN(rfpower)(const double &, int[], int[], int &, doubl
 
 Eigen::VectorXd interpolateData(const Eigen::VectorXd &, const Eigen::VectorXd &, const Eigen::VectorXd &);
 std::string trim(const std::string &);
-void coupledpower(const double &, double &);
+void coupledpower();
 
 //void bkipt_func(double &);
 void bproptone_func();
-void bgray_func();
-void bram_func();
 void bnefix_func();
 void bfixpowerfrac_func();
-void bnopower_func();
 void bTOMAS_func();
 void bicatlhr_func();
 void bmanuel_func(bool);

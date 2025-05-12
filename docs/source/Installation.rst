@@ -49,3 +49,12 @@ before rebuilding::
     make clean && make -j8
 
 And optionally re-install.
+
+Troubleshooting
+---------------
+
+If you are running macos on one of the ARM macs, openmp is not directly supported under the latest
+clang, to fix this install llvm using homebrew and export the variables::
+
+    export CC=$(brew --prefix llvm)/bin/clang
+    export CXX=$(brew --prefix llvm)/bin/clang++

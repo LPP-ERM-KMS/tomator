@@ -16,14 +16,10 @@ class SimulationParamsApp(tk.Toplevel):
         self.option_widget_map = {}  # Map to store widgets for each type
 
         self.type_to_parameters_mapping = { # Mapping of parameters to hide for each type
-            "bgray": [],
-            "bram": [],
             "bfixpowerfrac": [],
             "bnefix": [],
             "bproptone": ["Rdep1", "PRdep1", "Rdep2", "PRdep2", "Rdep3", "PRdep3", "Rdep4", "PRdep4"],
             "bTOMAS": [],
-            "bnopower": [],
-            "bkipt": [], #"bscaling": [],
             "btunedv": [],
             "bmanuel": [],
         }
@@ -116,14 +112,10 @@ class SimulationParamsApp(tk.Toplevel):
             rf_power_group,
             "Type",
             [
-                ("bgray", tk.BooleanVar(value=False)),
-                ("bram", tk.BooleanVar(value=False)),
                 ("bfixpowerfrac", tk.BooleanVar(value=False)),
                 ("bnefix", tk.BooleanVar(value=True)),
                 ("bTOMAS", tk.BooleanVar(value=False)),
                 ("bproptone", tk.BooleanVar(value=False)),
-                ("bnopower", tk.BooleanVar(value=False)),
-                ("bkipt", tk.BooleanVar(value=False)),
                 ("blhr", tk.BooleanVar(value=False)),
                 ("bmanuel", tk.BooleanVar(value=False)),
                 ("bICWC", tk.BooleanVar(value=False)),
@@ -144,18 +136,6 @@ class SimulationParamsApp(tk.Toplevel):
                 ("harmonic", tk.DoubleVar(value=format(2.0, ".5e"))), # UNITS?
                 ("muw", tk.DoubleVar(value=format(0.01, ".5e"))), # UNITS?
             ],
-        )
-
-        self.add_frame(
-            types_group,
-            "GRAY",
-            [],
-        )
-
-        self.add_frame(
-            types_group,
-            "RAM",
-            [],
         )
 
         self.add_frame(
@@ -201,12 +181,6 @@ class SimulationParamsApp(tk.Toplevel):
 
         self.add_frame(
             types_group,
-            "KIPT",
-            [],
-        )
-
-        self.add_frame(
-            types_group,
             "LHR",
             [
                 ("fracpne", tk.DoubleVar(value=format(1.0, ".5e"))),
@@ -214,18 +188,6 @@ class SimulationParamsApp(tk.Toplevel):
                 ("widthlhr (cm)", tk.DoubleVar(value=format(2.5, ".5e"))),
                 ("lhrbackground", tk.DoubleVar(value=format(1e-7, ".5e"))),
             ],
-        )
-
-        self.add_frame(
-            types_group,
-            "ERM",
-            [],
-        )
-
-        self.add_frame(
-            types_group,
-            "PPPL",
-            [],
         )
 
         self.add_frame(
