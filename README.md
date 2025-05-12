@@ -1,7 +1,7 @@
 # **Tomator: A 1D Plasma Simulation inside a Tokamak** 
 ![logo](logo/logocolor.svg)
 
-[![cmake compiles](https://github.com/LPP-ERM-KMS/tomator/actions/workflows/cmake-single-platform.yml/badge.svg?branch=devel)](https://github.com/LPP-ERM-KMS/tomator/actions/workflows/cmake-single-platform.yml)
+[![CMake on ubuntu](https://github.com/LPP-ERM-KMS/tomator/actions/workflows/cmake-single-platform.yml/badge.svg)](https://github.com/LPP-ERM-KMS/tomator/actions/workflows/cmake-single-platform.yml)
 
 Tomator performs a 1D simulation of the plasma inside a tokamak. The project is
 built in C++ and uses cmake to build it's binary.  The binary takes as argument
