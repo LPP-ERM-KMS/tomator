@@ -23,14 +23,13 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         build_type: [Release]
-        c_compiler: [gcc, clang]
         include:
           - os: ubuntu-latest
             c_compiler: gcc
             cpp_compiler: g++
           - os: macos-latest
-            c_compiler: $(brew --prefix llvm)/bin/clang
-            cpp_compiler: $(brew --prefix llvm)/bin/clang++
+            c_compiler: clang
+            cpp_compiler: clang++
 
     steps:
     - uses: actions/checkout@v4
