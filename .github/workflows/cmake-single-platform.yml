@@ -2,7 +2,7 @@ name: CMake on ubuntu
 
 on:
   push:
-    branches: [ "master","devel" ]
+    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
