@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
         tstartloop = omp_get_wtime();
 
 
-        string basefolder = std::getenv("TOMATOR");
+        string basefolder = std::getenv("TOMATORSOURCE");
         string filename_ = basefolder + "/src/SimParams/Public/hydhel.tex";
         int n = filename_.length();
         char filename[n];
@@ -665,7 +665,6 @@ void getSimParams(const char *json_file, int timeSteps) {
         return;
     }
 
-    string temp = "../";
     std::string folderName = json_file;
     const std::string extension = ".json";
     size_t extPos = folderName.rfind(extension);
@@ -675,8 +674,9 @@ void getSimParams(const char *json_file, int timeSteps) {
     }
 
     // Use std::filesystem::path for safer path operations
-    std::filesystem::path basePath(temp);
-    std::filesystem::path dataFolderPath = basePath / "Data" / folderName;
+    string basefolder = std::getenv("TOMATORRESULTS");
+    std::filesystem::path basePath(basefolder);
+    std::filesystem::path dataFolderPath = basePath / folderName;
 
     // Check if the directory exists and if not, create it
     if (!std::filesystem::exists(dataFolderPath)) {
@@ -686,7 +686,7 @@ void getSimParams(const char *json_file, int timeSteps) {
     // Update sOutputfolder (assuming it's a global or member variable)
     std::string date = getCurrentDate();
     std::filesystem::path outputFolderPath = dataFolderPath / date;
-    sOutputfolder = "../Data/" + folderName + "/" + date;
+    sOutputfolder = basefolder + "/" + folderName + "/" + date;
 
     // TODO: copy input json file into the output folder
 
