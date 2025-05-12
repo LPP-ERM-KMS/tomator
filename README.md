@@ -12,9 +12,8 @@ The full documentation can be found "here" (to be turned into website link) and
 is the suggested reference, for those already familiar with the software, a
 quick start guide is found below
 
-## **Getting Started** 
 
-### Building & **Installation** 
+## Building & **Installation** 
 
 The build steps are the same as other cmake software:
 
@@ -43,19 +42,22 @@ the first directory to the one where you installed tomator and the second
 to where you want the results stored, make sure you created the directory)::
 
 ```console
-    echo "export TOMATORSOURCE=~/tomator" >> ~/.bashrc
-    echo "export TOMATORRESULTS=~/TomatorResults" >> ~/.bashrc
+LPP@ERM/KMS:~$ echo "export TOMATORSOURCE=~/tomator" >> ~/.bashrc
+LPP@ERM/KMS:~$ echo "export TOMATORRESULTS=~/TomatorResults" >> ~/.bashrc
 ```
 
 Adding these to bashrc will make the variables persist across sessions.  If
 modifications were made to the software or you wish to rebuild for other
 reasons make sure to clean first before rebuilding::
 
-    make clean && make -j8
+```console
+LPP@ERM/KMS:~/tomator/src/build$ make clean && make -jX
+```
 
 And optionally re-install.
 
-### Setting up system parameters, running and monitoring the simulation
+## Setting up system parameters, running and monitoring the simulation
+
 Two gui applications were created, SimulationInterface and PlotterInterface,
 both located in the gui folder:
 
@@ -63,7 +65,7 @@ both located in the gui folder:
 LPP@ERM/KMS:~/tomator/gui$ python SimulationInterface.py 
 ``` 
 
-```bash 
+```console
 LPP@ERM/KMS:~/tomator/gui$ python PlotterInterface.py 
 ``` 
 
