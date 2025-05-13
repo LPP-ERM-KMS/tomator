@@ -34,8 +34,6 @@ the second option, example files are located in examples/InputFiles. When clicki
     * Neutral pressure
         The pressures of the various gasses (Helium and dihydrogen)
 
-.. What is bselfcol?
-
 * Coupled (RF) power
     Coupled power functions specify where the power goes, for more info and how
     to add your own see :doc:`RF power`
@@ -81,7 +79,7 @@ the second option, example files are located in examples/InputFiles. When clicki
     * ICH
         * general IC
             As with general EC, parameters which are considered "generally applicible" which here is the
-            antenna position Rant.
+            antenna position Rant, the antenna vacuum resistance avlr and wether to use it bantlr.
 
         * LHR
             Parameters concerning the blhr type, the fraction of power going to the electrons fracpne,

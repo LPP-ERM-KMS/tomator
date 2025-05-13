@@ -47,8 +47,8 @@ int main(int argc, char *argv[]) {
     }
 
     const char *json_file_path = argv[1];
-    getSimParams(json_file_path, timeSteps);
-
+    // Get Parameters from json file
+    getSimParams(json_file_path, timeSteps); 
 
     double tstartloop;
     double tstartcalculation = omp_get_wtime();
@@ -58,15 +58,13 @@ int main(int argc, char *argv[]) {
 
     printf("Start time: %s\n", timestamp);
 
-    omp_set_dynamic(0); //dynamic thread adjustment
+    omp_set_dynamic(1); //dynamic thread adjustment
     {
-
         ofstream outFile;
         string fullfilename = sOutputfolder;
 
         cout << "Uploading data into \"" << fullfilename << "\"\n" << endl;
         outFile.open(fullfilename.c_str(), ios::out | ios::app); // , ios::app
-
 
         init_positions();
         solverInit();
@@ -77,7 +75,7 @@ int main(int argc, char *argv[]) {
 
         if (bfinput == false) {
             writeToOutFile(&outFile);
-            initializeSpecies();
+            initializeSpecies(); //sets all initial densities
         } else {
             infile(sinputfile);
         }
@@ -87,7 +85,6 @@ int main(int argc, char *argv[]) {
         nr1 = nr;
         Er1 = Er;
         tstartloop = omp_get_wtime();
-
 
         string basefolder = std::getenv("TOMATORSOURCE");
         string filename_ = basefolder + "/src/SimParams/Public/hydhel.tex";
@@ -123,8 +120,6 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
 
         #pragma omp parallel for
         for (int im = 0; im < NMESHP; ++im) {
-            // if (im == cc)
-            //     cout << "BEFORE Te " << Tr.Te[im] << " Ee = " << Er.Ee[im] << endl;
             Tr.Te[im] = Er.Ee[im] / (ENERGY_FACTOR * nr.ne[im]);
             Tr.TH[im] = Er.EH[im] / (ENERGY_FACTOR * nr.nH[im]);
             Tr.TH2[im] = Er.EH2[im] / (ENERGY_FACTOR * nr.nH2[im]);
@@ -134,7 +129,6 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             Tr.THeI[im] = Er.EHeI[im] / (ENERGY_FACTOR * nr.nHeI[im]);
             Tr.THeII[im] = Er.EHeII[im] / (ENERGY_FACTOR * nr.nHeII[im]);
             Tr.THeIII[im] = Er.EHeIII[im] / (ENERGY_FACTOR * nr.nHeIII[im]);
-            // cout << im << " " << Tr.Te[im] << endl;
         }
 
         // Reset dnr, dEr and colrate
@@ -622,6 +616,7 @@ void getSimParams(const char *json_file, int timeSteps) {
     
     
     if (timeSteps > 0) {
+        // Only used during test routine
         std::filesystem::path testFolderPath = "Data/Test";
 
         if (!std::filesystem::exists(testFolderPath)) {

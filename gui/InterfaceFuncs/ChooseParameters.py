@@ -171,6 +171,8 @@ class SimulationParamsApp(tk.Toplevel):
             "general ic",
             [
                 ("Rant (cm)", tk.DoubleVar(value=format(200.0, ".5e"))),
+                ("bantlr", tk.BooleanVar(value=False)),
+                ("avlr", tk.DoubleVar(value=format(0.23, ".5e"))), 
             ],
         )
 

@@ -3,7 +3,9 @@
 
 [![CMake on ubuntu](https://github.com/LPP-ERM-KMS/tomator/actions/workflows/cmake-single-platform.yml/badge.svg?branch=master)](https://github.com/LPP-ERM-KMS/tomator/actions/workflows/cmake-single-platform.yml)
 
-Tomator performs a 1D simulation of the plasma inside a tokamak. The project is
+Tomator performs a 1D simulation of the plasma inside a tokamak which
+has succesfully reproduced a TCV helium ECRH plasma [[1]](#1) and an ECWC
+plasma in ASDEX Upgrade [[2]](#2). The project is
 built in C++ and uses cmake to build it's binary.  The binary takes as argument
 a json file which specifies the simulation. The software comes with two main
 interfaces: one for setting up the json file and executing the simulation, and another for
@@ -73,3 +75,8 @@ LPP@ERM/KMS:~/tomator/gui$ python PlotterInterface.py
 The SimulationInterface program allows a user to define a simulation and/or load a pre-defined simulation
 but also run the simulation. The PlotterInterface software allows a user to monitor the simulation result
 in real time, by navigating it to the output csv file (in the folder defined in TOMATORRESULTS/inputfilename).
+
+<a id="1">[1]</a> 
+Wauters, T., Buermans, J., Haelterman, R., Moiseenko, V., Ricci, D., Verhaeghe, T., … the EUROfusion MST1 team. (2020). RF plasma simulations using the TOMATOR 1D code : a case study for TCV helium ECRH plasmas. PLASMA PHYSICS AND CONTROLLED FUSION, 62(10). https://doi.org/10.1088/1361-6587/aba767
+<a id="2">[2]</a> 
+Wauters, T., Buermans, J., Cavalier, J., Huett, E., Ragona, R., Svoboda, J., … Eurofusion Mst Team, [missing]. (2023). Characterisation of electron cyclotron wall conditioning plasma in ASDEX Upgrade. NUCLEAR FUSION, 63(6). https://doi.org/10.1088/1741-4326/acc674

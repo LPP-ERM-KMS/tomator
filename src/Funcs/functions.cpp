@@ -293,7 +293,7 @@ void initializeSpecies() {
         double fct_n0, fct_dn0;
 
         if (aR[im] <= rmaxini) {
-            fct_n0 = nebackgroundl + exp(-pow((aR[im] - rmaxini) / (widthini), 2.0));
+            fct_n0 = nebackgroundl + exp(-pow((aR[im] - rmaxini) / (widthini), 2.0)); //spiked at rmaxini width widthini
             fct_dn0 = -2.0 * (aR[im] - rmaxini) / pow((widthini), 2.0) * (fct_n0 - nebackgroundl);
         } else {
             fct_n0 = nebackgroundr + exp(-pow((aR[im] - rmaxini) / (2.0 * widthini), 2.0));
