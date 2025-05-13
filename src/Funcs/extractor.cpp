@@ -462,18 +462,6 @@ int extract_general_ic(const char *json) {
     int returnv = 0;
     char *json_object = get_group(json, "general_ic");
 
-    if (!extract_boolean_value(json_object, "bantlr", &bantlr)) {
-        print_yellow("[Warning]: Parameter \"bantlr\" not found on \"ich\" \n"); // Key not found
-        returnv = -1;
-    }
-    if (!extract_double_value(json_object, "avlr", &avlr)) {
-        print_yellow("[Warning]: Parameter \"avlr\" not found on \"ich\" \n"); // Key not found
-        returnv = -1;
-    }
-    if (!extract_double_value(json_object, "alphalaw", &alphalaw)) {
-        print_yellow("[Warning]: Parameter \"alphalaw\" not found on \"ich\" \n");
-        returnv = -1;
-    }
     if (!extract_double_value(json_object, "Rant", &Rant)) {
         print_yellow("[Warning]: Parameter \"Rant\" not found on \"ich\" \n"); // Key not found
         returnv = -1;

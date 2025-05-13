@@ -49,7 +49,7 @@ LPP@ERM/KMS:~$ echo "export TOMATORRESULTS=~/TomatorResults" >> ~/.bashrc
 
 Adding these to bashrc will make the variables persist across sessions.  If
 modifications were made to the software or you wish to rebuild for other
-reasons make sure to clean first before rebuilding::
+reasons make sure to clean first before rebuilding:
 
 ```console
 LPP@ERM/KMS:~/tomator/src/build$ make clean && make -jX

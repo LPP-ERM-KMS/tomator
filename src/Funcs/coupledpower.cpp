@@ -29,31 +29,8 @@ std::string trim(const std::string &str) {
     return str.substr(strBegin, strRange);
 }
 
-void coupledpower() //, double PTEST[] )
+void coupledpower() 
 {
-    // static double alphaval, ionalpha;
-    // alphaval=(nr.ne[centerval])/(nH2[centerval] + nHeI[centerval] + nr.ne[centerval]);
-    // the RF module starts working only from about 1e9cm-3
-    // we split the coupled power in 2 parts, if ne is below 1e9, then we put the power proportional to the electron density,
-    // if it is above then we use the RF module and ensure for a smooth transition...
-    // if (bkipt_decay | bkipt_propto)
-
-    // cout << "bkipt = " << bkipt << endl;
-    // cout << "bproptone = " << bproptone << endl;
-    // cout << "bgray = " << bgray << endl;
-    // cout << "bram = " << bram << endl;
-    // cout << "bnefix = " << bnefix << endl;
-    // cout << "bfixpowerfrac = " << bfixpowerfrac << endl;
-    // cout << "bnopower = " << bnopower << endl;
-    // cout << "bTOMAS = " << bTOMAS << endl;
-
-    // cout << "bmanuel = " << bmanuel << endl;
-    // cout << "bICWC = " << bICWC << endl;
-    // exit(EXIT_SUCCESS);
-
-    //if (bkipt) { // KIPT module
-    //    bkipt_func(alr);
-    //}
 
     /////// Prop-to-ne, cylindrical coordinates
     if (bproptone) {
@@ -91,11 +68,7 @@ void coupledpower() //, double PTEST[] )
         bmanuel_func(Nit == 0);
     }
 
-    if (bICWC) {
-        bICWC_func();
-    }
-
-    if ((tmain < (1.02 * dtpramp)) & !(bmanuel | bICWC)) {
+    if ((tmain < (1.02 * dtpramp)) & !(bmanuel)) {
         for (int id = 0; id < NMESHP; ++id) {
             PRFe_array[id] = PRFe_array[id] * ((tmain + 0.02 * dtpramp) / (1.02 * dtpramp));
             PRFHi_array[id] = PRFHi_array[id] * ((tmain + 0.02 * dtpramp) / (1.02 * dtpramp));

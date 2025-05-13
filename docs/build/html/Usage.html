@@ -125,7 +125,9 @@ the limiter extension and the HFS (High Field Side), at the LFS and how many the
 </ul>
 <ul class="simple">
 <li><dl class="simple">
-<dt>Coupled (RF) power</dt><dd><ul>
+<dt>Coupled (RF) power</dt><dd><p>Coupled power functions specify where the power goes, for more info and how
+to add your own see <a class="reference internal" href="RF%20power.html"><span class="doc">Coupled Power Functions</span></a></p>
+<ul>
 <li><dl class="simple">
 <dt>RF power</dt><dd><p>Specify the amount of power (Prf), it’s frequency (freq) and the time it takes
 to ramp up the power (dtpramp)</p>
@@ -133,17 +135,83 @@ to ramp up the power (dtpramp)</p>
 </dl>
 </li>
 <li><dl class="simple">
-<dt>Types of RF power</dt><dd><p>see <a class="reference internal" href="RF%20power.html"><span class="doc">Coupled Power Functions</span></a></p>
+<dt>Types of RF power</dt><dd><ul>
+<li><dl class="simple">
+<dt>proptone</dt><dd><p>deposits power proportional to the electron density, it is also the simplest example.</p>
 </dd>
 </dl>
 </li>
 <li><dl class="simple">
-<dt>ECH</dt><dd><p>variables dependendent on the type, see <cite>RF power</cite></p>
+<dt>nefix</dt><dd><p>Tunes the coupled power for a fixed density at IC</p>
 </dd>
 </dl>
 </li>
 <li><dl class="simple">
-<dt>ICH</dt><dd><p>variables dependent on the type, see <cite>RF power</cite></p>
+<dt>fixpowerfrac</dt><dd><p>Couples a fixed fraction of the launched power</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>blhr</dt><dd><p>Couples a fixed fraction of the launched power (lower hybrid resonance)</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>bTOMAS</dt><dd><p>deposition on ECR, built to fit the TOMAS machine, using the budden method.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>bmanuel</dt><dd><p>Deposition on ECR, done by Manuel</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>ECH</dt><dd><ul>
+<li><dl class="simple">
+<dt>general EC</dt><dd><p>Define parameters which are considered “generally applicable” such as
+the position of power deposition Rdep, the power of EC that was
+absorbed pecabs0, the width of the ECH widthech, the background ECH
+echbackground, the harmonic number (e.g 2) and the losses to the wall
+muw.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>necfix</dt><dd><p>parameters relevant if nefix was chosen prior, the parameters are the vertex of interest ‘ic’,
+the fixed density necfix, the initial power Pini and a tunable error variable tauP.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>TOMAS</dt><dd><p>Multiple power locations and the corresponding fractions.</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>ICH</dt><dd><ul>
+<li><dl class="simple">
+<dt>general IC</dt><dd><p>As with general EC, parameters which are considered “generally applicible” which here is the
+antenna position Rant.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>LHR</dt><dd><p>Parameters concerning the blhr type, the fraction of power going to the electrons fracpne,
+the fraction going to the lower hybrid fraclhr, the with of the lower hybrid widthlhr, the
+background lower hybrid and HtoHD, how much power gets transferred from hydrogen to deuterium.</p>
+</dd>
+</dl>
+</li>
+</ul>
 </dd>
 </dl>
 </li>

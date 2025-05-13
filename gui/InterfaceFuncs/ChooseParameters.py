@@ -118,7 +118,6 @@ class SimulationParamsApp(tk.Toplevel):
                 ("bproptone", tk.BooleanVar(value=False)),
                 ("blhr", tk.BooleanVar(value=False)),
                 ("bmanuel", tk.BooleanVar(value=False)),
-                ("bICWC", tk.BooleanVar(value=False)),
             ],
         )
 
@@ -172,10 +171,6 @@ class SimulationParamsApp(tk.Toplevel):
             "general ic",
             [
                 ("Rant (cm)", tk.DoubleVar(value=format(200.0, ".5e"))),
-                ("bantlr", tk.BooleanVar(value=False)),
-                ("avlr", tk.DoubleVar(value=format(0.23, ".5e"))), # UNITS?
-                ("alphalaw", tk.DoubleVar(value=format(0.002, ".5e"))), # UNITS?
-                ("HtoHD", tk.DoubleVar(value=format(1.0, ".5e"))), # UNITS?
             ],
         )
 
@@ -187,6 +182,7 @@ class SimulationParamsApp(tk.Toplevel):
                 ("fraclhr", tk.DoubleVar(value=format(0.25, ".5e"))),
                 ("widthlhr (cm)", tk.DoubleVar(value=format(2.5, ".5e"))),
                 ("lhrbackground", tk.DoubleVar(value=format(1e-7, ".5e"))),
+                ("HtoHD", tk.DoubleVar(value=format(1.0, ".5e"))), # UNITS?
             ],
         )
 

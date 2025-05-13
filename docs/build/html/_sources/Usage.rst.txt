@@ -37,19 +37,56 @@ the second option, example files are located in examples/InputFiles. When clicki
 .. What is bselfcol?
 
 * Coupled (RF) power
+    Coupled power functions specify where the power goes, for more info and how
+    to add your own see :doc:`RF power`
+
     * RF power
         Specify the amount of power (Prf), it's frequency (freq) and the time it takes
         to ramp up the power (dtpramp)
 
-
     * Types of RF power
-        see :doc:`RF power`
+        * proptone
+            deposits power proportional to the electron density, it is also the simplest example.
+
+        * nefix
+            Tunes the coupled power for a fixed density at IC
+
+        * fixpowerfrac
+            Couples a fixed fraction of the launched power
+
+        * blhr
+            Couples a fixed fraction of the launched power (lower hybrid resonance)
+
+        * bTOMAS
+            deposition on ECR, built to fit the TOMAS machine, using the budden method.
+
+        * bmanuel
+            Deposition on ECR, done by Manuel
 
     * ECH
-        variables dependendent on the type, see `RF power`
+        * general EC
+            Define parameters which are considered "generally applicable" such as
+            the position of power deposition Rdep, the power of EC that was
+            absorbed pecabs0, the width of the ECH widthech, the background ECH
+            echbackground, the harmonic number (e.g 2) and the losses to the wall
+            muw.
+
+        * necfix
+            parameters relevant if nefix was chosen prior, the parameters are the vertex of interest 'ic', 
+            the fixed density necfix, the initial power Pini and a tunable error variable tauP.
+
+        * TOMAS
+            Multiple power locations and the corresponding fractions.
 
     * ICH
-        variables dependent on the type, see `RF power`
+        * general IC
+            As with general EC, parameters which are considered "generally applicible" which here is the
+            antenna position Rant.
+
+        * LHR
+            Parameters concerning the blhr type, the fraction of power going to the electrons fracpne,
+            the fraction going to the lower hybrid fraclhr, the with of the lower hybrid widthlhr, the
+            background lower hybrid and HtoHD, how much power gets transferred from hydrogen to deuterium.
 
     * OTHER
         a fixed temperature for which a csv file containing the dependency may be given.

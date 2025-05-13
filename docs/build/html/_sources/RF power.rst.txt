@@ -1,8 +1,9 @@
 Coupled Power Functions
 =======================
 
-Functions included in TOMATOR 1D
---------------------------------
+A coupled power function sets the RF power at every mesh point for a particular species.
+In general it does this basing itself on the electron density, examples are included with
+the tomator code and may also be created by the user.
 
 Adding a New Coupled Power Function
 -----------------------------------
