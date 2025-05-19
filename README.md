@@ -78,5 +78,6 @@ in real time, by navigating it to the output csv file (in the folder defined in 
 
 <a id="1">[1]</a> 
 Wauters, T., Buermans, J., Haelterman, R., Moiseenko, V., Ricci, D., Verhaeghe, T., … the EUROfusion MST1 team. (2020). RF plasma simulations using the TOMATOR 1D code : a case study for TCV helium ECRH plasmas. PLASMA PHYSICS AND CONTROLLED FUSION, 62(10). https://doi.org/10.1088/1361-6587/aba767
+
 <a id="2">[2]</a> 
 Wauters, T., Buermans, J., Cavalier, J., Huett, E., Ragona, R., Svoboda, J., … Eurofusion Mst Team, [missing]. (2023). Characterisation of electron cyclotron wall conditioning plasma in ASDEX Upgrade. NUCLEAR FUSION, 63(6). https://doi.org/10.1088/1741-4326/acc674
