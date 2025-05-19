@@ -1,4 +1,4 @@
-#! /bin/tcsh
+#!/bin/sh
 
 #SBATCH  -M genius
 #SBATCH  --account=lp_opt_plasma_edge_conf

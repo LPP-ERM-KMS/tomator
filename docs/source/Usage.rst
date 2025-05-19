@@ -108,7 +108,7 @@ the second option, example files are located in examples/InputFiles. When clicki
         impurities, transport ions, transport neutrals, edge particles, poloidal
         drift, vertical drift and collisionality.
     * Initial conditions
-        From what the simulation is started, such as the various densities of the :doc:`species` 
+        From what the simulation is started, such as the various densities of the species
         present in the plasma and the initial temperature and densities of the electrons.
     * Edge conditions
         if edge physics was selected in the physics tab this governs the edge physics equations
@@ -141,11 +141,10 @@ which you started the simulation, as you ran the gui this will be in the tomator
 Running a simulation: using the binary directly
 -----------------------------------------------
 
-The binary takes as a required argument the json file and as optional argument the simulation time 
-(in number of timesteps) using the flag -t, in full a simulation can thus be ran as 
-(here from the tomator directory)::
+The binary takes as a required argument the json file, a simulation can thus be
+ran in the terminal as::
 
-    ./src/build/Tomator1D examples/SimParams/TCV5151X_fixneDV.json -t 100
+    Tomator1D TCV5151X_fixneDV.json
 
 Overview of the simulation: PlotterInterface.py
 -----------------------------------------------

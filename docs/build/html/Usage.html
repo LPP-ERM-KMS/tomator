@@ -122,8 +122,6 @@ the limiter extension and the HFS (High Field Side), at the LFS and how many the
 </dd>
 </dl>
 </li>
-</ul>
-<ul class="simple">
 <li><dl class="simple">
 <dt>Coupled (RF) power</dt><dd><p>Coupled power functions specify where the power goes, for more info and how
 to add your own see <a class="reference internal" href="RF%20power.html"><span class="doc">Coupled Power Functions</span></a></p>
@@ -200,7 +198,7 @@ the fixed density necfix, the initial power Pini and a tunable error variable ta
 <dt>ICH</dt><dd><ul>
 <li><dl class="simple">
 <dt>general IC</dt><dd><p>As with general EC, parameters which are considered “generally applicible” which here is the
-antenna position Rant.</p>
+antenna position Rant, the antenna vacuum resistance avlr and wether to use it bantlr.</p>
 </dd>
 </dl>
 </li>
@@ -260,7 +258,7 @@ drift, vertical drift and collisionality.</p>
 </dl>
 </li>
 <li><dl class="simple">
-<dt>Initial conditions</dt><dd><p>From what the simulation is started, such as the various densities of the <span class="xref std std-doc">species</span>
+<dt>Initial conditions</dt><dd><p>From what the simulation is started, such as the various densities of the species
 present in the plasma and the initial temperature and densities of the electrons.</p>
 </dd>
 </dl>
@@ -323,10 +321,9 @@ which you started the simulation, as you ran the gui this will be in the tomator
 </section>
 <section id="running-a-simulation-using-the-binary-directly">
 <h2>Running a simulation: using the binary directly<a class="headerlink" href="#running-a-simulation-using-the-binary-directly" title="Link to this heading"></a></h2>
-<p>The binary takes as a required argument the json file and as optional argument the simulation time
-(in number of timesteps) using the flag -t, in full a simulation can thus be ran as
-(here from the tomator directory):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">src</span><span class="o">/</span><span class="n">build</span><span class="o">/</span><span class="n">Tomator1D</span> <span class="n">examples</span><span class="o">/</span><span class="n">SimParams</span><span class="o">/</span><span class="n">TCV5151X_fixneDV</span><span class="o">.</span><span class="n">json</span> <span class="o">-</span><span class="n">t</span> <span class="mi">100</span>
+<p>The binary takes as a required argument the json file, a simulation can thus be
+ran in the terminal as:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Tomator1D</span> <span class="n">TCV5151X_fixneDV</span><span class="o">.</span><span class="n">json</span>
 </pre></div>
 </div>
 </section>
