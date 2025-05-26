@@ -1,5 +1,5 @@
 # **Tomator: A 1D Plasma Simulation inside a Tokamak** 
-![logo](logo/logocolor.svg)
+![logo](logo/logocolortorus.svg)
 
 [![CMake on ubuntu](https://github.com/LPP-ERM-KMS/tomator/actions/workflows/cmake-single-platform.yml/badge.svg?branch=master)](https://github.com/LPP-ERM-KMS/tomator/actions/workflows/cmake-single-platform.yml)
 
