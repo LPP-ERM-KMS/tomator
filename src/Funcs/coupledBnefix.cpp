@@ -26,7 +26,7 @@ void bnefix_func() {
     while (aR[id] < Rdep)
         ++id;
     // cout << aR[id] << endl;
-    double necalc = max(nr.ne[id], nr.ne[id + 1]); // cout << id << endl; //nr.ne[90]; if (necalc>1.0e13) {necalc=1.0e13;}
+    //double necalc = max(nr.ne[id], nr.ne[id + 1]); // cout << id << endl; //nr.ne[90]; if (necalc>1.0e13) {necalc=1.0e13;}
     double Tecalc = max(Tr.Te[id], Tr.Te[id + 1]); // Tr.Te[90];
     if (Tecalc >= 5000.0) {
         Tecalc = 5000.0;
