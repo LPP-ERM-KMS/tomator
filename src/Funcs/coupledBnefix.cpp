@@ -26,6 +26,7 @@ void bnefix_func() {
     while (aR[id] < Rdep)
         ++id;
     // cout << aR[id] << endl;
+    //double necalc = max(nr.ne[id], nr.ne[id + 1]); // cout << id << endl; //nr.ne[90]; if (necalc>1.0e13) {necalc=1.0e13;}
     double Tecalc = max(Tr.Te[id], Tr.Te[id + 1]); // Tr.Te[90];
     if (Tecalc >= 5000.0) {
         Tecalc = 5000.0;
@@ -35,6 +36,8 @@ void bnefix_func() {
     double dpabs = log10(0.109052 / 0.100026);
     double cst = log10(50.0) * dpabs / dTe - log10(0.100026);
     pecabs = pow(10.0, log10(Tecalc) * dpabs / dTe - cst); 
+    // cout << " ne = " << necalc << "    Te = " << Tecalc << "     pecabs = " << pecabs << endl;
+
 
     for (int id = 0; id < NMESHP; ++id) { // line integrated density
         if (nr.ne[id] > nemax) {

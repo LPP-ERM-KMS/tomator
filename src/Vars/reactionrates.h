@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <unordered_map>
 #include <string.h>
+#include "simparam.h"
 
 // Reaction labels
 enum Reaction {

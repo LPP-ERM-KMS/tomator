@@ -29,12 +29,41 @@ std::string trim(const std::string &str) {
     return str.substr(strBegin, strRange);
 }
 
-void coupledpower() 
+void coupledpower(const double &freq, double &alr) //, double PTEST[] )
 {
+    // static double alphaval, ionalpha;
+    // alphaval=(nr.ne[centerval])/(nH2[centerval] + nHeI[centerval] + nr.ne[centerval]);
+    // the RF module starts working only from about 1e9cm-3
+    // we split the coupled power in 2 parts, if ne is below 1e9, then we put the power proportional to the electron density,
+    // if it is above then we use the RF module and ensure for a smooth transition...
+    // if (bkipt_decay | bkipt_propto)
+
+    // cout << "bkipt = " << bkipt << endl;
+    // cout << "bproptone = " << bproptone << endl;
+    // cout << "bgray = " << bgray << endl;
+    // cout << "bram = " << bram << endl;
+    // cout << "bnefix = " << bnefix << endl;
+    // cout << "bfixpowerfrac = " << bfixpowerfrac << endl;
+    // cout << "bnopower = " << bnopower << endl;
+    // cout << "bTOMAS = " << bTOMAS << endl;
+
+    // cout << "bmanuel = " << bmanuel << endl;
+    // cout << "bICWC = " << bICWC << endl;
+    // exit(EXIT_SUCCESS);
 
     /////// Prop-to-ne, cylindrical coordinates
     if (bproptone) {
         bproptone_func();
+    }
+
+    /////// Gray - central deposition
+    if (bgray) {
+        bgray_func();
+    }
+
+    ///// Tulchhi Ram IPR - central deposition
+    if (bram) {
+        bram_func();
     }
 
     ///// Tune coupled power for fixed density at ic
@@ -50,6 +79,11 @@ void coupledpower()
     ///// couple fixed fraction of launched power
     if (blhr) {
         bicatlhr_func();
+    }
+
+    /////// no power
+    if (bnopower) {
+        bnopower_func();
     }
 
     //////////////////////////////////////////
@@ -68,7 +102,11 @@ void coupledpower()
         bmanuel_func(Nit == 0);
     }
 
-    if ((tmain < (1.02 * dtpramp)) & !(bmanuel)) {
+    if (bICWC) {
+        bICWC_func();
+    }
+
+    if ((tmain < (1.02 * dtpramp)) & !(bmanuel | bICWC)) {
         for (int id = 0; id < NMESHP; ++id) {
             PRFe_array[id] = PRFe_array[id] * ((tmain + 0.02 * dtpramp) / (1.02 * dtpramp));
             PRFHi_array[id] = PRFHi_array[id] * ((tmain + 0.02 * dtpramp) / (1.02 * dtpramp));

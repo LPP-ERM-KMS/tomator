@@ -1,11 +1,8 @@
 // Last update: 2021-10-05
 
 // Libraries
-#include <omp.h>
-#include <string>
-#include <cstring>
-#include <cstdlib>
 #include <filesystem>
+#include <omp.h>
 
 // Function definitions
 #include "Funcs/coupledpower.h"
@@ -47,8 +44,8 @@ int main(int argc, char *argv[]) {
     }
 
     const char *json_file_path = argv[1];
-    // Get Parameters from json file
-    getSimParams(json_file_path, timeSteps); 
+    getSimParams(json_file_path, timeSteps);
+
 
     double tstartloop;
     double tstartcalculation = omp_get_wtime();
@@ -58,24 +55,30 @@ int main(int argc, char *argv[]) {
 
     printf("Start time: %s\n", timestamp);
 
-    omp_set_dynamic(1); //dynamic thread adjustment
+    omp_set_dynamic(1);
+    // #pragma omp parallel num_threads(ISCAN)
     {
+
         ofstream outFile;
         string fullfilename = sOutputfolder;
 
         cout << "Uploading data into \"" << fullfilename << "\"\n" << endl;
         outFile.open(fullfilename.c_str(), ios::out | ios::app); // , ios::app
 
+
         init_positions();
         solverInit();
 
         nHeI0 = computeN(pHe, Ta0);
         nH20 = computeN(pH2, Ta0);
+        cout << "He0 fixed density is: " << nHeI0*1e6 << " 1/m3" << endl;
+        cout << "H2 fixed density is: " << nH20*1e6 << " 1/m3" << endl;
         nCI0 = 0.001 * (pH2 + pHe) * 100.0 / (Ta0 * 11600.0 * kb) / 1.0e6;
+        if (bADAS) cout << "ADAS database will be used." << endl;
 
         if (bfinput == false) {
-            writeToOutFile(&outFile);
-            initializeSpecies(); //sets all initial densities
+            writeToOutFile(&outFile, timestamp);
+            initializeSpecies();
         } else {
             infile(sinputfile);
         }
@@ -120,6 +123,8 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
 
         #pragma omp parallel for
         for (int im = 0; im < NMESHP; ++im) {
+            // if (im == cc)
+            //     cout << "BEFORE Te " << Tr.Te[im] << " Ee = " << Er.Ee[im] << endl;
             Tr.Te[im] = Er.Ee[im] / (ENERGY_FACTOR * nr.ne[im]);
             Tr.TH[im] = Er.EH[im] / (ENERGY_FACTOR * nr.nH[im]);
             Tr.TH2[im] = Er.EH2[im] / (ENERGY_FACTOR * nr.nH2[im]);
@@ -129,6 +134,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             Tr.THeI[im] = Er.EHeI[im] / (ENERGY_FACTOR * nr.nHeI[im]);
             Tr.THeII[im] = Er.EHeII[im] / (ENERGY_FACTOR * nr.nHeII[im]);
             Tr.THeIII[im] = Er.EHeIII[im] / (ENERGY_FACTOR * nr.nHeIII[im]);
+            // cout << im << " " << Tr.Te[im] << endl;
         }
 
         // Reset dnr, dEr and colrate
@@ -297,7 +303,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             // 							PIerrorP, mytid, dtnew,
             //               PRFe_array, PRFHi_array, PRFH2i_array, PRFH3i_array, PRFHeII_array, PRFHeIII_array);
 
-            coupledpower();
+            coupledpower(freq, alr);
 
             // if (bkipt == true) {cout << " Wall clock time " << (omp_get_wtime()-tstart) << " s " << endl;}
             if (dtRFvar) {
@@ -305,7 +311,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
                 ERF_save = Er;
             }
 
-            #pragma omp parallel for
+#pragma omp parallel for
             for (int im = 0; im < NMESHP; ++im) {
                 if ((bkipt == true) && (bantlr == true)) // use antenna resistance
                 {
@@ -355,8 +361,6 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
                 // mTe += 0.5*(Tr.Te[id]*aR[id]+Tr.Te[id+1]*aR[id+1])*(aR[id+1]-aR[id])/(pow(aR[NMESHP-1],2.0)-pow(aR[0],2.0)); // some average Te...
             }
             alphaval = lne / lnn;
-
-            #pragma omp parallel for
             for (int im = 0; im < NMESHP; ++im) {
                 // Shouldn't lne and lnn be set to 0 for every MESHPoint??, indeed!
                 PRFe_id[im] = PRFe_array_stat[im] * (1.0 - exp(-10.0 * alphaval / alphalaw));
@@ -368,7 +372,6 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             }
         }
         else {
-            #pragma omp parallel for
             for (int im = 0; im < NMESHP; ++im) {
                 PRFe_id[im] = PRFe_array_stat[im];
                 PRFHi_id[im] = PRFHi_array_stat[im];
@@ -379,7 +382,6 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             }
         }
 
-        #pragma omp parallel for
         for (int im = 0; im < NMESHP; ++im) {
             dEr.dEe[im] += PRFe_id[im];
             dEr.dEHi[im] += PRFHi_id[im];
@@ -416,7 +418,9 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             cout << ",   Pecabs = " << pecabs;
             }
             cout << ",   D[cc] = " << Dion[cc]
-                 << ",   V[cc] = " << Vion[cc];
+                 << ",   V[cc] = " << Vion[cc]
+                 << ",   DH[cc] = " << DH[cc]
+                 << ",   DH2[cc] = " << DH2[cc];
                  // << ",   loop time = " << (omp_get_wtime() - tstartloop) << " s"
                  // << ",   Av dt = " << AvTimeStep
             if (btunedv){
@@ -572,6 +576,7 @@ void getSimParams(const char *json_file, int timeSteps) {
     extract_tomas(file_content);
     extract_general_ic(file_content);
     extract_other(file_content);
+    extract_at_lhr(file_content);
     extract_diffusion(file_content);
     extract_convection(file_content);
     extract_tune_transport(file_content);
@@ -585,6 +590,7 @@ void getSimParams(const char *json_file, int timeSteps) {
     extract_advanced_time_step_settings(file_content);
     extract_output_parameters(file_content);
     extract_solver_parameters(file_content);
+
 
     if (NMESHP != nmeshp) { 
         // Error, print red message and exit
@@ -616,7 +622,6 @@ void getSimParams(const char *json_file, int timeSteps) {
     
     
     if (timeSteps > 0) {
-        // Only used during test routine
         std::filesystem::path testFolderPath = "Data/Test";
 
         if (!std::filesystem::exists(testFolderPath)) {
@@ -660,6 +665,7 @@ void getSimParams(const char *json_file, int timeSteps) {
     std::string date = getCurrentDate();
     std::filesystem::path outputFolderPath = dataFolderPath / date;
     sOutputfolder = basefolder + "/" + folderName + "/" + date;
+
 
     // TODO: copy input json file into the output folder
 

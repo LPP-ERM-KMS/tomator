@@ -10,6 +10,7 @@
 #include "../Vars/matrixh.h"
 #include "../Vars/positions.h"
 #include "../Vars/reactionrates.h"
+#include "../Vars/simparam.h"
 
 
 void init_positions();

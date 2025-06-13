@@ -17,7 +17,7 @@ void init_positions() {
 
     // double Br[NMESHP];
     for (int id = 0; id < NMESHP; ++id) {
-        Br[id] = Bt * R / (aR[id]);
+        Br[id] = Bt * R / (aR[id]); // toroidal field: ~ 1/R
     }
 
     initAuxiliarPos();
@@ -161,10 +161,10 @@ void initAuxiliarPos() {
         VLdfbvb[i] = t1 * (r_b - r_a) * (0.3e1 * r_a + 0.5e1 * r_b);
         SLsa[i] = (r_a / 0.15e2 + r_b / 0.12e2) * (r_b - r_a);
         SLsb[i] = (r_a / 0.12e2 + 0.4e1 / 0.15e2 * r_b) * (r_b - r_a);
-        //ELfa[i] = -0.11e2 / 0.35e2 * r_a - 0.13e2 / 0.70e2 * r_b; //assumption: not used
-        //ELfb[i] = 0.24e2 / 0.35e2 * r_b - 0.13e2 / 0.70e2 * r_a;
-        //ELdfa[i] = (-r_a / 0.70e2 - 0.3e1 / 0.70e2 * r_b) * r_b + 0.2e1 / 0.35e2 * r_a * r_a;
-        //ELdfb[i] = (0.2e1 / 0.35e2 * r_b - r_a / 0.70e2) * r_b - 0.3e1 / 0.70e2 * r_a * r_a;
+        ELfa[i] = -0.11e2 / 0.35e2 * r_a - 0.13e2 / 0.70e2 * r_b;
+        ELfb[i] = 0.24e2 / 0.35e2 * r_b - 0.13e2 / 0.70e2 * r_a;
+        ELdfa[i] = (-r_a / 0.70e2 - 0.3e1 / 0.70e2 * r_b) * r_b + 0.2e1 / 0.35e2 * r_a * r_a;
+        ELdfb[i] = (0.2e1 / 0.35e2 * r_b - r_a / 0.70e2) * r_b - 0.3e1 / 0.70e2 * r_a * r_a;
         t1 = r_b - r_a;
         dTLfa[i] = -pow(t1, 0.2e1) * (0.7e1 * r_a + 0.6e1 * r_b) / 0.420e3;
         t1 = r_b - r_a;
@@ -205,6 +205,12 @@ void initAuxiliarPos() {
         dSLsa[i] = t2 * (r_a + r_b) * pow(t1, 0.2e1);
         t1 = r_b - r_a;
         dSLsb[i] = (-r_a / 0.60e2 - r_b / 0.30e2) * pow(t1, 0.2e1);
+        dELfa[i] = (0.11e2 / 0.420e3 * r_b + r_a / 0.21e2) * r_b - 0.31e2 / 0.420e3 * r_a * r_a;
+        dELfb[i] = (0.5e1 / 0.42e2 * r_a - 0.23e2 / 0.210e3 * r_b) * r_b - r_a * r_a / 0.105e3;
+        t1 = r_a * r_a;
+        dELdfa[i] = ((r_a / 0.420e3 + r_b / 0.210e3) * r_b - 0.2e1 / 0.105e3 * t1) * r_b + r_a * t1 / 0.84e2;
+        t1 = 0.1e1 / 0.210e3;
+        dELdfb[i] = t1 * (-pow(r_a, 0.3e1) + pow(r_b, 0.3e1)) + r_a * r_b * (r_a - r_b) / 0.70e2;
     }
 
     // right sides
@@ -251,10 +257,17 @@ void initAuxiliarPos() {
         VRdfcvc[i] = (r_b / 0.70e2 - r_c / 0.28e2) * r_c + 0.3e1 / 0.140e3 * r_b * r_b;
         SRsb[i] = (0.4e1 / 0.15e2 * r_b + r_c / 0.12e2) * (r_c - r_b);
         SRsc[i] = (r_b / 0.12e2 + r_c / 0.15e2) * (r_c - r_b);
+        ERfb[i] = -0.24e2 / 0.35e2 * r_b + 0.13e2 / 0.70e2 * r_c;
+        ERfc[i] = 0.13e2 / 0.70e2 * r_b + 0.11e2 / 0.35e2 * r_c;
+        ERdfb[i] = (0.3e1 / 0.70e2 * r_c + r_b / 0.70e2) * r_c - 0.2e1 / 0.35e2 * r_b * r_b;
+        ERdfc[i] = (r_b / 0.70e2 - 0.2e1 / 0.35e2 * r_c) * r_c + 0.3e1 / 0.70e2 * r_b * r_b;
         t1 = r_c - r_b;
         dTRfb[i] = (r_b / 0.28e2 + r_c / 0.60e2) * pow(t1, 0.2e1);
+        t1 = r_c - r_b;
         dTRfc[i] = (r_b / 0.70e2 + r_c / 0.60e2) * pow(t1, 0.2e1);
+        t1 = r_c - r_b;
         dTRdfb[i] = (-r_b * r_b / 0.168e3 - (-0.2e1 * r_b - 0.3e1 * r_c) * r_c / 0.840e3) * pow(t1, 0.2e1);
+        t1 = r_c - r_b;
         t2 = -0.1e1 / 0.280e3;
         dTRdfc[i] = t2 * (-r_b * r_b + r_c * r_c) * pow(t1, 0.2e1);
         t1 = -0.1e1 / 0.35e2;
@@ -281,6 +294,12 @@ void initAuxiliarPos() {
         dSRsb[i] = pow(t1, 0.2e1) * (r_c + 0.2e1 * r_b) / 0.60e2;
         t1 = r_c - r_b;
         dSRsc[i] = pow(t1, 0.2e1) * (r_b + r_c) / 0.60e2;
+        dERfb[i] = (r_c / 0.105e3 - 0.5e1 / 0.42e2 * r_b) * r_c + 0.23e2 / 0.210e3 * r_b * r_b;
+        dERfc[i] = (0.31e2 / 0.420e3 * r_c - r_b / 0.21e2) * r_c - 0.11e2 / 0.420e3 * r_b * r_b;
+        t1 = -0.1e1 / 0.210e3;
+        dERdfb[i] = r_c * r_b * (r_b - r_c) / 0.70e2 + t1 * (pow(r_b, 0.3e1) - pow(r_c, 0.3e1));
+        t1 = r_b * r_b;
+        dERdfc[i] = ((0.2e1 / 0.105e3 * r_b - r_c / 0.84e2) * r_c - t1 / 0.420e3) * r_c - r_b * t1 / 0.210e3;
     }
 }
 
@@ -293,7 +312,7 @@ void initializeSpecies() {
         double fct_n0, fct_dn0;
 
         if (aR[im] <= rmaxini) {
-            fct_n0 = nebackgroundl + exp(-pow((aR[im] - rmaxini) / (widthini), 2.0)); //spiked at rmaxini width widthini
+            fct_n0 = nebackgroundl + exp(-pow((aR[im] - rmaxini) / (widthini), 2.0));
             fct_dn0 = -2.0 * (aR[im] - rmaxini) / pow((widthini), 2.0) * (fct_n0 - nebackgroundl);
         } else {
             fct_n0 = nebackgroundr + exp(-pow((aR[im] - rmaxini) / (2.0 * widthini), 2.0));
@@ -387,85 +406,117 @@ void limiters() {
         while ((aR[im] < lHFS) | (aR[im] > lLFS)) {
             Z = 1.0;
             mu = 1.0;
-            Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * (Tr.Te[im] + Tr.THi[im] * nr.nHi[im] / nr.ne[im])) * pow(1.0 + nevac / nr.ne[im], -0.66) * pow(1.0 + nevac / nr.nHi[im], -0.66)); //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
-            // Tauion = 0.66*2.0*pi*aR[im]/nlimiters/(9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.THi[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nHi[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+            Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * (Tr.Te[im] + Tr.THi[im] * nr.nHi[im] / nr.ne[im])) * 			     ndamp(nr.ne[im]) * ndamp(nr.nHi[im]));
+	    // if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+	    // Tauion = 0.66*2.0*pi*aR[im]/nlimiters/(9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.THi[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * 				pow(1.0+nevac/nr.nHi[im],-0.66));
+	    // if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
             dnr.dnHi[im] -= nr.nHi[im] / Tauion;
-	    #ifdef debug
-	    	cout << "H+ losses = " << dnr.dnHi[im] << " [1/s]" << endl;
-	    #endif
             dEr.dEHi[im] -= Er.EHi[im] / (Tauion / gEe);
             dnr.dne[im] -= Z * nr.nHi[im] / Tauion;
-	    #ifdef debug
-	    	cout << "e- losses = " << dnr.dne[im] << " [1/s]" << endl;
-	    #endif
             dEr.dEe[im] -= Z * nr.nHi[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
             dnr.dnH2[im] += 0.5 * nr.nHi[im] / Tauion;
             dEr.dEH2[im] += 0.5 * nr.nHi[im] / Tauion * 3.0 / 2.0 * Ta0;
+	    #ifdef debug
+	    	cout << "H+ losses = " << -nr.nHi[im]/Tauion << " [1/s]" << endl;
+	    	cout << "EH+ losses = " << -Er.EHi[im]/(Tauion/gEe) << " [J/s]" << endl;
+		cout << "e- losses = " << -Z*nr.nHi[im]/Tauion << " [1/s]" << endl;
+	    	cout << "Ee- losses = " << -Z*nr.nHi[im]/(Tauion/gEe)*Tr.Te[im]*3.0/2.0 << " [J/s]" << endl;
+	    	cout << "H2 gain = " << 0.5*nr.nHi[im]/Tauion << " [1/s]" << endl;
+	    	cout << "EH2 gain = " << 0.5*nr.nHi[im]/Tauion*3.0/2.0*Ta0 << " [J/s]" << endl;
+	    #endif
+
             // Z=1.0;
             mu = 2.0;
-            Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * (Tr.Te[im] + Tr.TH2i[im] * nr.nH2i[im] / nr.ne[im])) * pow(1.0 + nevac / nr.ne[im], -0.66) * pow(1.0 + nevac / nr.nH2i[im], -0.66)); //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
-            // Tauion = 0.66*2.0*pi*aR[im]/nlimiters/(9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.TH2i[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nH2i[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+            Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * (Tr.Te[im] + Tr.TH2i[im] * nr.nH2i[im] / nr.ne[im])) * 			     ndamp(nr.ne[im]) * ndamp(nr.nH2i[im])); 
+	    // if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+	    // Tauion = 0.66*2.0*pi*aR[im]/nlimiters/(9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.TH2i[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * 				pow(1.0+nevac/nr.nH2i[im],-0.66)); 
+	    // if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
             dnr.dnH2i[im] -= nr.nH2i[im] / Tauion;
             dEr.dEH2i[im] -= Er.EH2i[im] / (Tauion / gEe);
             dnr.dne[im] -= Z * nr.nH2i[im] / Tauion;
             dEr.dEe[im] -= Z * nr.nH2i[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
             dnr.dnH2[im] += 1.0 * nr.nH2i[im] / Tauion;
             dEr.dEH2[im] += 1.0 * nr.nH2i[im] / Tauion * 3.0 / 2.0 * Ta0;
+
             // Z=1.0;
             mu = 3.0;
-            Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * (Tr.Te[im] + Tr.TH3i[im] * nr.nH3i[im] / nr.ne[im])) * pow(1.0 + nevac / nr.ne[im], -0.66) * pow(1.0 + nevac / nr.nH3i[im], -0.66)); //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
-            // Tauion = 0.66*2.0*pi*aR[im]/nlimiters/(9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.TH3i[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nH3i[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+            Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * (Tr.Te[im] + Tr.TH3i[im] * nr.nH3i[im] / nr.ne[im])) *  			     ndamp(nr.ne[im]) * ndamp(nr.nH3i[im]));
+	    // if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+            // Tauion = 0.66*2.0*pi*aR[im]/nlimiters/(9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.TH3i[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * 		 		pow(1.0+nevac/nr.nH3i[im],-0.66)); 
+	   // if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
             dnr.dnH3i[im] -= nr.nH3i[im] / Tauion;
             dEr.dEH3i[im] -= Er.EH3i[im] / (Tauion / gEe);
             dnr.dne[im] -= Z * nr.nH3i[im] / Tauion;
             dEr.dEe[im] -= Z * nr.nH3i[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
             dnr.dnH2[im] += 1.5 * nr.nH3i[im] / Tauion;
             dEr.dEH2[im] += 1.5 * nr.nH3i[im] / Tauion * 3.0 / 2.0 * Ta0;
+
             // Z=1.0;
             mu = 4.0;
-            Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * (Tr.Te[im] + Tr.THeII[im] * nr.nHeII[im] / nr.ne[im])) * pow(1.0 + nevac / nr.ne[im], -0.66) * pow(1.0 + nevac / nr.nHeII[im], -0.66)); //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
-            // Tauion = 0.66*2.0*pi*aR[im]/nlimiters/(9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.THeII[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nHeII[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+            Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * (Tr.Te[im] + Tr.THeII[im] * nr.nHeII[im] / nr.ne[im])) * 			     ndamp(nr.ne[im]) * ndamp(nr.nHeII[im]));
+	    // if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+            // Tauion = 0.66*2.0*pi*aR[im]/nlimiters/(9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.THeII[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * 				pow(1.0+nevac/nr.nHeII[im],-0.66));
+	    // if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
             dnr.dnHeII[im] -= nr.nHeII[im] / Tauion;
             dEr.dEHeII[im] -= Er.EHeII[im] / (Tauion / gEe);
             dnr.dne[im] -= Z * nr.nHeII[im] / Tauion;
             dEr.dEe[im] -= Z * nr.nHeII[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
             dnr.dnHeI[im] += nr.nHeII[im] / Tauion;
             dEr.dEHeI[im] += nr.nHeII[im] / Tauion * 3.0 / 2.0 * Ta0;
+	    #ifdef debug
+	    	cout << "H+ losses = " << -nr.nHeII[im]/Tauion << " [1/s]" << endl;
+	    	cout << "EH+ losses = " << -Er.EHeII[im]/(Tauion/gEe) << " [J/s]" << endl;
+		cout << "e- losses = " << -Z*nr.nHeII[im]/Tauion << " [1/s]" << endl;
+	    	cout << "Ee- losses = " << -Z*nr.nHeII[im]/(Tauion/gEe)*Tr.Te[im]*3.0/2.0 << " [J/s]" << endl;
+	    	cout << "H2 gain = " << nr.nHeII[im]/Tauion << " [1/s]" << endl;
+	    	cout << "EH2 gain = " << nr.nHeII[im]/Tauion*3.0/2.0*Ta0 << " [J/s]" << endl;
+	    #endif
+
             Z = 2.0;
             // mu=4.0;
-            Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * (Tr.Te[im] + Tr.THeIII[im] * nr.nHeIII[im] / nr.ne[im])) * pow(1.0 + nevac / nr.ne[im], -0.66) * pow(1.0 + nevac / nr.nHeIII[im], -0.66)); //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
-            // Tauion = 0.66*2.0*pi*aR[im]/nlimiters/(9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.THeIII[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nHeIII[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+            Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * (Tr.Te[im] + Tr.THeIII[im] * nr.nHeIII[im] / nr.ne[im])) * 			     ndamp(nr.ne[im]) * ndamp(nr.nHeIII[im]));
+	    // if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+            // Tauion = 0.66*2.0*pi*aR[im]/nlimiters/(9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.THeIII[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * 				pow(1.0+nevac/nr.nHeIII[im],-0.66));
+	    // if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
             dnr.dnHeIII[im] -= nr.nHeIII[im] / Tauion;
             dEr.dEHeIII[im] -= Er.EHeIII[im] / (Tauion / gEe);
             dnr.dne[im] -= Z * nr.nHeIII[im] / Tauion;
             dEr.dEe[im] -= Z * nr.nHeIII[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
             dnr.dnHeI[im] += nr.nHeIII[im] / Tauion;
             dEr.dEHeI[im] += nr.nHeIII[im] / Tauion * 3.0 / 2.0 * Ta0;
+
             if (bimpur) {
                 Z = 1.0;
                 mu = 12.0;
-                Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * Tr.Te[im]) * pow(1.0 + nevac / nr.ne[im], -0.66) * pow(1.0 + nevac / nr.nCII[im], -0.66)); //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+                Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * Tr.Te[im]) * ndamp(nr.ne[im]) * ndamp(nr.nCII[im]));
+		// if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
                 dnr.dnCII[im] -= nr.nCII[im] / Tauion;
                 dnr.dne[im] -= Z * nr.nCII[im] / Tauion;
                 dEr.dEe[im] -= Z * nr.nCII[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
                 dnr.dnCI[im] += nr.nCII[im] / Tauion;
+
                 Z = 2.0;
                 // mu=12.0;
-                Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * Tr.Te[im]) * pow(1.0 + nevac / nr.ne[im], -0.66) * pow(1.0 + nevac / nr.nCIII[im], -0.66)); //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+                Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * Tr.Te[im]) * ndamp(nr.ne[im]) * ndamp(nr.nCIII[im]));
+		// if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
                 dnr.dnCIII[im] -= nr.nCIII[im] / Tauion;
                 dnr.dne[im] -= Z * nr.nCIII[im] / Tauion;
                 dEr.dEe[im] -= Z * nr.nCIII[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
                 dnr.dnCI[im] += nr.nCIII[im] / Tauion;
+
                 Z = 3.0;
                 // mu=12.0;
-                Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * Tr.Te[im]) * pow(1.0 + nevac / nr.ne[im], -0.66) * pow(1.0 + nevac / nr.nCIV[im], -0.66)); //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+                Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * Tr.Te[im]) * ndamp(nr.ne[im]) * ndamp(nr.nCIV[im]));
+		// if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
                 dnr.dnCIV[im] -= nr.nCIV[im] / Tauion;
                 dnr.dne[im] -= Z * nr.nCIV[im] / Tauion;
                 dEr.dEe[im] -= Z * nr.nCIV[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
                 dnr.dnCI[im] += nr.nCIV[im] / Tauion;
+
                 Z = 4.0;
                 // mu=12.0;
-                Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * Tr.Te[im]) * pow(1.0 + nevac / nr.ne[im], -0.66) * pow(1.0 + nevac / nr.nCV[im], -0.66)); //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+                Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * Tr.Te[im]) * ndamp(nr.ne[im]) * ndamp(nr.nCV[im]));
+		// if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
                 dnr.dnCV[im] -= nr.nCV[im] / Tauion;
                 dnr.dne[im] -= Z * nr.nCV[im] / Tauion;
                 dEr.dEe[im] -= Z * nr.nCV[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
@@ -496,7 +547,8 @@ void vdrift_function() {
         // charge state
         // double mu=1.0; // mass unit
 
-        Z = 1.0;                                                                                   // mu=1.0;
+        Z = 1.0;
+	// mu=1.0;
         Tauion = a / (100.0 * 2.0 * kb * Tr.THi[im] * 11600.0 / Z / qe / Br[im] / (aR[im] / 100)); // * sqrt(pow(Br[im],2.0)+pow(Bv,2.0)+pow(Br[im],2.0)) / (9.79e5*sqrt(Z/mu*(Tr.Te[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nHi[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
         #ifdef debug
         	if(Tauion>Tauion_max){
@@ -512,7 +564,9 @@ void vdrift_function() {
         dEr.dEe[im] -= Z * nr.nHi[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
         // dnr.dnH2[im] += 0.5*nr.nHi[im] / Tauion;
         // dEr.dEH2[im] += 0.5*nr.nHi[im] / Tauion  *3.0/2.0*Ta0;
-        Z = 1.0;                                                                                    // mu=2.0;
+
+        Z = 1.0;
+	// mu=2.0;
         Tauion = a / (100.0 * 2.0 * kb * Tr.TH2i[im] * 11600.0 / Z / qe / Br[im] / (aR[im] / 100)); // 2.0*pi*a * sqrt(pow(Br[im],2.0)+pow(Bv,2.0)+pow(Br[im],2.0)) / (9.79e5*sqrt(Z/mu*(Tr.Te[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nH2i[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
         #ifdef debug
         	if(Tauion>Tauion_max){
@@ -528,7 +582,9 @@ void vdrift_function() {
         dEr.dEe[im] -= Z * nr.nH2i[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
         // dnr.dnH2[im] += 1.0*nr.nH2i[im] / Tauion;
         // dEr.dEH2[im] += 1.0*nr.nH2i[im] / Tauion  *3.0/2.0*Ta0;
-        Z = 1.0;                                                                                    // mu=3.0;
+
+        Z = 1.0;
+	// mu=3.0;
         Tauion = a / (100.0 * 2.0 * kb * Tr.TH3i[im] * 11600.0 / Z / qe / Br[im] / (aR[im] / 100)); // 2.0*pi*a * sqrt(pow(Br[im],2.0)+pow(Bv,2.0)+pow(Br[im],2.0)) / (9.79e5*sqrt(Z/mu*(Tr.Te[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nH3i[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
         dnr.dnH3i[im] -= nr.nH3i[im] / Tauion;
         dEr.dEH3i[im] -= Er.EH3i[im] / (Tauion / gEe);
@@ -536,7 +592,9 @@ void vdrift_function() {
         dEr.dEe[im] -= Z * nr.nH3i[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
         //dnr.dnH2[im] += 1.5 * nr.nH3i[im] / Tauion;
         //dEr.dEH2[im] += 1.5 * nr.nH3i[im] / Tauion * 3.0 / 2.0 * Ta0;
-        Z = 1.0;                                                                                     // mu=4.0;
+
+        Z = 1.0;
+	// mu=4.0;
         Tauion = a / (100.0 * 2.0 * kb * Tr.THeII[im] * 11600.0 / Z / qe / Br[im] / (aR[im] / 100)); // 2.0*pi*a * sqrt(pow(Br[im],2.0)+pow(Bv,2.0)+pow(Br[im],2.0)) / (9.79e5*sqrt(Z/mu*(Tr.Te[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nHeII[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
         #ifdef debug
         	if(Tauion>Tauion_max){
@@ -552,7 +610,9 @@ void vdrift_function() {
         dEr.dEe[im] -= Z * nr.nHeII[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
         // dnr.dnHeI[im] += nr.nHeII[im] / Tauion;
         // dEr.dEHeI[im] += nr.nHeII[im] / Tauion  *3.0/2.0*Ta0;
-        Z = 2.0;                                                                                      // mu=4.0;
+
+        Z = 2.0;
+	// mu=4.0;
         Tauion = a / (100.0 * 2.0 * kb * Tr.THeIII[im] * 11600.0 / Z / qe / Br[im] / (aR[im] / 100)); // 2.0*pi*a * sqrt(pow(Br[im],2.0)+pow(Bv,2.0)+pow(Br[im],2.0)) / (9.79e5*sqrt(Z/mu*(Tr.Te[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nHeIII[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
         #ifdef debug
         	if(Tauion>Tauion_max){
@@ -568,26 +628,34 @@ void vdrift_function() {
         dEr.dEe[im] -= Z * nr.nHeIII[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
         // dnr.dnHeI[im] += nr.nHeIII[im] / Tauion;
         // dEr.dEHeI[im] += nr.nHeIII[im] / Tauion  *3.0/2.0*Ta0;
+
         if (bimpur) {
-            Z = 1.0;                                                                                  // mu=12.0;
+            Z = 1.0;
+	    // mu=12.0;
             Tauion = a / (100.0 * 2.0 * kb * Tr.Te[im] * 11600.0 / Z / qe / Br[im] / (aR[im] / 100)); // 2.0*pi*a * sqrt(pow(Br[im],2.0)+pow(Bv,2.0)+pow(Br[im],2.0)) / (9.79e5*sqrt(Z/mu*(Tr.Te[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nCII[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
             dnr.dnCII[im] -= nr.nCII[im] / Tauion;
             dnr.dne[im] -= Z * nr.nCII[im] / Tauion;
             dEr.dEe[im] -= Z * nr.nCII[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
             dnr.dnCI[im] += nr.nCII[im] / Tauion;
-            Z = 2.0;                                                                                  // mu=12.0;
+
+            Z = 2.0;
+	    // mu=12.0;
             Tauion = a / (100.0 * 2.0 * kb * Tr.Te[im] * 11600.0 / Z / qe / Br[im] / (aR[im] / 100)); // 2.0*pi*a * sqrt(pow(Br[im],2.0)+pow(Bv,2.0)+pow(Br[im],2.0)) / (9.79e5*sqrt(Z/mu*(Tr.Te[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nCIII[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
             dnr.dnCIII[im] -= nr.nCIII[im] / Tauion;
             dnr.dne[im] -= Z * nr.nCIII[im] / Tauion;
             dEr.dEe[im] -= Z * nr.nCIII[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
             dnr.dnCI[im] += nr.nCIII[im] / Tauion;
-            Z = 3.0;                                                                                  // mu=12.0;
+
+            Z = 3.0;
+	    // mu=12.0;
             Tauion = a / (100.0 * 2.0 * kb * Tr.Te[im] * 11600.0 / Z / qe / Br[im] / (aR[im] / 100)); // 2.0*pi*a * sqrt(pow(Br[im],2.0)+pow(Bv,2.0)+pow(Br[im],2.0)) / (9.79e5*sqrt(Z/mu*(Tr.Te[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nCIV[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
             dnr.dnCIV[im] -= nr.nCIV[im] / Tauion;
             dnr.dne[im] -= Z * nr.nCIV[im] / Tauion;
             dEr.dEe[im] -= Z * nr.nCIV[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
             dnr.dnCI[im] += nr.nCIV[im] / Tauion;
-            Z = 4.0;                                                                                  // mu=12.0;
+
+            Z = 4.0;
+	    // mu=12.0;
             Tauion = a / (100.0 * 2.0 * kb * Tr.Te[im] * 11600.0 / Z / qe / Br[im] / (aR[im] / 100)); // 2.0*pi*a * sqrt(pow(Br[im],2.0)+pow(Bv,2.0)+pow(Br[im],2.0)) / (9.79e5*sqrt(Z/mu*(Tr.Te[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nCV[im],-0.66)) ; //;        if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
             dnr.dnCV[im] -= nr.nCV[im] / Tauion;
             dnr.dne[im] -= Z * nr.nCV[im] / Tauion;
@@ -616,6 +684,7 @@ void bpol_function() {
 // vertical diffusion enhanced by vertical magnetic field
 //#pragma omp parallel for private(Tauion, Z, Dv)
     for (int im = 0; im < NMESHP; ++im) {
+    	if (!bDfix) {
         mfpi = nr.nHi[im] * 9.79e5 * sqrt((Tr.Te[im] + Tr.THi[im] * nr.nHi[im] / nr.ne[im]) / 1.0) / max(colrate.nuHi[im], 5e3);
         gri = nr.nHi[im] * 1.02e2 / 1.0 * sqrt(1.0 * Tr.THi[im]) / Br[im] / 1e4; // cm
         nui = nr.nHi[im] * max(colrate.nuHi[im], 5e3);
@@ -641,6 +710,10 @@ void bpol_function() {
         nui = nui / (nr.nHi[im] + nr.nH2i[im] + nr.nH3i[im] + nr.nHeII[im] + nr.nHeIII[im]);
 
         Dv = Dfsave * 0.333 * nui * mfpi * (gri + mfpi * Bv / Br[im]);
+        }
+        else {
+        Dv = Dfix;
+        }
         // Tauion = pow(min(b,-1.1696*aR[im]+187.8655),2.0)/(2.0*Dv);
         Tauion = pow(b, 2.0) / (2.0 * Dv);
         #ifdef debug
@@ -652,7 +725,8 @@ void bpol_function() {
 		}
 	#endif
 
-        Z = 1.0; // mu=1.0;
+        Z = 1.0;
+	// mu=1.0;
         // gr = 1.02e2*sqrt(mu*Tr.THi[im])/Br[im]/1e4;
         // mfp= 1.0/.colrate.nuHi[im] * 9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.THi[im]*nr.nHi[im]/nr.ne[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nHi[im],-0.66) ;
         // Dv = Dfsave * 0.333 * .colrate.nuHi[im] * mfp * (gr + mfp*Bv/Br[im] );
@@ -663,7 +737,9 @@ void bpol_function() {
         dEr.dEe[im] -= Z * nr.nHi[im] / (Tauion / gEd) * Tr.Te[im] * 3.0 / 2.0;
         // dnr.dnH2[im] += 0.5*nr.nHi[im] / Tauion;
         // dEr.dEH2[im] += 0.5*nr.nHi[im] / Tauion  *3.0/2.0*Ta0;
-        Z = 1.0; // mu=2.0;
+
+        Z = 1.0;
+	// mu=2.0;
         // gr = 1.02e2*sqrt(mu*Tr.TH2i[im])/Br[im]/1e4;
         // mfp= 1.0/.colrate.nuH2i[im] * 9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.TH2i[im]*nr.nH2i[im]/nr.ne[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nH2i[im],-0.66) ;
         // Dv = Dfsave * 0.333 * .colrate.nuH2i[im] * mfp * (gr + mfp*Bv/Br[im] );
@@ -674,6 +750,7 @@ void bpol_function() {
         dEr.dEe[im] -= Z * nr.nH2i[im] / (Tauion / gEd) * Tr.Te[im] * 3.0 / 2.0;
         // dnr.dnH2[im] += 1.0*nr.nH2i[im] / Tauion;
         // dEr.dEH2[im] += 1.0*nr.nH2i[im] / Tauion  *3.0/2.0*Ta0;
+
         Z = 1.0;
         // mu=3.0;
         //  gr = 1.02e2*sqrt(mu*Tr.TH3i[im])/Br[im]/1e4;
@@ -686,6 +763,7 @@ void bpol_function() {
         dEr.dEe[im] -= Z * nr.nH3i[im] / (Tauion / gEd) * Tr.Te[im] * 3.0 / 2.0;
         // dnr.dnH2[im] += 1.5*nr.nH3i[im] / Tauion;
         // dEr.dEH2[im] += 1.5*nr.nH3i[im] / Tauion  *3.0/2.0*Ta0;
+
         Z = 1.0;
         // mu=4.0;
         //  gr = 1.02e2*sqrt(mu*Tr.THeII[im])/Br[im]/1e4;
@@ -699,6 +777,7 @@ void bpol_function() {
         dEr.dEe[im] -= Z * nr.nHeII[im] / (Tauion / gEd) * Tr.Te[im] * 3.0 / 2.0;
         // dnr.dnHeI[im] += nr.nHeII[im] / Tauion;
         // dEr.dEHeI[im] += nr.nHeII[im] / Tauion  *3.0/2.0*Ta0;
+
         Z = 2.0;
         // gr = 1.02e2*sqrt(mu*Tr.THeIII[im])/Br[im]/1e4;
         // mfp= 1.0/.colrate.nuHeIII[im] * 9.79e5*sqrt(Z/mu*(Tr.Te[im]+Tr.THeIII[im]*nr.nHeIII[im]/nr.ne[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nHeIII[im],-0.66) ;
@@ -710,8 +789,10 @@ void bpol_function() {
         dEr.dEe[im] -= Z * nr.nHeIII[im] / (Tauion / gEd) * Tr.Te[im] * 3.0 / 2.0;
         // dnr.dnHeI[im] += nr.nHeIII[im] / Tauion;
         // dEr.dEHeI[im] += nr.nHeIII[im] / Tauion  *3.0/2.0*Ta0;
+
         if (bimpur) {
-            Z = 1.0; // mu=12.0;
+            Z = 1.0;
+	    // mu=12.0;
             // gr = 1.02e2*sqrt(mu*Tr.Te[im])/Br[im]/1e4;
             // mfp= 1.0/5e4 * 9.79e5*sqrt(Z/mu*(Tr.Te[im])) * pow(1.0+nevac/nr.ne[im],-0.66) * pow(1.0+nevac/nr.nCII[im],-0.66) ;
             // Dv = Dfsave * 0.333 * 5e4 * mfp * (gr + mfp*Bv/Br[im] );
@@ -720,6 +801,7 @@ void bpol_function() {
             dnr.dne[im] -= Z * nr.nCII[im] / Tauion;
             dEr.dEe[im] -= Z * nr.nCII[im] / (Tauion / gEd) * Tr.Te[im] * 3.0 / 2.0;
             dnr.dnCI[im] += nr.nCII[im] / Tauion;
+
             Z = 2.0;
             // mu=12.0;
             //  gr = 1.02e2*sqrt(mu*Tr.Te[im])/Br[im]/1e4;
@@ -730,6 +812,7 @@ void bpol_function() {
             dnr.dne[im] -= Z * nr.nCIII[im] / Tauion;
             dEr.dEe[im] -= Z * nr.nCIII[im] / (Tauion / gEd) * Tr.Te[im] * 3.0 / 2.0;
             dnr.dnCI[im] += nr.nCIII[im] / Tauion;
+
             Z = 3.0;
             // mu=12.0;
             //  gr = 1.02e2*sqrt(mu*Tr.Te[im])/Br[im]/1e4;
@@ -740,6 +823,7 @@ void bpol_function() {
             dnr.dne[im] -= Z * nr.nCIV[im] / Tauion;
             dEr.dEe[im] -= Z * nr.nCIV[im] / (Tauion / gEd) * Tr.Te[im] * 3.0 / 2.0;
             dnr.dnCI[im] += nr.nCIV[im] / Tauion;
+
             Z = 4.0;
             // mu=12.0;
             //  gr = 1.02e2*sqrt(mu*Tr.Te[im])/Br[im]/1e4;

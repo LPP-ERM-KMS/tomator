@@ -1,11 +1,14 @@
 #include "globalVariables.h"
 
-DENS nr, nr_m1, nr_p1; //assumption m1 is minus one, i.e one step back, p1 plus one
+DENS nr, nr_m1, nr_p1;
 TEMP Tr;
 ENER Er, Er_m1, Er_p1;
-dDENS dnr, dnr_cn; //assumption: cn is for adaptive time stepping checks
-dENER dEr, dEr_cn;
-CRATE colrate, colrateRF;
+dDENS dnr;
+dENER dEr;
+dDENS dnr_cn;
+dENER dEr_cn;
+CRATE colrate;
+CRATE colrateRF;
 POWER Power;
 
 double Te_RF[NMESHP];
@@ -27,7 +30,7 @@ double PRFH2i_id[NMESHP];
 double PRFH3i_id[NMESHP];
 double PRFHeII_id[NMESHP];
 double PRFHeIII_id[NMESHP];
-double PRFe_array_stat[NMESHP]; //static array
+double PRFe_array_stat[NMESHP];
 double PRFHi_array_stat[NMESHP];
 double PRFH2i_array_stat[NMESHP];
 double PRFH3i_array_stat[NMESHP];
@@ -102,7 +105,7 @@ double PRFH3i_array[NMESHP];
 double PRFHeII_array[NMESHP];
 double PRFHeIII_array[NMESHP];
 
-double AverageTimer = 0.0; //assumption: monitor for adaptive timestepper
+double AverageTimer = 0.0;
 double AvTimeStep = 0.0;
 double StepTimer[9] = {0.0};
 double ColTimer = 0.0;

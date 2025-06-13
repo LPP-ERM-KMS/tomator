@@ -227,8 +227,8 @@ void transpCoef() { // called in Tomator1D.cpp
     }
 
     // consider to remove this two lines below as they do not seem to do much... 
-    Vion[0] = 0.0;
-    Vion[1] = Vion[1] / 2.0;
+    //Vion[0] = 0.0;
+    //Vion[1] = Vion[1] / 2.0;
 
     // cout << "Dion[cc] = "  << Dion[cc] << ",  Vion[cc] = " << Vion[cc] << endl;
 }
@@ -290,29 +290,35 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
     }
     // BCs ions
     if (1) {
+	if(fixBCs) {
+	lambda = lam_dec_length_ions;
+	bnion(0 + 1) = bnion(0) / lambda;
+	lambda = lam_dec_length_energy;
+        bEion(0 + 1) = bEion(0) / lambda;
+	bEelec(0 + 1) = bnion(0) * Z * 3.0 / 2.0 * Tr.Te[0] /lambda;
+	}
+	else {
         lambda = sqrt(Dion[0] * (0.66 * 2.0 * pi * aR[0] / nlimiters) /
                       (9.79e5 * sqrt(Z / mu * (Tr.Te[0] + bnion(0) / nr.ne[0] * bEion(0) / (3.0 / 2.0 * bnion(0)))) * pow(1.0 + (nevac / nr.ne[0]), -0.66) * pow(1.0 + (nevac / bnion(0)), -0.66)));
-	#ifdef debug
-		cout << "lambda HFS = " << lambda/100 << " [m]" << endl;
-	#endif
         if (lambda < 0.0) {
             cout << "lambda<0.0 HFS after" << endl;
-        }
+	}
         bnion(0 + 1) = bnion(0) / lambda;
-	#ifdef debug
-		cout << "bnion(1) = " << bnion(1) << " [??]" << endl;
-	#endif
         bEion(0 + 1) = bEion(0) / (lambda / sqrt(gEe) * sqrt(gEd));
-	#ifdef debug
-		cout << "bEion(1) = " << bEion(1) << " [??]" << endl;
-	#endif
         // bEion(0+1)            = bnion(0)/lambda*3.0/2.0*Tion[0]   ;//                                                          * pow(1.0+(nevac/nr.ne[0]),-0.66) * pow(1.0+(nevac/bEion(0)),-0.66) * pow(1.0+Ta0/Tion[0],-0.66) ;
         bEelec(0 + 1) = bnion(0) / (lambda / sqrt(gEe) * sqrt(gEd)) * Z * 3.0 / 2.0 * Tr.Te[0];
+	}
+
+	if(fixBCs) {
+	lambda = lam_dec_length_ions;
+	bnion((NMESHP - 1) * 2 + 1) = -bnion((NMESHP - 1) * 2) / lambda;
+	lambda = lam_dec_length_energy;
+        bEion((NMESHP - 1) * 2 + 1) = -bEion((NMESHP - 1) * 2) / lambda;
+	bEelec((NMESHP - 1) * 2 + 1) = -bnion((NMESHP - 1) * 2) * Z * 3.0 / 2.0 * Tr.Te[NMESHP - 1] / lambda;
+	}
+	else {
         lambda = sqrt(Dion[NMESHP - 1] * (0.66 * 2.0 * pi * aR[NMESHP - 1] / nlimiters) /
                       (9.79e5 * sqrt(Z / mu * (Tr.Te[NMESHP - 1] + bnion((NMESHP - 1) * 2) / nr.ne[NMESHP - 1] * (bEion((NMESHP - 1) * 2) / (3.0 / 2.0 * bnion((NMESHP - 1) * 2))))) * pow(1.0 + (nevac / nr.ne[NMESHP - 1]), -0.66) * pow(1.0 + (nevac / bnion((NMESHP - 1) * 2)), -0.66)));
-	#ifdef debug
-		cout << "lambda LFS = " << lambda << " [m]" << endl;
-	#endif
         if (lambda < 0.0) {
             cout << "lambda<0.0 LFS after" << endl;
         }
@@ -320,12 +326,18 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
         bEion((NMESHP - 1) * 2 + 1) = -bEion((NMESHP - 1) * 2) / (lambda / sqrt(gEe) * sqrt(gEd));
         // bEion((NMESHP-1)*2+1) = -bnion((NMESHP-1)*2)/lambda*3.0/2.0*Tion[NMESHP-1]    ;//                                             * pow(1.0+(nevac/nr.ne[NMESHP-1]),-0.66) * pow(1.0+(nevac/bEion((NMESHP-1)*2)),-0.66) * pow(1.0+Ta0/Tion[NMESHP-1],-0.66);
         bEelec((NMESHP - 1) * 2 + 1) = -bnion((NMESHP - 1) * 2) / (lambda / sqrt(gEe) * sqrt(gEd)) * Z * 3.0 / 2.0 * Tr.Te[NMESHP - 1];
+	}
 
+	if (fixBCs) {
+	lambda = lam_dec_length_ions;
+	bnion1(0 + 1) = bnion1(0) / lambda;
+	lambda = lam_dec_length_energy;
+        bEion1(0 + 1) = bEion1(0) / lambda;
+	bEelec1(0 + 1) = bnion1(0) / lambda * Z * 3.0 / 2.0 * Tr.Te[0];
+	}
+	else {
         lambda = sqrt(Dion[0] * (0.66 * 2.0 * pi * aR[0] / nlimiters) /
                       (9.79e5 * sqrt(Z / mu * (Tr.Te[0] + bnion1(0) / nr.ne[0] * bEion1(0) / (3.0 / 2.0 * bnion1(0)))) * pow(1.0 + (nevac / nr.ne[0]), -0.66) * pow(1.0 + (nevac / bnion1(0)), -0.66)));
-	#ifdef debug
-		cout << "lambda HFS = " << lambda/100 << "[m]" << endl;
-	#endif
         if (lambda < 0.0) {
             cout << "lambda<0.0 HFS after" << endl;
         }
@@ -333,11 +345,18 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
         bEion1(0 + 1) = bEion1(0) / (lambda / sqrt(gEe) * sqrt(gEd));
         // bEion1(0+1)            = bnion1(0)/lambda*3.0/2.0*Tion[0]   ;//                                                          * pow(1.0+(nevac/nr.ne[0]),-0.66) * pow(1.0+(nevac/bEion1(0)),-0.66) * pow(1.0+Ta0/Tion[0],-0.66) ;
         bEelec1(0 + 1) = bnion1(0) / (lambda / sqrt(gEe) * sqrt(gEd)) * Z * 3.0 / 2.0 * Tr.Te[0];
+	}
+
+	if(fixBCs) {
+	lambda = lam_dec_length_ions;
+	bnion1((NMESHP - 1) * 2 + 1) = -bnion1((NMESHP - 1) * 2) / lambda;
+	lambda = lam_dec_length_energy;
+        bEion1((NMESHP - 1) * 2 + 1) = -bEion1((NMESHP - 1) * 2) / lambda;
+	bEelec1((NMESHP - 1) * 2 + 1) = -bnion1((NMESHP - 1) * 2) / lambda * Z * 3.0 / 2.0 * Tr.Te[NMESHP - 1];
+	}
+	else {
         lambda = sqrt(Dion[NMESHP - 1] * (0.66 * 2.0 * pi * aR[NMESHP - 1] / nlimiters) /
                       (9.79e5 * sqrt(Z / mu * (Tr.Te[NMESHP - 1] + bnion1((NMESHP - 1) * 2) / nr.ne[NMESHP - 1] * (bEion1((NMESHP - 1) * 2) / (3.0 / 2.0 * bnion1((NMESHP - 1) * 2))))) * pow(1.0 + (nevac / nr.ne[NMESHP - 1]), -0.66) * pow(1.0 + (nevac / bnion1((NMESHP - 1) * 2)), -0.66)));
-	#ifdef debug
-		cout << "lambda LFS = " << lambda/100 << "[m]" << endl;
-	#endif
         if (lambda < 0.0) {
             cout << "lambda<0.0 LFS after" << endl;
         }
@@ -345,6 +364,7 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
         bEion1((NMESHP - 1) * 2 + 1) = -bEion1((NMESHP - 1) * 2) / (lambda / sqrt(gEe) * sqrt(gEd));
         // bEion1((NMESHP-1)*2+1) = -bnion1((NMESHP-1)*2)/lambda*3.0/2.0*Tion[NMESHP-1]    ;//                                             * pow(1.0+(nevac/nr.ne[NMESHP-1]),-0.66) * pow(1.0+(nevac/bEion1((NMESHP-1)*2)),-0.66) * pow(1.0+Ta0/Tion[NMESHP-1],-0.66);
         bEelec1((NMESHP - 1) * 2 + 1) = -bnion1((NMESHP - 1) * 2) / (lambda / sqrt(gEe) * sqrt(gEd)) * Z * 3.0 / 2.0 * Tr.Te[NMESHP - 1];
+	}
     }
 
     if (1) {
@@ -448,6 +468,14 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
         }
     }
 
+    if(fixBCs) {
+     lambda = lam_dec_length_ions;
+     bnion(0 + 1) = bnion(0) / lambda;
+     lambda = lam_dec_length_energy;                       
+     bEion(0 + 1) = bEion(0) / lambda; 
+     bEelec(0 + 1) = bnion(0) / lambda * Z * 3.0 / 2.0 * Tr.Te[0];
+     }
+    else {
     lambda = sqrt(Dion[0] * (0.66 * 2.0 * pi * aR[0] / nlimiters) /
                   (9.79e5 * sqrt(Z / mu * (Tr.Te[0] + bnion(0) / nr.ne[0] * bEion(0) / (3.0 / 2.0 * bnion(0)))) * pow(1.0 + (nevac / nr.ne[0]), -0.66) * pow(1.0 + (nevac / bnion(0)), -0.66)));
     if (lambda < 0.0) {
@@ -457,6 +485,17 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
     bEion(0 + 1) = bEion(0) / (lambda / sqrt(gEe) * sqrt(gEd)); //                                                          * pow(1.0+(nevac/nr.ne[0]),-0.66) * pow(1.0+(nevac/bEion(0)),-0.66) * pow(1.0+Ta0/Tion[0],-0.66) ;
     // bEion(0+1)            = bnion(0)/lambda*3.0/2.0*Tion[0]   ;//                                                          * pow(1.0+(nevac/nr.ne[0]),-0.66) * pow(1.0+(nevac/bEion(0)),-0.66) * pow(1.0+Ta0/Tion[0],-0.66) ;
     bEelec(0 + 1) = bnion(0) / (lambda / sqrt(gEe) * sqrt(gEd)) * Z * 3.0 / 2.0 * Tr.Te[0]; //                                       * pow(1.0+(nevac/nr.ne[0]),-0.66);
+
+    }
+
+    if(fixBCs) {
+	lambda = lam_dec_length_ions;
+	bnion((NMESHP - 1) * 2 + 1) = -bnion((NMESHP - 1) * 2) / lambda;
+	lambda = lam_dec_length_energy;
+        bEion((NMESHP - 1) * 2 + 1) = -bEion((NMESHP - 1) * 2) / lambda;
+	bEelec((NMESHP - 1) * 2 + 1) = -bnion((NMESHP - 1) * 2) * Z * 3.0 / 2.0 * Tr.Te[NMESHP - 1] / lambda;
+	}
+    else {
     lambda = sqrt(Dion[NMESHP - 1] * (0.66 * 2.0 * pi * aR[NMESHP - 1] / nlimiters) /
                   (9.79e5 * sqrt(Z / mu * (Tr.Te[NMESHP - 1] + bnion((NMESHP - 1) * 2) / nr.ne[NMESHP - 1] * (bEion((NMESHP - 1) * 2) / (3.0 / 2.0 * bnion((NMESHP - 1) * 2))))) * pow(1.0 + (nevac / nr.ne[NMESHP - 1]), -0.66) * pow(1.0 + (nevac / bnion((NMESHP - 1) * 2)), -0.66)));
     if (lambda < 0.0) {
@@ -466,6 +505,7 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
     bEion((NMESHP - 1) * 2 + 1) = -bEion((NMESHP - 1) * 2) / (lambda / sqrt(gEe) * sqrt(gEd)); //                                             * pow(1.0+(nevac/nr.ne[NMESHP-1]),-0.66) * pow(1.0+(nevac/bEion((NMESHP-1)*2)),-0.66) * pow(1.0+Ta0/Tion[NMESHP-1],-0.66);
     // bEion((NMESHP-1)*2+1) = -bnion((NMESHP-1)*2)/lambda*3.0/2.0*Tion[NMESHP-1]    ;//                                             * pow(1.0+(nevac/nr.ne[NMESHP-1]),-0.66) * pow(1.0+(nevac/bEion((NMESHP-1)*2)),-0.66) * pow(1.0+Ta0/Tion[NMESHP-1],-0.66);
     bEelec((NMESHP - 1) * 2 + 1) = -bnion((NMESHP - 1) * 2) / (lambda / sqrt(gEe) * sqrt(gEd)) * Z * 3.0 / 2.0 * Tr.Te[NMESHP - 1]; //                    * pow(1.0+(nevac/nr.ne[NMESHP-1]),-0.66);
+    }
 }
 
 void transpH(double tstep) { // called in solver.cpp within timeStep.cpp in Tomator1D.cpp
@@ -483,33 +523,39 @@ void transpH(double tstep) { // called in solver.cpp within timeStep.cpp in Toma
     // #pragma omp parallel for private(vth, mfp)
     for (int id = 0; id < NMESHP; ++id) {
         // Neutral H diffusion coefficient
-        vth = sqrt((kb * TH_array[id] * 11600.0) / ma) * 100.0;
-        mfp = vth / nuH_array[id];
-        DH[id] = 1.0 / 3.0 * vth * 1.0 / (1.0 / mfp + 1.0 / (a / 2.0)); // DH[id] =  vth*a/2.0 ; // cm2/s
-        #ifdef debug
-        	if (DH[id]>DmaxH){
-			DmaxH = DH[id];
-		}
-		if(DH[id]<DminH){
-			DminH = DH[id];
-		}
-	#endif
-        // DH[id] =  1.0/3.0 * vth * a/2.0 ; // DH[id] =  vth*a/2.0 ; // cm2/s
-        // cout << "   " << vth <<  "   " << mfp << "   " << a << "   " << DH[id] << endl;
+        if (bDfix_neutr) {
+        	DH[id] = Dfix_neut;
+        	DH2[id] = Dfix_neut;
+        }
+        else {
+        	vth = sqrt((kb * TH_array[id] * 11600.0) / ma) * 100.0;
+        	mfp = vth / nuH_array[id];
+        	DH[id] = 1.0 / 3.0 * vth * 1.0 / (1.0 / mfp + 1.0 / (a / 2.0)); // DH[id] =  vth*a/2.0 ; // cm2/s
+        	#ifdef debug
+        		if (DH[id]>DmaxH){
+				DmaxH = DH[id];
+			}
+			if(DH[id]<DminH){
+				DminH = DH[id];
+			}
+		#endif
+        	// DH[id] =  1.0/3.0 * vth * a/2.0 ; // DH[id] =  vth*a/2.0 ; // cm2/s
+        	// cout << "   " << vth <<  "   " << mfp << "   " << a << "   " << DH[id] << endl;
         
-        // Neutral H2 diffusion coefficient
-        vth = sqrt((kb * TH2_array[id] * 11600.0) / (2.0 * ma)) * 100.0;
-        mfp = vth / nuH2_array[id];
-        DH2[id] = 1.0 / 3.0 * vth * 1.0 / (1.0 / mfp + 1.0 / (a / 2.0)); // DH[id] =  vth*a/2.0 ; // cm2/s
-        // DH2[id] =  1.0/3.0 * vth * a/2.0 ; // DH[id] =  vth*a/2.0 ; // cm2/s // cout << "H2   " << mfp << "   " <<  DH2[id] << endl;
-        #ifdef debug
-        	if (DH2[id]>DmaxH2){
-			DmaxH2 = DH2[id];
-		}
-		if(DH2[id]<DminH2){
-			DminH2 = DH2[id];
-		}
-	#endif
+        	// Neutral H2 diffusion coefficient
+        	vth = sqrt((kb * TH2_array[id] * 11600.0) / (2.0 * ma)) * 100.0;
+        	mfp = vth / nuH2_array[id];
+        	DH2[id] = 1.0 / 3.0 * vth * 1.0 / (1.0 / mfp + 1.0 / (a / 2.0)); // DH[id] =  vth*a/2.0 ; // cm2/s
+        	// DH2[id] =  1.0/3.0 * vth * a/2.0 ; // DH[id] =  vth*a/2.0 ; // cm2/s // cout << "H2   " << mfp << "   " <<  DH2[id] << endl;
+        	#ifdef debug
+        		if (DH2[id]>DmaxH2){
+				DmaxH2 = DH2[id];
+			}
+			if(DH2[id]<DminH2){
+				DminH2 = DH2[id];
+			}
+		#endif
+    	}
     }
     #ifdef debug
     	cout << "DHmin = " << DminH/1e4 << " [m2/s]; DHmax = " << DmaxH/1e4 << endl;
@@ -640,7 +686,6 @@ void transpH(double tstep) { // called in solver.cpp within timeStep.cpp in Toma
     vth = sqrt((kb * TH_array[NMESHP - 1] * 11600.0) / ma) * 100.0;
     bn1H((NMESHP - 1) * 2 + 1) = -1.0 / 2.0 * vth / DH[NMESHP - 1] * bn1H((NMESHP - 1) * 2) * (1.0 - RH);
     bE1H((NMESHP - 1) * 2 + 1) = -1.0 / 2.0 * gEdn * vth / (DH[NMESHP - 1]) * bn1H((NMESHP - 1) * 2) * 3.0 / 2.0 * TH_array[NMESHP - 1] * (1.0 - REH); //*(1.0-RH * (1.0 - ((1.0-REH) * (1.0-Ta0/TH_array[NMESHP-1]))));
-
     // H2 edge conditions
     // if (pcst) {
     //     bEH2(0)              = 3.0/2.0*nH20*Ta0;
@@ -944,19 +989,24 @@ void transpHe(double tstep) { // called in solver.cpp within timeStep.cpp in Tom
     // #pragma omp parallel for private(vth, mfp)
     for (int id = 0; id < NMESHP; ++id) {
         // double mfp;
-        vth = sqrt((kb * THeI_array[id] * 11600.0) / (4.0 * ma)) * 100.0;
-        mfp = vth / nuHeI_array[id];
-        DHeI[id] = 1.0 / 3.0 * vth * 1.0 / (1.0 / mfp + 1.0 / (a / 2.0)); // vth*a/2.0 ; // cm2/s
+        if (bDfix_neutr) {
+        	DHeI[id] = Dfix_neut;
+        }
+        else {
+        	vth = sqrt((kb * THeI_array[id] * 11600.0) / (4.0 * ma)) * 100.0;
+        	mfp = vth / nuHeI_array[id];
+        	DHeI[id] = 1.0 / 3.0 * vth * 1.0 / (1.0 / mfp + 1.0 / (a / 2.0)); // vth*a/2.0 ; // cm2/s
                                                                           // DHeI[id] = 1.0/3.0 * vth * a/2.0 ; // vth*a/2.0 ; // cm2/s
-        // cout << "He   " << mfp << "   " <<  DHeI[id] << endl;
-        #ifdef debug
-        	if (DHeI[id]>DmaxHe){
-			DmaxHe = DH[id];
-		}
-		if(DHeI[id]<DminHe){
-			DminHe = DH[id];
-		}
-        #endif
+        	// cout << "He   " << mfp << "   " <<  DHeI[id] << endl;
+        	#ifdef debug
+        		if (DHeI[id]>DmaxHe){
+				DmaxHe = DH[id];
+			}
+			if(DHeI[id]<DminHe){
+				DminHe = DH[id];
+			}
+        	#endif
+    	}
     }
     #ifdef debug
     	cout << "DHe_min = " << DminHe/1e4 << " [m2/s]; DHe_max =" << DmaxHe/1e4 << " [m2/s]" << endl;
