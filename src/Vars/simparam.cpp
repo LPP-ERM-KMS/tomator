@@ -1,6 +1,6 @@
 #include "simparam.h"
 
-int nmeshp = 300;    // index of the center grid point for output to logfile
+int nmeshp = 160;    // index of the center grid point for output to logfile
 int cc = 80;    // index of the center grid point for output to logfile
 
 // MAIN DISCHARGE PARAMETERS:
@@ -74,7 +74,9 @@ bool fixedTe = false;
 bool bnopower = false;
 
 bool bDfix = false;        // use transport scaling of TCV paper
+bool bDfix_neutr = false;
 double Dfix = 10000.0;         // cm2/s
+double Dfix_neut = 1000000.0;
 bool bDbohm = false;       // use transport scaling of TCV paper
 bool bDscaling = true;    // use transport scaling of TCV paper
 bool bVscaling = true;     // use transport scaling of TCV paper
@@ -101,6 +103,7 @@ double tauD = 0.0005;      // D tuning parameter
 bool bH = true;
 bool bH2 = true;
 bool bHe = true;
+bool bADAS = false;
 bool bion = true;
 bool bcx = true;
 bool belas = true;
@@ -141,6 +144,10 @@ double gEd = 2.5;  // ;3! ( 3/2 + d(log(Te))/d(log(Te)) ) E=3/2*n*T
 double gEv = 1.5;  // ;1! ( 3/2 to have equal n and 3/2nT transport...)
 double gEdn = 2.0; // ;3! ( 3/2 + d(log(sqrt(Te)))/d(log(Te)) )
 double gEe = 2.5;  // ;3!
+bool fixBCs = false;
+double lam_dec_length_ions = 2.0;
+double lam_dec_length_energy = 1.0;
+
 
 // SIMULATION CONTROL SETTINGS
 // input file

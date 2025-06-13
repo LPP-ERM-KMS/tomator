@@ -5,15 +5,15 @@
 
 // Data structures
 struct DENS {
-    double ne[NMESHP], nH[NMESHP], nH2[NMESHP], nHi[NMESHP], nH2i[NMESHP], nH3i[NMESHP]; // H is pe H2 is ppee Hi is p H2i is ppe and H3i is pppee
-    double nHeI[NMESHP], nHeII[NMESHP], nHeIII[NMESHP]; // assumption: HeI is 2e (neutral), HeII 1e..
-    double nCI[NMESHP], nCII[NMESHP], nCIII[NMESHP], nCIV[NMESHP], nCV[NMESHP]; //assumption:  CI is 6e (neutral)
-    double xne[NMESHP], xnH[NMESHP], xnH2[NMESHP], xnHi[NMESHP], xnH2i[NMESHP], xnH3i[NMESHP]; // assumption: concentration
+    double ne[NMESHP], nH[NMESHP], nH2[NMESHP], nHi[NMESHP], nH2i[NMESHP], nH3i[NMESHP];
+    double nHeI[NMESHP], nHeII[NMESHP], nHeIII[NMESHP];
+    double nCI[NMESHP], nCII[NMESHP], nCIII[NMESHP], nCIV[NMESHP], nCV[NMESHP];
+    double xne[NMESHP], xnH[NMESHP], xnH2[NMESHP], xnHi[NMESHP], xnH2i[NMESHP], xnH3i[NMESHP];
     double xnHeI[NMESHP], xnHeII[NMESHP], xnHeIII[NMESHP];
     double xnCI[NMESHP], xnCII[NMESHP], xnCIII[NMESHP], xnCIV[NMESHP], xnCV[NMESHP];
 };
 struct ENER {
-    double Ee[NMESHP], EH[NMESHP], EH2[NMESHP], EHi[NMESHP], EH2i[NMESHP], EH3i[NMESHP]; 
+    double Ee[NMESHP], EH[NMESHP], EH2[NMESHP], EHi[NMESHP], EH2i[NMESHP], EH3i[NMESHP];
     double EHeI[NMESHP], EHeII[NMESHP], EHeIII[NMESHP];
     double xEe[NMESHP], xEH[NMESHP], xEH2[NMESHP], xEHi[NMESHP], xEH2i[NMESHP], xEH3i[NMESHP];
     double xEHeI[NMESHP], xEHeII[NMESHP], xEHeIII[NMESHP];
@@ -23,7 +23,7 @@ struct TEMP {
     double THeI[NMESHP], THeII[NMESHP], THeIII[NMESHP];
 };
 struct dDENS {
-    double dne[NMESHP], dnH[NMESHP], dnH2[NMESHP], dnHi[NMESHP], dnH2i[NMESHP], dnH3i[NMESHP]; //time derivative
+    double dne[NMESHP], dnH[NMESHP], dnH2[NMESHP], dnHi[NMESHP], dnH2i[NMESHP], dnH3i[NMESHP];
     double dnHeI[NMESHP], dnHeII[NMESHP], dnHeIII[NMESHP];
     double dnCI[NMESHP], dnCII[NMESHP], dnCIII[NMESHP], dnCIV[NMESHP], dnCV[NMESHP];
     double dxne[NMESHP], dxnH[NMESHP], dxnH2[NMESHP], dxnHi[NMESHP], dxnH2i[NMESHP], dxnH3i[NMESHP];
@@ -37,11 +37,11 @@ struct dENER {
     double dxEHeI[NMESHP], dxEHeII[NMESHP], dxEHeIII[NMESHP];
 };
 struct CRATE {
-    double nue[NMESHP], nuH[NMESHP], nuH2[NMESHP], nuHi[NMESHP], nuH2i[NMESHP], nuH3i[NMESHP]; //collision frequency
+    double nue[NMESHP], nuH[NMESHP], nuH2[NMESHP], nuHi[NMESHP], nuH2i[NMESHP], nuH3i[NMESHP];
     double nuHeI[NMESHP], nuHeII[NMESHP], nuHeIII[NMESHP];
 };
 struct TAUP {
-    double taupH[NMESHP], taupH2[NMESHP], taupHi[NMESHP], taupH2i[NMESHP], taupH3i[NMESHP]; //characteristic time
+    double taupH[NMESHP], taupH2[NMESHP], taupHi[NMESHP], taupH2i[NMESHP], taupH3i[NMESHP];
     double taupHeI[NMESHP], taupHeII[NMESHP], taupHeIII[NMESHP];
 };
 struct POWER {

@@ -467,50 +467,71 @@ void collisions() {
                 if (nue < 0.0) {
                     cout << "nue 5 " << endl;
                 }
-                // Energy loss rate excitation and ionization electrons
-                // //     //(2.3.1-2.3.7) ()
-                // //     Eel=SaschaEeloss('He1',Te,ne);
-                // //     dEe     = dEe     - Eel*nHeI; // eV/cm^3/s
-                // //     // nue     = nue     ????????
-                // //     //(2.3.14-2.3.15)
-                // //     Eel=SaschaEeloss('He2',Te,ne);
-                // //     dEe     = dEe     - Eel*nHeII; // eV/cm^3/s
-                // //     // nue     = nue     ????????
-                // Cooling rate given in IAEA
-                double HeIa1, HeIa2, HeIa3, HeIa4, HeIa5, HeIa6;
-                double HeIIa1, HeIIa2, HeIIa3, HeIIa4, HeIIa5, HeIIa6; //, HeIIa7, HeIIa8;
-                // double HeIIIa1, HeIIIa2, HeIIIa3, HeIIIa4, HeIIIa5, HeIIIa6;
-                HeIa1 = .6623e3;
-                HeIa2 = .9476e-1;
-                HeIa3 = .7456;
-                HeIa4 = -.2592;
-                HeIa5 = 3.8098;
-                HeIa6 = .4026;
-                HeIIa1 = .3476e3;
-                HeIIa2 = .1214;
-                HeIIa3 = .7974;
-                HeIIa4 = .4819;
-                HeIIa5 = 1.4066;
-                HeIIa6 = -.3639e-2;
-                // HeIIa7=.9720e-3;    HeIIa8=.4078;
-                // HeIIIa1=.2730e-1;   HeIIIa2=.6004;      HeIIIa3=-.2772e-1;
-                // HeIIIa4=.5925;      HeIIIa5=.3060e-2;	HeIIIa6=.3590;
                 double Tx, exp1, exp2, exp3;
-                Tx = Te / 1000.0;
-                // Energy loss on He
-                exp1 = (HeIa1 * exp(-HeIa2 / pow(Tx, HeIa3)) / (pow(Tx, HeIa4) + HeIa5 * pow(Tx, HeIa6))) * 1.0e-33 * 1.0e6; // Wcm3
-                // Energy loss on He+
-                exp2 = (HeIIa1 * exp(-HeIIa2 / pow(Tx, HeIIa3)) / (pow(Tx, HeIIa4) + HeIIa5 * pow(Tx, HeIIa6))) * 1.0e-33 * 1.0e6; // Wcm3 (IAEA without recombination losses)  // added 20/02/2014, estimated correction
-                // Energy loss on He++
-                exp3 = 0.0; // Wcm3 (IAEA without recombination losses)  // added 20/02/2014, estimated correction
-                /*// Energy loss on He
-                 exp1=( HeIa1*exp(-HeIa2/pow(Tx,HeIa3))/(pow(Tx,HeIa4)+HeIa5*pow(Tx,HeIa6)) )*1.0e-33*1.0e6; //Wcm3
-                 // Energy loss on He+
-                 exp2=( HeIIa1*exp(-HeIIa2/pow(Tx,HeIIa3))/(pow(Tx,HeIIa4)+HeIIa5*pow(Tx,HeIIa6)) + HeIIa7*pow(Tx,HeIIa8) )*1.0e-33*1.0e6; //Wcm3
-                 // Energy loss on He++
-                 exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )*1.0e-33*1.0e6; //Wcm3 */
-                dEe += -2.0 / 3.0 * (exp1 * nHeI + exp2 * nHeII + exp3 * nHeIII) * ne / qe;
-                // cout << (2.0/3.0)*( exp1*nHeI + exp2*nHeII + exp3*nHeIII ) * ne/qe << endl;
+                if (bADAS) {
+
+		  // new correction Anthony Piras 2025/03/21
+                  // Based on SOLPS-ITER cooling rates (ADAS)
+                  double MTe[] = {1.0, 1.10000000000000, 1.20000000000000, 1.30000000000000, 1.40000000000000, 1.50000000000000, 1.60000000000000, 1.80000000000000, 1.90000000000000, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 15.0, 20.0, 25.0, 30.0, 40.0, 50.0, 70.0, 100.0, 200.0, 400.0, 600.0, 800.0, 1000.0};
+                  double MkHeI[] = {1.984999768100701e-21, 7.830301492706550e-21, 2.873864536275069e-20, 9.069880352562618e-20, 2.054501954928153e-19, 6.042770680912184e-19, 1.175721397793912e-18, 4.425157944950157e-18, 8.611389418838644e-18, 1.298915147023593e-17, 3.479388485970521e-16, 1.672105079422092e-15, 5.449208218367541e-15, 1.073672202663698e-14, 1.835856451483364e-14, 2.656284560319206e-14, 3.658624533759706e-14, 4.847243721543640e-14, 1.114995167681486e-13, 1.784238083376350e-13, 2.359742151261333e-13, 2.931127115669682e-13, 3.837425083558295e-13, 4.687381793070677e-13, 5.793279278464787e-13, 6.824744616682854e-13, 8.125717138145458e-13, 8.569270493201217e-13, 8.748341396129159e-13, 8.846837461834757e-13, 8.914663006219775e-13}; // MkHeI is the cooling rate due to processes starting from He0, units are [eV*m3/s]
+
+                  double MkHeII[] = {1.057806689207504e-19, 1.109186764983655e-19, 1.158351540623689e-19, 1.205827364963467e-19, 1.251777567565165e-19, 1.295908890698588e-19, 1.339708714000346e-19, 1.427997515007597e-19, 1.478234259499439e-19, 1.530086843149849e-19, 1.170661212865412e-18, 1.735023579467549e-17, 1.526412262328358e-16, 5.448771293527139e-16, 1.422986059639174e-15, 2.706764281302123e-15, 4.741812019556716e-15, 7.709836703261552e-15, 2.857333292986805e-14, 5.693878244302156e-14, 8.292193026020404e-14, 1.110297886397282e-13, 1.546108925301941e-13, 1.982101620805143e-13, 2.528525815567847e-13, 3.057663970721758e-13, 3.793260164363811e-13, 4.064949819055127e-13, 4.072248670092556e-13, 3.990528169230037e-13, 3.896830021251033e-13}; // MkHeII is the cooling rate due to processes starting from He+, units are [eV*m3/s]
+
+                  exp1 = interpolate1D(MTe, MkHeI, 31, Te);
+                  exp1 = exp1*1.0e6; // conversion to eV*cm3/s
+                  exp2 = interpolate1D(MTe, MkHeII, 31, Te);
+                  exp2 = exp2*1.0e6; // conversion to eV*cm3/s
+                  exp3 = 0.0;
+
+                  dEe += - 2.0/3.0 * (exp1 * nHeI + exp2 * nHeII + exp3 * nHeIII) * ne; // eV*cm3/s * cm-3 * cm-3 = eV/(cm3*s)
+                //cout << - (2.0/3.0)*( exp1*nHeI + exp2*nHeII + exp3*nHeIII ) * ne << endl;
+                }
+                else {
+                  // Energy loss rate excitation and ionization electrons
+                  // //     //(2.3.1-2.3.7) ()
+                  // //     Eel=SaschaEeloss('He1',Te,ne);
+                  // //     dEe     = dEe     - Eel*nHeI; // eV/cm^3/s
+                  // //     // nue     = nue     ????????
+                  // //     //(2.3.14-2.3.15)
+                  // //     Eel=SaschaEeloss('He2',Te,ne);
+                  // //     dEe     = dEe     - Eel*nHeII; // eV/cm^3/s
+                  // //     // nue     = nue     ????????
+                  // Cooling rate given in IAEA
+                  double HeIa1, HeIa2, HeIa3, HeIa4, HeIa5, HeIa6;
+                  double HeIIa1, HeIIa2, HeIIa3, HeIIa4, HeIIa5, HeIIa6; //, HeIIa7, HeIIa8;
+                  // double HeIIIa1, HeIIIa2, HeIIIa3, HeIIIa4, HeIIIa5, HeIIIa6;
+                  HeIa1 = .6623e3;
+                  HeIa2 = .9476e-1;
+                  HeIa3 = .7456;
+                  HeIa4 = -.2592;
+                  HeIa5 = 3.8098;
+                  HeIa6 = .4026;
+                  HeIIa1 = .3476e3;
+                  HeIIa2 = .1214;
+                  HeIIa3 = .7974;
+                  HeIIa4 = .4819;
+                  HeIIa5 = 1.4066;
+                  HeIIa6 = -.3639e-2;
+                  // HeIIa7=.9720e-3;    HeIIa8=.4078;
+                  // HeIIIa1=.2730e-1;   HeIIIa2=.6004;      HeIIIa3=-.2772e-1;
+                  // HeIIIa4=.5925;      HeIIIa5=.3060e-2;	HeIIIa6=.3590;
+                  Tx = Te / 1000.0;
+                  // Energy loss on He
+                  exp1 = (HeIa1 * exp(-HeIa2 / pow(Tx, HeIa3)) / (pow(Tx, HeIa4) + HeIa5 * pow(Tx, HeIa6))) * 1.0e-33 * 1.0e6; // Wcm3
+                  // Energy loss on He+
+                  exp2 = (HeIIa1 * exp(-HeIIa2 / pow(Tx, HeIIa3)) / (pow(Tx, HeIIa4) + HeIIa5 * pow(Tx, HeIIa6))) * 1.0e-33 * 1.0e6; // Wcm3 (IAEA without recombination losses)  // added 20/02/2014, estimated correction
+                  // Energy loss on He++
+                  exp3 = 0.0; // Wcm3 (IAEA without recombination losses)  // added 20/02/2014, estimated correction
+                  //cout << -(2.0/3.0)* (exp1 * nHeI + exp2 * nHeII + exp3 * nHeIII) * ne/qe << endl;
+                  dEe += -2.0 / 3.0 * (exp1 * nHeI + exp2 * nHeII + exp3 * nHeIII) * ne / qe;
+                  /*// Energy loss on He
+                   exp1=( HeIa1*exp(-HeIa2/pow(Tx,HeIa3))/(pow(Tx,HeIa4)+HeIa5*pow(Tx,HeIa6)) )*1.0e-33*1.0e6; //Wcm3
+                   // Energy loss on He+
+                   exp2=( HeIIa1*exp(-HeIIa2/pow(Tx,HeIIa3))/(pow(Tx,HeIIa4)+HeIIa5*pow(Tx,HeIIa6)) + HeIIa7*pow(Tx,HeIIa8) )*1.0e-33*1.0e6; //Wcm3
+                   // Energy loss on He++
+exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )*1.0e-33*1.0e6; //Wcm3 */
+
+                }
                 // Recombination HeII (2.3.13) (k_HeII_rec)
                 k = RRHe(RHE2, 1.0e11, Te) * ndamp(nHeII); //  *  pow(1.0+1.0e1/nHeII+1.0e1/ne,-0.66) ; // cout << "   " << k ;//25/04/2017
                 knn = k * ne * nHeII;

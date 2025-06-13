@@ -309,6 +309,16 @@ int extract_type(const char *json) {
     int returnv = 0;
     char *json_object = get_group(json, "type");
 
+    if (!extract_boolean_value(json_object, "bgray", &bgray)) {
+        printf("[Warning]: Parameter \"bgray\" not found on \"type\" \n");
+        returnv = -1;
+    }
+
+    if (!extract_boolean_value(json_object, "bram", &bram)) {
+        printf("[Warning]: Parameter \"bram\" not found on \"type\" \n");
+        returnv = -1;
+    }
+
     if (!extract_boolean_value(json_object, "bfixpowerfrac", &bfixpowerfrac)) {
         printf("[Warning]: Parameter \"bfixpowerfrac\" not found on \"type\" \n");
         returnv = -1;
@@ -462,6 +472,18 @@ int extract_general_ic(const char *json) {
     int returnv = 0;
     char *json_object = get_group(json, "general_ic");
 
+    if (!extract_boolean_value(json_object, "bantlr", &bantlr)) {
+        print_yellow("[Warning]: Parameter \"bantlr\" not found on \"ich\" \n"); // Key not found
+        returnv = -1;
+    }
+    if (!extract_double_value(json_object, "avlr", &avlr)) {
+        print_yellow("[Warning]: Parameter \"avlr\" not found on \"ich\" \n"); // Key not found
+        returnv = -1;
+    }
+    if (!extract_double_value(json_object, "alphalaw", &alphalaw)) {
+        print_yellow("[Warning]: Parameter \"alphalaw\" not found on \"ich\" \n");
+        returnv = -1;
+    }
     if (!extract_double_value(json_object, "Rant", &Rant)) {
         print_yellow("[Warning]: Parameter \"Rant\" not found on \"ich\" \n"); // Key not found
         returnv = -1;
@@ -524,6 +546,15 @@ int extract_diffusion(const char *json) {
     if (bDfix)
         if (!extract_double_value(json_object, "Dfix", &Dfix)) {
             print_yellow("[Warning]: Parameter \"Dfix\" not found on \"diffusion\" \n"); // Key not found
+            returnv = -1;
+        }
+    if (!extract_boolean_value(json_object, "bDfix_neutr", &bDfix_neutr)) {
+        print_yellow("[Warning]: Parameter \"bDfix_neutr\" not found on \"diffusion\" \n"); // Key not found
+        returnv = -1;
+    }
+    if (bDfix_neutr)
+        if (!extract_double_value(json_object, "Dfix_neut", &Dfix_neut)) {
+            print_yellow("[Warning]: Parameter \"Dfix_neut\" not found on \"diffusion\" \n"); // Key not found
             returnv = -1;
         }
     if (!extract_boolean_value(json_object, "bDbohm", &bDbohm)) {
@@ -637,6 +668,12 @@ int extract_physics_to_include(const char *json) {
     if (!extract_boolean_value(json_object, "bHe", &bHe)) {
         print_yellow("[Warning]: Parameter \"bHe\" not found on \"physics to include\" \n");
         returnv = -1;
+    }
+    if (bHe) {
+        if (!extract_boolean_value(json_object, "bADAS", &bADAS)) {
+            print_yellow("[Warning]: Parameter \"bADAS\" not found on \"physics_to_include\" \n"); // Key not found
+            returnv = -1;
+        }
     }
     if (!extract_boolean_value(json_object, "bion", &bion)) {
         print_yellow("[Warning]: Parameter \"bion\" not found on \"physics to include\" \n");
@@ -791,6 +828,20 @@ int extract_edge_conditions(const char *json) {
     if (!extract_double_value(json_object, "gEe", &gEe)) {
         print_yellow("[Warning]: Parameter \"gEe\" not found on \"edge conditions\" \n");
         returnv = -1;
+    }
+    if (!extract_boolean_value(json_object, "fixBCs", &fixBCs)) {
+        print_yellow("[Warning]: Parameter \"fixBCs\" not found on \"edge conditions\" \n"); // Key not found
+        returnv = -1;
+    }
+    if (fixBCs) {
+        if (!extract_double_value(json_object, "lam_dec_length_ions", &lam_dec_length_ions)) {
+            print_yellow("[Warning]: Parameter \"lam_dec_length_ions\" not found on \"edge conditions\" \n"); // Key not found
+            returnv = -1;
+        }
+        if (!extract_double_value(json_object, "lam_dec_length_energy", &lam_dec_length_energy)) {
+            print_yellow("[Warning]: Parameter \"lam_dec_length_energy\" not found on \"edge conditions\" \n"); // Key not found
+            returnv = -1;
+        }
     }
 
     free(json_object);

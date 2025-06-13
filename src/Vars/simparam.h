@@ -3,7 +3,7 @@
 #ifndef SIMPARAM_H
 #define SIMPARAM_H
 
-#define NMESHP 301 // number of radial grid points, recompile code to change value
+#define NMESHP 161 // number of radial grid points, recompile code to change value
 //#define ISCAN 1    // number of parallel simulations in scan
 
 #include <cmath>
@@ -94,7 +94,9 @@ extern double Vfact;   // eq8
 extern double pecabs0; // 5Bv%^2+2
 
 extern bool bDfix;   // use scalings instead of fitting
+extern bool bDfix_neutr;
 extern double Dfix; // 0.3Bv%+1
+extern double Dfix_neut;
 extern bool bDbohm;  // 
 extern bool bDscaling;   
 
@@ -153,6 +155,9 @@ extern double gEd;  // ;3! ( 3/2 + d(log(Te))/d(log(Te)) ) E=3/2*n*T
 extern double gEv;  // ;1! ( 3/2 to have equal n and 3/2nT transport...)
 extern double gEdn; // ;3! ( 3/2 + d(log(sqrt(Te)))/d(log(Te)) )
 extern double gEe;  // ;3!
+extern bool fixBCs;
+extern double lam_dec_length_ions;
+extern double lam_dec_length_energy;
 
 // extern    extern    bool pcst   ; // if true, ncst should be false
 // extern    extern    bool ncst  ; // if true, pcst should be false
@@ -187,6 +192,7 @@ extern double dtsave; // needs to be larger than dtmax!
 extern bool bH;
 extern bool bH2;
 extern bool bHe;
+extern bool bADAS;
 extern bool bion;
 extern bool bcx;
 extern bool belas;

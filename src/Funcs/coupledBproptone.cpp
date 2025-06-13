@@ -8,7 +8,7 @@ void bproptone_func() {
         lnenue += 0.5 * (nr.ne[id] * colrate.nue[id] * aR[id] + nr.ne[id + 1] * colrate.nue[id + 1] * aR[id + 1]) * (aR[id + 1] - aR[id]);
     }
     lnenue = lnenue / (aR[NMESHP - 1] - aR[0]);
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int id = 0; id < NMESHP; ++id) {
         // PRFe[id] = 6.24e18 * Prf/Vpl  * nr.ne[id] / lne;
         PRFe_array[id] = 6.24e18 * Prf / Vpl * nr.ne[id] * colrate.nue[id] * aR[id] / lnenue;

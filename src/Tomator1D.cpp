@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
         nCI0 = 0.001 * (pH2 + pHe) * 100.0 / (Ta0 * 11600.0 * kb) / 1.0e6;
 
         if (bfinput == false) {
-            writeToOutFile(&outFile);
+            writeToOutFile(&outFile,timestamp);
             initializeSpecies(); //sets all initial densities
         } else {
             infile(sinputfile);
@@ -297,7 +297,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             // 							PIerrorP, mytid, dtnew,
             //               PRFe_array, PRFHi_array, PRFH2i_array, PRFH3i_array, PRFHeII_array, PRFHeIII_array);
 
-            coupledpower();
+            coupledpower(freq,alr);
 
             // if (bkipt == true) {cout << " Wall clock time " << (omp_get_wtime()-tstart) << " s " << endl;}
             if (dtRFvar) {
