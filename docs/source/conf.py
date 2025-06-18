@@ -7,14 +7,14 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'tomator 1D'
-copyright = '2025, T. Wauters, A. Adriaens, S. Deshpande, D. Lopez'
-author = 'T. Wauters, A. Adriaens, S. Deshpande, D. Lopez'
+copyright = 'EUPL1.2, T. Wauters, A. Adriaens, J. Buermans, S. Deshpande, D. Lopez'
+author = 'T. Wauters, A. Adriaens, J. Buermans, S. Deshpande, D. Lopez'
 release = '1.0.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = ['sphinx.ext.autodoc','sphinx.ext.githubpages']
 
 templates_path = ['_templates']
 exclude_patterns = []
