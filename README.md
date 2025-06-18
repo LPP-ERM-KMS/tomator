@@ -11,7 +11,7 @@ a json file which specifies the simulation. The software comes with two main
 interfaces: one for setting up the json file and executing the simulation, and another for
 the real-time visualization of simulation results. 
 
-The full documentation can be found "here" (to be turned into website link) and
+The full documentation can be found [here](https://lpp-erm-kms.github.io/tomator/) and
 is the suggested reference, for those already familiar with the software, a
 quick start guide is found below
 
