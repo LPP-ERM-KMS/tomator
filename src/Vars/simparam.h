@@ -3,7 +3,7 @@
 #ifndef SIMPARAM_H
 #define SIMPARAM_H
 
-#define NMESHP 161 // number of radial grid points, recompile code to change value
+#define NMESHP 301 // number of radial grid points, recompile code to change value
 //#define ISCAN 1    // number of parallel simulations in scan
 
 #include <cmath>

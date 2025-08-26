@@ -39,5 +39,4 @@ void bicatlhr_func();
 void bmanuel_func(bool);
 void bICWC_func();
 
-
 #endif // COUPLEDPOWER_H
