@@ -107,4 +107,3 @@ with open('/tmp/PowerDeposition.csv', 'w', newline='') as csvfile:
     spamwriter.writerow(['eP','H2P'])
     for i in range(len(TP)):
         spamwriter.writerow([eP[i],H2P[i]])
-sys.exit(0)

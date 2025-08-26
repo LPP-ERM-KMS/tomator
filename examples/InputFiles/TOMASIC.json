@@ -14,7 +14,7 @@
         "Vpl": 22400.0
     },
     "neutral_pressure": {
-        "pHe": 0,
+        "pHe": 0.0,
         "pH2": 0.0007
     },
     "rf_power": {
@@ -123,7 +123,7 @@
         "nevac": 1.0,
         "nH0": 200000000.0,
         "nHi0": 1000000000.0,
-        "nH2i0": 100000000000000000.0,
+        "nH2i0": 1000000000000000.0,
         "nH3i0": 1000000.0,
         "nHeII0": 10.0,
         "nHeIII0": 10.0,
@@ -148,17 +148,17 @@
     },
     "time_step": {
         "t0": 0.0,
-        "tmainend": 0.1,
-        "accur": 0.05,
+        "tmainend": 2.0,
+        "accur": 0.001,
         "dtmax": 2e-06,
         "dtmin": 2.5e-08,
         "dtinit": 2.5e-08
     },
     "time_step_for_rf_coupling": {
-        "bupdateRFstep": true,
-        "updateRF": 100,
+        "bupdateRFstep": false,
+        "updateRF": 10,
         "dtRF": 1e-07,
-        "dtRFvar": false,
+        "dtRFvar": true,
         "dtRFmax": 5e-06,
         "dtRFmin": 1e-08,
         "dtRFconv": false

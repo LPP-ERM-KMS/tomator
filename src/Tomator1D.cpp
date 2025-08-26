@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
 
         simulationLoop(tstartloop, &outFile, timeSteps);
 
-	cout << "Simulation loop ended." << endl;
+	    cout << "Simulation loop ended." << endl;
 
         if (timeSteps <= 0) {
             writeLast(&outFile, tstartcalculation, omp_get_wtime());
