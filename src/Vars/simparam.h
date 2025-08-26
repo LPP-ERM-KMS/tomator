@@ -52,6 +52,7 @@ extern bool bICWC; // use ICWC coupling
 extern bool bram;
 
 extern bool bTOMAS; // extern    double pecabs0[] = {0.0020, 0.0020, 0.0020, 0.0020, 0.0020, 0.0020, 0.0020}; // percentage of power coupled
+extern bool bTOMASIC; 
 extern double muw;
 extern double Rdep1;
 extern double PRdep1; // % O-wave

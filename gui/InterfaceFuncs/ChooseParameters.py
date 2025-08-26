@@ -87,8 +87,8 @@ class SimulationParamsApp(tk.Toplevel):
             discharge_group,
             "Neutral pressure",
             [
-                ("pHe (Pa)", tk.DoubleVar(value=format(0.000168, ".5e"))),
-                ("pH2 (Pa)", tk.DoubleVar(value=format(0.0000432, ".5e"))),
+                ("pHe (mbar)", tk.DoubleVar(value=format(0.000168, ".5e"))),
+                ("pH2 (mbar)", tk.DoubleVar(value=format(0.0000432, ".5e"))),
             ],
         )
 
@@ -115,6 +115,7 @@ class SimulationParamsApp(tk.Toplevel):
                 ("bfixpowerfrac", tk.BooleanVar(value=False)),
                 ("bnefix", tk.BooleanVar(value=True)),
                 ("bTOMAS", tk.BooleanVar(value=False)),
+                ("bTOMASIC", tk.BooleanVar(value=False)),
                 ("bproptone", tk.BooleanVar(value=False)),
                 ("blhr", tk.BooleanVar(value=False)),
                 ("bmanuel", tk.BooleanVar(value=False)),

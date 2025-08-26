@@ -304,6 +304,10 @@ void initAuxiliarPos() {
 }
 
 double computeN(double p, double Ta) {
+    // ideal gas law
+    // Ta in eV*11600 -> K
+    // p in mbar*100 -> Pa
+    // returns density in 1/cm^3
     return p * 100.0 / (Ta * 11600.0 * kb) / 1.0e6;
 }
 
