@@ -114,7 +114,7 @@ void coupledpower(const double &freq, double &alr) //, double PTEST[] )
         bICWC_func();
     }
 
-    if ((tmain < (1.02 * dtpramp)) & !(bmanuel | bICWC)) {
+    if ((tmain < (1.02 * dtpramp)) & !(bmanuel | bICWC | bTOMASIC)) {
         for (int id = 0; id < NMESHP; ++id) {
             PRFe_array[id] = PRFe_array[id] * ((tmain + 0.02 * dtpramp) / (1.02 * dtpramp));
             PRFHi_array[id] = PRFHi_array[id] * ((tmain + 0.02 * dtpramp) / (1.02 * dtpramp));
