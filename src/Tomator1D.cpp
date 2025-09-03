@@ -89,6 +89,11 @@ int main(int argc, char *argv[]) {
         Er1 = Er;
         tstartloop = omp_get_wtime();
 
+        if (!std::getenv("TOMATORSOURCE"))
+        {
+            cout << "\033[1;31m [ERROR] environmental variable TOMATORSOURCE not set\033[0m\n";
+            throw std::exception();
+        }
         string basefolder = std::getenv("TOMATORSOURCE");
         string filename_ = basefolder + "/src/SimParams/Public/hydhel.tex";
         int n = filename_.length();
