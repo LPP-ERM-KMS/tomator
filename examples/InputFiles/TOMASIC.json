@@ -8,20 +8,20 @@
         "R": 78.0,
         "a": 26.0,
         "b": 26.0,
-        "lHFS": 52.0,
-        "lLFS": 104.0,
-        "nlimiters": 0,
+        "lHFS": 53.0,
+        "lLFS": 99.0,
+        "nlimiters": 1,
         "Vpl": 22400.0
     },
     "neutral_pressure": {
-        "pHe": 0.0,
-        "pH2": 0.0007
+        "pHe": 1e-8,
+        "pH2": 0.75e-4
     },
     "rf_power": {
         "Prf": 6.0,
         "bselfcol": false,
         "freq": 11.44,
-        "dtpramp": 0.0
+        "dtpramp": 0.0001
     },
     "type": {
         "bfixpowerfrac": false,
@@ -29,23 +29,31 @@
         "bTOMAS": false,
         "bTOMASIC": true,
         "bproptone": false,
-        "blhr": false,
-        "bmanuel": false
+        "blhr": true,
+        "bmanuel": false,
+        "bram": false,
+        "bgray": false,
+        "bnopower": false,
+        "bkipt": false,
+        "bICWC": false
     },
     "general_ec": {
-        "Rdep": 91.85,
-        "pecabs0": 0.0808,
-        "widthech": 1.8666666666666667,
+        "Rdep": 78.0,
+        "pecabs0": 0.1,
+        "widthech": 1.87,
         "echbackground": 1e-07,
         "harmonic": 2.0,
         "muw": 0.01
     },
+    "gray":{},
+    "ram":{},
     "necfix": {
-        "ic": 91,
-        "necfix": 7411600000000.0,
-        "Pini": 2.0,
+        "ic": 81,
+        "necfix": 10584000000000.0,
+        "Pini": 3.0,
         "tauP": 5e-05
     },
+    "kipt":{},
     "tomas": {
         "Rdep1": 86.1875,
         "PRdep1": 0.0,
@@ -59,24 +67,29 @@
     "general_ic": {
         "Rant": 100.0,
         "bantlr": false,
-        "avlr": 0.23
+        "avlr": 0.23,
+        "alphalaw": 0.002,
+        "HtoHD": 1.0
     },
     "lhr": {
-        "fracpne": 0.5,
-        "fraclhr": 0.25,
-        "widthlhr": 2.5,
+        "fracpne": 1.0,
+        "fraclhr": 0.5,
+        "widthlhr": 1.5,
         "lhrbackground": 1e-07,
         "HtoHD": 1.0
     },
     "other": {
         "fixedTe": false
     },
+    "erm":{},
+    "pppl":{},
     "diffusion": {
         "bDfix": false,
-        "Dfix": 3330.0,
+        "Dfix": 10000.0,
         "bDbohm": false,
         "bDscaling": true,
-        "Dfact": 1.0
+        "Dfact": 1.0,
+        "bDfix_neutr": false
     },
     "convection": {
         "bVfix": false,
@@ -88,19 +101,19 @@
     "tune_d_and_v": {
         "btunedv": false,
         "btunevleft": false,
-        "il": 79,
-        "nelfix": 3535800000000.0,
+        "il": 73,
+        "nelfix": 3189800000000.0,
         "ir": 114,
-        "nerfix": 5217300000000.0,
-        "Vini": -2.5,
+        "nerfix": 6430100000000.0,
+        "Vini": -2.0,
         "tauV": 0.01,
-        "Dini": 0.0,
+        "Dini": 1.0,
         "tauD": 0.0005
     },
     "physics_to_include": {
         "bH": true,
         "bH2": true,
-        "bHe": false,
+        "bHe": true,
         "bion": true,
         "bcx": true,
         "belas": true,
@@ -108,25 +121,25 @@
         "bimpur": false,
         "btranspions": true,
         "btranspneut": true,
-        "bedge": false,
+        "bedge": true,
         "bpol": true,
         "vdrift": true,
         "bcoll": true
     },
     "initial_conditions": {
-        "rmaxini": 78.0,
-        "widthini": 52.0,
+        "rmaxini": 90.0,
+        "widthini": 5.0,
         "nebackgroundl": 1e-05,
         "nebackgroundr": 0.001,
         "Ta0": 0.02587,
         "Te0": 3.0,
-        "nevac": 10000000.0,
+        "nevac": 1.0,
         "nH0": 2000000.0,
-        "nHi0": 1000000.0,
-        "nH2i0": 1000000000000000.0,
+        "nHi0": 5.0e10,
+        "nH2i0": 1.0e9,
         "nH3i0": 1000000.0,
-        "nHeII0": 0.0,
-        "nHeIII0": 10.0,
+        "nHeII0": 2.0e6,
+        "nHeIII0": 2.0e6,
         "nCII0": 10.0,
         "nCIII0": 10.0,
         "nCIV0": 10.0,
@@ -138,7 +151,8 @@
         "gEd": 1.6667,
         "gEv": 1.6667,
         "gEdn": 1.6667,
-        "gEe": 1.6667
+        "gEe": 1.6667,
+        "fixBCs": false
     },
     "simulation_grid": {
         "nmeshp": 161
@@ -148,15 +162,15 @@
     },
     "time_step": {
         "t0": 0.0,
-        "tmainend": 2.0,
-        "accur": 0.01,
-        "dtmax": 2e-07,
-        "dtmin": 2e-08,
-        "dtinit": 1e-09
+        "tmainend": 0.1,
+        "accur": 0.05,
+        "dtmax": 2e-06,
+        "dtmin": 2.5e-08,
+        "dtinit": 2.5e-08
     },
     "time_step_for_rf_coupling": {
         "bupdateRFstep": true,
-        "updateRF": 1,
+        "updateRF": 100,
         "dtRF": 1e-07,
         "dtRFvar": false,
         "dtRFmax": 5e-06,
@@ -175,11 +189,11 @@
         "minaccur": 0.05
     },
     "output_parameters": {
-        "Nlog": 1000,
+        "Nlog": 500,
         "cc": 91,
         "Nloopsave": 5000,
         "bOutdt": true,
-        "dtsave": 0.001
+        "dtsave": 0.0001
     },
     "solver_parameters": {
         "solvertolerance": 1e-10

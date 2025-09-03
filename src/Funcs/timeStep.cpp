@@ -811,7 +811,7 @@ void timeStep() {
         ++TimeStepCounter;
 
         if (isnan(nr.ne[0])) {
-            cout << "\033[1;31mbold [ERROR] The electron density is nan\033[0m\n";
+            cout << "\033[1;31m[ERROR] The electron density is nan\033[0m\n";
             tmain = tmainend;
         }
     }
