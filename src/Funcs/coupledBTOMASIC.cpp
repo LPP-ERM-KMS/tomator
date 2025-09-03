@@ -98,5 +98,9 @@ void bTOMASIC_func() {
     for (int id = 0; id < NMESHP; ++id) {
         PRFe_array[id] = result.at(0).second[id];
         PRFH2i_array[id] = result.at(1).second[id];
+        PRFHi_array[id] = 0.0;
+        PRFH3i_array[id] = 0.0;
+        PRFHeII_array[id] = 0.0;
+        PRFHeIII_array[id] = 0.0;
     }
 }
