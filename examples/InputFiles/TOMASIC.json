@@ -164,17 +164,17 @@
         "t0": 0.0,
         "tmainend": 0.1,
         "accur": 0.05,
-        "dtmax": 2e-06,
+        "dtmax": 2e-04,
         "dtmin": 2.5e-08,
-        "dtinit": 2.5e-08
+        "dtinit": 2.5e-06
     },
     "time_step_for_rf_coupling": {
         "bupdateRFstep": true,
         "updateRF": 100,
-        "dtRF": 1e-07,
+        "dtRF": 1.0e-05,
         "dtRFvar": false,
-        "dtRFmax": 5e-06,
-        "dtRFmin": 1e-08,
+        "dtRFmax": 5e-04,
+        "dtRFmin": 1e-06,
         "dtRFconv": false
     },
     "advanced_time_step_settings": {
@@ -193,7 +193,7 @@
         "cc": 91,
         "Nloopsave": 5000,
         "bOutdt": true,
-        "dtsave": 0.0001
+        "dtsave": 1.0e-5
     },
     "solver_parameters": {
         "solvertolerance": 1e-10
