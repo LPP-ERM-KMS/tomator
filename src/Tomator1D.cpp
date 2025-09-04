@@ -74,6 +74,7 @@ int main(int argc, char *argv[]) {
         cout << "He0 fixed density is: " << nHeI0*1e6 << " 1/m3" << endl;
         cout << "H2 fixed density is: " << nH20*1e6 << " 1/m3" << endl;
         nCI0 = 0.001 * (pH2 + pHe) * 100.0 / (Ta0 * 11600.0 * kb) / 1.0e6;
+        //https://open.adas.ac.uk/about-adas
         if (bADAS) cout << "ADAS database will be used." << endl;
 
         if (bfinput == false) {
