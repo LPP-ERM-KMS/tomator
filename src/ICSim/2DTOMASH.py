@@ -21,7 +21,7 @@ Profiles = np.genfromtxt('/tmp/DensAndTemp.csv', delimiter=',')
 #--------------------#
 # Machine definition #
 #--------------------#
-gasn = 2e19
+gasn = 1e19
 r_ = Profiles[1:,0]
 ne = Profiles[1:,1]
 Te = Profiles[1:,2]
@@ -57,11 +57,12 @@ except:
     with open('/tmp/mesh.pkl', 'wb') as file:
         pickle.dump(mesh, file)
 
-from pyRFplasma.system import System
+#pyRFplasma is my custom library
+from pyRFplasma.system import System 
 from pyRFplasma.solve import Solve
 from pyRFplasma.constants import Constants
 
-TOMAS = System({"e":1,"H2":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn)
+TOMAS = System({"e":1,"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn)
 TOMAS.Epsilon2D(MAXH,temperature="CXD")
 
 solution = Solve(TOMAS)
@@ -70,7 +71,7 @@ solution.GetSolution()
 # Find scaling
 P = solution.PowerDeposition2D()
 
-resolution = 301
+resolution = 161
 angle = np.pi*10/180
 TP = []
 R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
@@ -80,7 +81,7 @@ PowerScalingFactor = 6000/sum(TP)
 TP = [TP[i]*PowerScalingFactor for i,j in enumerate(TP)]
 
 # Compute ion heating
-TOMASH2 = System({"H2":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn)
+TOMASH2 = System({"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn)
 TOMASH2.Epsilon2D(MAXH,temperature="CXD")
 H2diel = TOMASH2.eps
 P = solution.PowerDeposition2D(H2diel)
@@ -104,6 +105,6 @@ eP = [eP[i]*PowerScalingFactor for i,j in enumerate(eP)]
 
 with open('/tmp/PowerDeposition.csv', 'w', newline='') as csvfile:
     spamwriter = csv.writer(csvfile, delimiter=',')
-    spamwriter.writerow(['eP','H2P'])
+    spamwriter.writerow(['eP','HP'])
     for i in range(len(TP)):
         spamwriter.writerow([eP[i],H2P[i]])

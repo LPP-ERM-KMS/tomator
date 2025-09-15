@@ -317,7 +317,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
                 ERF_save = Er;
             }
 
-#pragma omp parallel for
+            #pragma omp parallel for
             for (int im = 0; im < NMESHP; ++im) {
                 if ((bkipt == true) && (bantlr == true)) // use antenna resistance
                 {

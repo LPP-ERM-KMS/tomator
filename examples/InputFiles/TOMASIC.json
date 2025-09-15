@@ -8,14 +8,14 @@
         "R": 78.0,
         "a": 26.0,
         "b": 26.0,
-        "lHFS": 53.0,
-        "lLFS": 99.0,
-        "nlimiters": 1,
+        "lHFS": 52.0,
+        "lLFS": 104.0,
+        "nlimiters": 2,
         "Vpl": 22400.0
     },
     "neutral_pressure": {
         "pHe": 1e-8,
-        "pH2": 0.75e-4
+        "pH2": 7.5e-4
     },
     "rf_power": {
         "Prf": 6.0,
@@ -113,12 +113,12 @@
     "physics_to_include": {
         "bH": true,
         "bH2": true,
-        "bHe": true,
+        "bHe": false,
         "bion": true,
         "bcx": true,
         "belas": true,
         "bcoulomb": true,
-        "bimpur": false,
+        "bimpur": true,
         "btranspions": true,
         "btranspneut": true,
         "bedge": true,
@@ -170,12 +170,12 @@
     },
     "time_step_for_rf_coupling": {
         "bupdateRFstep": true,
-        "updateRF": 100,
+        "updateRF": 1,
         "dtRF": 1.0e-05,
         "dtRFvar": false,
-        "dtRFmax": 5e-04,
+        "dtRFmax": 5e-03,
         "dtRFmin": 1e-06,
-        "dtRFconv": false
+        "dtRFconv": true
     },
     "advanced_time_step_settings": {
         "dtsmooth": true,
