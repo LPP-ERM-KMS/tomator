@@ -1,4 +1,3 @@
-#define PY_SSIZE_T_CLEAN
 #include "coupledpower.h"
 #include "../Vars/simparam.h"
 #include <stdio.h>
@@ -12,10 +11,8 @@
 #include <sstream>
 #include <vector>
 #include <string>
-#include <Python.h>
 
 void bTOMASIC_func() {
-
     //# Write to csv file
     //## open and initialize in /tmp
     std::ofstream csvwritefile;
@@ -36,21 +33,16 @@ void bTOMASIC_func() {
             csvwritefile << "\n";
         }
     csvwritefile.close(); 
-
     //# Execute ngsolve sim and read result
-    //### get file
-    FILE* fp;
+    //## Form command
     std::string BaseFolder = std::getenv("TOMATORSOURCE");
     std::string ScriptPosAdd = "/src/ICSim/2DTOMASH.py";
     std::string ScriptPos = BaseFolder + ScriptPosAdd;
-    fp = fopen(ScriptPos.c_str(), "r");
+    std::string command = "python ";
+    command += ScriptPos;
     //## Execution 
     cout << "Executing python" << endl;
-    Py_Initialize();
-    PyRun_AnyFile(fp,ScriptPos.c_str());
-    Py_Finalize();
-    cout << "python done" << endl;
-
+    system(command.c_str());
     //## read result
     //### Create a vector of <string, double vector> pairs to store the result
     std::vector<std::pair<std::string, std::vector<double>>> result;
