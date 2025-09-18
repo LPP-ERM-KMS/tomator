@@ -155,7 +155,7 @@
         "fixBCs": false
     },
     "simulation_grid": {
-        "nmeshp": 161
+        "nmeshp": 301
     },
     "input_file": {
         "bfinput": false
@@ -193,7 +193,7 @@
         "cc": 91,
         "Nloopsave": 5000,
         "bOutdt": true,
-        "dtsave": 1.0e-5
+        "dtsave": 1.0e-7
     },
     "solver_parameters": {
         "solvertolerance": 1e-10
