@@ -9,14 +9,18 @@ from ngsolve.webgui import Draw
 import netgen.geom2d as geom2d
 from netgen.geom2d import CSG2d, Circle, Rectangle
 
-freq = 11.44e6 #driving frequency
-prefix = '11.44Mhz'
+with open('/tmp/DensAndTemp.csv') as f:
+    info = str(f.readline().strip('\n'))
+freqstr = info.split(",")[-1]
+freq = float(info.split(",")[-1])*1e6
+
+prefix = freqstr+'Mhz'
 
 def movingaverage(interval, window_size):
     window = np.ones(int(window_size))/float(window_size)
     return np.convolve(interval, window, 'same')
 
-Profiles = np.genfromtxt('/tmp/DensAndTemp.csv', delimiter=',')
+Profiles = np.genfromtxt('/tmp/DensAndTemp.csv', delimiter=',',skip_header=1)
 
 #--------------------#
 # Machine definition #
@@ -33,7 +37,7 @@ Power = 6000 #6kW IC
 R0 = 0.780 #major radius
 Ra = 0.260 #minor radius
 
-MAXH=0.02
+MAXH=0.01
 order_mesh = 3
 
 try: 

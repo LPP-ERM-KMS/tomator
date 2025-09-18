@@ -118,7 +118,7 @@
         "bcx": true,
         "belas": true,
         "bcoulomb": true,
-        "bimpur": true,
+        "bimpur": false,
         "btranspions": true,
         "btranspneut": true,
         "bedge": true,
@@ -127,10 +127,10 @@
         "bcoll": true
     },
     "initial_conditions": {
-        "rmaxini": 90.0,
-        "widthini": 5.0,
-        "nebackgroundl": 1e-05,
-        "nebackgroundr": 0.001,
+        "rmaxini": 80.0,
+        "widthini": 30.0,
+        "nebackgroundl": 0.1,
+        "nebackgroundr": 0.1,
         "Ta0": 0.02587,
         "Te0": 3.0,
         "nevac": 1.0,

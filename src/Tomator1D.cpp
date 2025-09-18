@@ -94,6 +94,7 @@ int main(int argc, char *argv[]) {
         {
             cout << "\033[1;31m [ERROR] environmental variable TOMATORSOURCE not set\033[0m\n";
             throw std::exception();
+            exit(EXIT_FAILURE);
         }
         string basefolder = std::getenv("TOMATORSOURCE");
         string filename_ = basefolder + "/src/SimParams/Public/hydhel.tex";
@@ -658,6 +659,12 @@ void getSimParams(const char *json_file, int timeSteps) {
     }
 
     // Use std::filesystem::path for safer path operations
+    if (!std::getenv("TOMATORRESULTS"))
+    {
+        cout << "\033[1;31m [ERROR] environmental variable TOMATORRESULTS not set\033[0m\n";
+        throw std::exception();
+        exit(EXIT_FAILURE);
+    }
     string basefolder = std::getenv("TOMATORRESULTS");
     std::filesystem::path basePath(basefolder);
     std::filesystem::path dataFolderPath = basePath / folderName;

@@ -99,7 +99,7 @@ void coupledpower(const double &freq, double &alr) //, double PTEST[] )
     //////////////////////////////////////////
 
     if (bTOMASIC) {
-        bTOMASIC_func();
+        bTOMASIC_func(freq);
     }
 
     //////////////////////////////////////////

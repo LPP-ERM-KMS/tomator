@@ -12,12 +12,14 @@
 #include <vector>
 #include <string>
 
-void bTOMASIC_func() {
+void bTOMASIC_func(const double &freq) {
     //# Write to csv file
     //## open and initialize in /tmp
     std::ofstream csvwritefile;
     csvwritefile.open("/tmp/DensAndTemp.csv"); 
-    csvwritefile << "Ra,Ne,Te,nHi,THi\n";
+    csvwritefile << "Ra,Ne,Te,nHi,THi,";
+    csvwritefile << freq;
+    csvwritefile << "\n";
     //## write arrays
     for (int i=0; i<NMESHP; i++)
         {
@@ -36,11 +38,11 @@ void bTOMASIC_func() {
     //# Execute ngsolve sim and read result
     //## Form command
     std::string BaseFolder = std::getenv("TOMATORSOURCE");
-    std::string ScriptPosAdd = "/src/ICSim/2DTOMASH.py";
+    std::string ScriptPosAdd = "/src/External/2DTOMASH.py";
     std::string ScriptPos = BaseFolder + ScriptPosAdd;
     std::string command = "python ";
     command += ScriptPos;
-    //## Execution 
+    //## Execution (also waits for the process to complete)
     cout << "Executing python" << endl;
     system(command.c_str());
     //## read result
