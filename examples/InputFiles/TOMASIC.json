@@ -1,20 +1,20 @@
 {
     "magnetic_field": {
         "Bt": 0.0912,
-        "Bv": 0.0001,
+        "Bv": 0.0000001,
         "Bh": 0.0001
     },
     "toroidal_machine_geometry": {
         "R": 78.0,
         "a": 26.0,
         "b": 26.0,
-        "lHFS": 52.0,
+        "lHFS": 54.0,
         "lLFS": 104.0,
-        "nlimiters": 2,
-        "Vpl": 22400.0
+        "nlimiters": 1,
+        "Vpl": 1.04081e6
     },
     "neutral_pressure": {
-        "pHe": 1e-8,
+        "pHe": 1e-10,
         "pH2": 7.5e-4
     },
     "rf_power": {
@@ -29,7 +29,7 @@
         "bTOMAS": false,
         "bTOMASIC": true,
         "bproptone": false,
-        "blhr": true,
+        "blhr": false,
         "bmanuel": false,
         "bram": false,
         "bgray": false,
@@ -96,23 +96,23 @@
         "Vfix": 333.0,
         "bVscaling": true,
         "veq": 8,
-        "Vfact": 5.0
+        "Vfact": 4.0
     },
     "tune_d_and_v": {
         "btunedv": false,
         "btunevleft": false,
         "il": 73,
-        "nelfix": 3189800000000.0,
+        "nelfix": 0.0,
         "ir": 114,
-        "nerfix": 6430100000000.0,
-        "Vini": -2.0,
-        "tauV": 0.01,
+        "nerfix": 0.0,
+        "Vini": 5.0,
+        "tauV": 0.005,
         "Dini": 1.0,
         "tauD": 0.0005
     },
     "physics_to_include": {
         "bH": true,
-        "bH2": true,
+        "bH2": false,
         "bHe": false,
         "bion": true,
         "bcx": true,
@@ -121,8 +121,8 @@
         "bimpur": false,
         "btranspions": true,
         "btranspneut": true,
-        "bedge": true,
-        "bpol": true,
+        "bedge": false,
+        "bpol": false,
         "vdrift": true,
         "bcoll": true
     },
@@ -132,14 +132,14 @@
         "nebackgroundl": 0.1,
         "nebackgroundr": 0.1,
         "Ta0": 0.02587,
-        "Te0": 3.0,
+        "Te0": 1.0,
         "nevac": 1.0,
-        "nH0": 1.0e17,
-        "nHi0": 1.0e14,
-        "nH2i0": 1.0e9,
-        "nH3i0": 1000000.0,
-        "nHeII0": 2.0e6,
-        "nHeIII0": 2.0e6,
+        "nH0": 1.0e8,
+        "nHi0": 1.0e15,
+        "nH2i0": 1.0e5,
+        "nH3i0": 1.0e1,
+        "nHeII0": 1.0e1,
+        "nHeIII0": 2.0e1,
         "nCII0": 10.0,
         "nCIII0": 10.0,
         "nCIV0": 10.0,
@@ -148,10 +148,10 @@
     "edge_conditions": {
         "RH": 0.5,
         "REH": 0.9,
-        "gEd": 1.6667,
-        "gEv": 1.6667,
-        "gEdn": 1.6667,
-        "gEe": 1.6667,
+        "gEd": 1.0,
+        "gEv": 1.0,
+        "gEdn": 3.0,
+        "gEe": 1.0,
         "fixBCs": false
     },
     "simulation_grid": {
@@ -170,12 +170,12 @@
     },
     "time_step_for_rf_coupling": {
         "bupdateRFstep": true,
-        "updateRF": 1,
-        "dtRF": 1.0e-05,
+        "updateRF": 100,
+        "dtRF": 1.0e-06,
         "dtRFvar": false,
-        "dtRFmax": 5e-03,
-        "dtRFmin": 1e-06,
-        "dtRFconv": true
+        "dtRFmax": 5e-04,
+        "dtRFmin": 1e-08,
+        "dtRFconv": false
     },
     "advanced_time_step_settings": {
         "dtsmooth": true,
@@ -189,11 +189,11 @@
         "minaccur": 0.05
     },
     "output_parameters": {
-        "Nlog": 500,
+        "Nlog": 1000,
         "cc": 91,
-        "Nloopsave": 5000,
-        "bOutdt": true,
-        "dtsave": 1.0e-7
+        "Nloopsave": 100,
+        "bOutdt": false,
+        "dtsave": 1.0e-6
     },
     "solver_parameters": {
         "solvertolerance": 1e-10
