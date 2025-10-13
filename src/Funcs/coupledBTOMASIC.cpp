@@ -97,9 +97,10 @@ void bTOMASIC_func(const double &freq) {
             colIdx++;
         }
     }
+    double ScaleFactor = 6.241509074461e18*(aR[1]-aR[0]) //W per meshpoint to eV/cm^3s not yet good
     for (int id = 0; id < NMESHP; ++id) {
-        PRFe_array[id] = result.at(0).second[id]; 
-        PRFHi_array[id] = result.at(1).second[id];
+        PRFe_array[id] = ScaleFactor*result.at(0).second[id];  //(eV/cm^3s)
+        PRFHi_array[id] = ScaleFactor*result.at(1).second[id]; //(eV/cm^3s)
         PRFH2i_array[id] = 0.0;
         PRFH3i_array[id] = 0.0;
         PRFHeII_array[id] = 0.0;
