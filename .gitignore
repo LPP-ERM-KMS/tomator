@@ -6,3 +6,4 @@
 *.pkl
 src/build
 tests/*.txt
+*aux.txt
