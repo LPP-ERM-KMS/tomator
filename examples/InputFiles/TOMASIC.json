@@ -100,7 +100,7 @@
     },
     "tune_d_and_v": {
         "btunedv": true,
-        "btunevleft": true,
+        "btunevleft": false,
         "il": 73,
         "nelfix": 3.0,
         "ir": 114,
@@ -112,7 +112,7 @@
     },
     "physics_to_include": {
         "bH": true,
-        "bH2": false,
+        "bH2": true,
         "bHe": false,
         "bion": true,
         "bcx": true,
@@ -129,8 +129,8 @@
     "initial_conditions": {
         "rmaxini": 80.0,
         "widthini": 30.0,
-        "nebackgroundl": 0.1,
-        "nebackgroundr": 0.1,
+        "nebackgroundl": 1e-1,
+        "nebackgroundr": 1e-1,
         "Ta0": 0.02587,
         "Te0": 1.0,
         "nevac": 1.0,
