@@ -19,9 +19,9 @@
     },
     "rf_power": {
         "Prf": 6.0,
-        "bselfcol": false,
+        "bselfcol": true,
         "freq": 11.44,
-        "dtpramp": 0.0001
+        "dtpramp": 0.0000000000001
     },
     "type": {
         "bfixpowerfrac": false,
@@ -99,12 +99,12 @@
         "Vfact": 4.0
     },
     "tune_d_and_v": {
-        "btunedv": false,
-        "btunevleft": false,
+        "btunedv": true,
+        "btunevleft": true,
         "il": 73,
-        "nelfix": 0.0,
+        "nelfix": 3.0,
         "ir": 114,
-        "nerfix": 0.0,
+        "nerfix": 0.5,
         "Vini": 5.0,
         "tauV": 0.005,
         "Dini": 1.0,
