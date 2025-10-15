@@ -109,7 +109,6 @@ void bTOMASIC_func(const double &freq) {
         PRFHi_array[id] = ScaleFactor[id]*result.at(1).second[id]; //(eV/cm^3s)
         PRFH2i_array[id] = 0.0;
         PRFH3i_array[id] = 0.0;
-        PRFHeI_array[id] = 0.0;
         PRFHeII_array[id] = 0.0;
         PRFHeIII_array[id] = 0.0;
     }
