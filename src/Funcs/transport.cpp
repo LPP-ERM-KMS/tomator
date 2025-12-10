@@ -9,7 +9,8 @@ void transpCoef() { // called in Tomator1D.cpp
 	double nuiV[NMESHP] = {0.0};
     #endif
     //double Z = 1.0;  // charge state
-    if (btunedv) { // calculate prefactor Dfsave and Vfsave
+    if (btunedv) {
+        ////// ok ////////////
         nefact = (nr.ne[ic]) / (necfix);
 
         if (btunevleft)                                                              // 1 for Bv scan
@@ -52,22 +53,16 @@ void transpCoef() { // called in Tomator1D.cpp
             Vfsave = 0.3 * Vfsave;
         }
     }
-    else // case of bDscaling or dDbohm
-    { 
-        PIerrorV = 0.0; 
-        PIerrorD = 0.0; 
-        Dfsave = Dfact;
-        Vfsave = Vfact;
-    }
 
-    if (bVscaling) { // also used for btunedv
+    if (btunedv | bVscaling) {
         for (int im = 0; im < NMESHP; ++im) {
             Vionh[im] = max(nr.ne[im] * Tr.Te[im] + nr.nHi[im] * Tr.THi[im] + nr.nH2i[im] * Tr.TH2i[im] + nr.nH3i[im] * Tr.TH3i[im] + nr.nHeII[im] * Tr.THeII[im] + nr.nHeIII[im] * Tr.THeIII[im], nr.ne[im] * 0.05) //(Ta0*2.0)
                         / nr.ne[im];
         }
     }
 
-    if (bDscaling) { // also used for btunedv
+
+    if (btunedv | bDscaling) {
         for (int im = 0; im < NMESHP; ++im) {
             mfpi = nr.nHi[im] * 9.79e5 * sqrt((Tr.Te[im] + Tr.THi[im] * nr.nHi[im] / nr.ne[im]) / 1.0) / max(colrate.nuHi[im], 1e4);
             gri = nr.nHi[im] * 1.02e2 / 1.0 * sqrt(1.0 * Tr.THi[im]) / Br[im] / 1e4; // cm
@@ -118,55 +113,59 @@ void transpCoef() { // called in Tomator1D.cpp
 
     // Dion rescaling
     if (bDfix) {
+        PIerrorD = 0.0;
         for (int im = 0; im < NMESHP; ++im) {
             Dion[im] = Dfix;
-            #ifdef debug
-            if(Dion[im]>Dmax){
-                Dmax = Dion[im];
-            }
-            if(Dion[im]<Dmin){
-                Dmin = Dion[im];
-            }
-            #endif
+	    #ifdef debug
+		if(Dion[im]>Dmax){
+			Dmax = Dion[im];
+		}
+		if(Dion[im]<Dmin){
+			Dmin = Dion[im];
+		}
+	    #endif
         }
     } // END bDfix
-    else if (bDscaling) { // also used for btunedv
+    else if (bDscaling | btunedv) {
+        PIerrorD = 0.0;
+        Dfsave = Dfact;
         for (int im = 0; im < NMESHP; ++im) {
             Dion[im] = max(1e2, Dfsave * Dionh[im]);
-            #ifdef debug
-            if(Dion[im]>Dmax){
-                Dmax = Dion[im];
-            }
-            if(Dion[im]<Dmin){
-                Dmin = Dion[im];
-            }
-            #endif
+	    #ifdef debug
+		if(Dion[im]>Dmax){
+			Dmax = Dion[im];
+		}
+		if(Dion[im]<Dmin){
+			Dmin = Dion[im];
+		}
+	    #endif
         }
-    } // END bDscaling
+    } // END bDscaling | btunedv
     else if (bDbohm) {
         // #pragma omp parallel for private(mfpi, gri, nui)
         for (int im = 0; im < NMESHP; ++im) {
             Dionh[im] = max(nr.ne[im] * Tr.Te[im] + nr.nHi[im] * Tr.THi[im] + nr.nH2i[im] * Tr.TH2i[im] + nr.nH3i[im] * Tr.TH3i[im] + nr.nHeII[im] * Tr.THeII[im] + nr.nHeIII[im] * Tr.THeIII[im], nr.ne[im] * 0.05) //(Ta0*2.0)
                         / nr.ne[im];
-            #ifdef debug
-            if(Dion[im]>Dmax){
-                Dmax = Dion[im];
-            }
-            if(Dion[im]<Dmin){
-                Dmin = Dion[im];
-            }
-            #endif
+	    #ifdef debug
+		if(Dion[im]>Dmax){
+			Dmax = Dion[im];
+		}
+		if(Dion[im]<Dmin){
+			Dmin = Dion[im];
+		}
+	    #endif
         }
+        Dfsave = Dfact;
         for (int im = 0; im < NMESHP; ++im) {
             Dion[im] = max(1e2, Dfsave * Dionh[im] / Br[im]);
-            #ifdef debug
-            if(Dion[im]>Dmax){
-                Dmax = Dion[im];
-            }
-            if(Dion[im]<Dmin){
-                Dmin = Dion[im];
-            }
-            #endif
+	    #ifdef debug
+		if(Dion[im]>Dmax){
+			Dmax = Dion[im];
+		}
+		if(Dion[im]<Dmin){
+			Dmin = Dion[im];
+		}
+	    #endif
         }
     } // END bDbohm
 
@@ -175,20 +174,20 @@ void transpCoef() { // called in Tomator1D.cpp
         for (int im = 0; im < NMESHP; ++im) {
             Vionh[im] = Vfix;
         }
-        // cout << Vfix << endl;
     } // END bVfix
-    else if (bVscaling) { // also used for btunedv
+    else if (bVscaling | btunedv) {
+        PIerrorV = 0.0;
         // Vfsave = (1.0-1.0*exp(-tmain/5e-3))*Vfact*2.0/R;
         for (int im = 0; im < NMESHP; ++im) {
             if (veq == 8) { // Eq (8)
-                Vionh[im] = Vfsave * 100.0 * Vionh[im] / Br[im];
+                Vionh[im] = Vfact * 100.0 * Vionh[im] / Br[im];
             } else if (veq == 9) { // Eq (9)
-                Vfsave = Vfsave * 2.0 / R;
+                Vfsave = Vfact * 2.0 / R;
                 Vionh[im] = Vfsave * Dion[im];
             }
         }
-    } // END bVscaling
-    else { // Te dependency only --> there is no bool switch for this (yet)
+    } // END bVscaling | btunedv
+    else { // Te dependency only
         for (int im = 0; im < NMESHP; ++im) {
             Vionh[im] = Vfsave * 100.0 * Vionh[im];
         }
@@ -198,39 +197,43 @@ void transpCoef() { // called in Tomator1D.cpp
 	cout << "Min. diff. coeff. radial = " << Dmin/10000 << "[m2/s]; max. = " << Dmax/10000 << "[m2/s]" << endl;
     #endif
 
-    if (bVscaling) { // also used for btunedv
-        // weighted average over radius for Vion
-        double nemax = nr.ne[0];
-        double Temax = Tr.Te[0];
-        for (int id = 1; id < NMESHP - 1; ++id) { // line integrated density
-            nemax = max(nemax, nr.ne[id]);
-            Temax = max(Temax, Tr.Te[id]);
-        }
-        Vionh[0] = 0.0;                           // Vionh[0]*nr.ne[0]*Tr.Te[0]*aR[0]*(aR[1]-aR[0])+Vionh[1]*nr.ne[1]*Tr.Te[1]*aR[1]*(aR[1]-aR[0]);//+Vionh[2]*nr.ne[2]*aR[2]*(aR[2]-aR[1]);
-        Vionh[1] = 0.0;                           // nr.ne[0]*Tr.Te[0]*aR[0]*(aR[1]-aR[0]) + Tr.Te[1]*Tr.Te[1]*aR[1]*(aR[1]-aR[0]);// + nr.ne[2]*aR[2]*(aR[2]-aR[1]);
-        for (int id = 2; id < NMESHP - 1; ++id) { // line integrated density
-            if (nr.ne[id] > nemax / 5.0) {
-                Vionh[0] += Vionh[id] * nr.ne[id] * Tr.Te[id] * aR[id];
-                Vionh[1] += nr.ne[id] * Tr.Te[id] * aR[id]; // inteprof += 2.0*b*pi*0.5*(eprof[id]+eprof[id+1])*(pow(aR[id+1],2.0)-pow(aR[id],2.0)); // 20181016
-            }
-        }
-        Vionh[0] = (Vionh[0] / Vionh[1]);
-        for (int id = 1; id < NMESHP - 1; ++id) { // line integrated density
-            Vionh[id] = Vionh[0];
+    // weighted average over radius for Vion
+    double nemax = nr.ne[0];
+    double Temax = Tr.Te[0];
+    for (int id = 1; id < NMESHP - 1; ++id) { // line integrated density
+        nemax = max(nemax, nr.ne[id]);
+        Temax = max(Temax, Tr.Te[id]);
+    }
+    Vionh[0] = 0.0;                           // Vionh[0]*nr.ne[0]*Tr.Te[0]*aR[0]*(aR[1]-aR[0])+Vionh[1]*nr.ne[1]*Tr.Te[1]*aR[1]*(aR[1]-aR[0]);//+Vionh[2]*nr.ne[2]*aR[2]*(aR[2]-aR[1]);
+    Vionh[1] = 0.0;                           // nr.ne[0]*Tr.Te[0]*aR[0]*(aR[1]-aR[0]) + Tr.Te[1]*Tr.Te[1]*aR[1]*(aR[1]-aR[0]);// + nr.ne[2]*aR[2]*(aR[2]-aR[1]);
+    for (int id = 2; id < NMESHP - 1; ++id) { // line integrated density
+        if (nr.ne[id] > nemax / 5.0) {
+            Vionh[0] += Vionh[id] * nr.ne[id] * Tr.Te[id] * aR[id];
+            Vionh[1] += nr.ne[id] * Tr.Te[id] * aR[id]; // inteprof += 2.0*b*pi*0.5*(eprof[id]+eprof[id+1])*(pow(aR[id+1],2.0)-pow(aR[id],2.0)); // 20181016
         }
     }
+    Vionh[0] = (Vionh[0] / Vionh[1]);
+    for (int id = 1; id < NMESHP - 1; ++id) { // line integrated density
+        Vionh[id] = Vionh[0];
+    }
+
     // no convection if density is below the vacuum density
     #pragma omp parallel for
     for (int im = 0; im < NMESHP; ++im) {
-        // Vion[im] = Vionh[im] * pow(1.0 + (nevac / nr.ne[im]), -0.66) * pow(1.0 + (nevac / bnion(im * 2)), -0.66); // switch of convection if density ne or nion is low
-        Vion[im] = Vionh[im] * pow(1.0 + (nevac / nr.ne[im]), -0.66); // removed bnion as it is very low since transpcoeffs is now called only once
+        Vion[im] = Vionh[im] * pow(1.0 + (nevac / nr.ne[im]), -0.66) * pow(1.0 + (nevac / bnion(im * 2)), -0.66); // switch of convection if density ne or nion is low
     }
 
-    // consider to remove this two lines below as they do not seem to do much... 
-    //Vion[0] = 0.0;
-    //Vion[1] = Vion[1] / 2.0;
+    Vion[0] = 0.0;
+    Vion[1] = Vion[1] / 2.0;
+    // Vion[NMESHP-1] = 0.0;
+    // DionHFS = Dion[0]; // min 1.0e4;
+    // DionLFS = Dion[NMESHP-1]; // min 1.0e4;
+    // VionHFS = Vion[0]; // min 1.0e4;
+    // VionLFS = Vion[NMESHP-1]; // min 1.0e4;
+    // cout << Dion[220] << "  " << Vion[220] << endl;
+    // Ds.coeffRef moved to solve_Ab=x
 
-    // cout << "Dion[cc] = "  << Dion[cc] << ",  Vion[cc] = " << Vion[cc] << endl;
+    // cout << "Dion[cc] = "  << Dion[cc] << ",  Vionh[cc] = " << Vionh[cc] << endl;
 }
 
 void transportions(double tstep) { // called in solver.cpp within timeStep.cpp in Tomator1D.cpp
@@ -290,35 +293,29 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
     }
     // BCs ions
     if (1) {
-	if(fixBCs) {
-	lambda = lam_dec_length_ions;
-	bnion(0 + 1) = bnion(0) / lambda;
-	lambda = lam_dec_length_energy;
-        bEion(0 + 1) = bEion(0) / lambda;
-	bEelec(0 + 1) = bnion(0) * Z * 3.0 / 2.0 * Tr.Te[0] /lambda;
-	}
-	else {
         lambda = sqrt(Dion[0] * (0.66 * 2.0 * pi * aR[0] / nlimiters) /
                       (9.79e5 * sqrt(Z / mu * (Tr.Te[0] + bnion(0) / nr.ne[0] * bEion(0) / (3.0 / 2.0 * bnion(0)))) * pow(1.0 + (nevac / nr.ne[0]), -0.66) * pow(1.0 + (nevac / bnion(0)), -0.66)));
+	#ifdef debug
+		cout << "lambda HFS = " << lambda/100 << " [m]" << endl;
+	#endif
         if (lambda < 0.0) {
             cout << "lambda<0.0 HFS after" << endl;
-	}
+        }
         bnion(0 + 1) = bnion(0) / lambda;
+	#ifdef debug
+		cout << "bnion(1) = " << bnion(1) << " [??]" << endl;
+	#endif
         bEion(0 + 1) = bEion(0) / (lambda / sqrt(gEe) * sqrt(gEd));
+	#ifdef debug
+		cout << "bEion(1) = " << bEion(1) << " [??]" << endl;
+	#endif
         // bEion(0+1)            = bnion(0)/lambda*3.0/2.0*Tion[0]   ;//                                                          * pow(1.0+(nevac/nr.ne[0]),-0.66) * pow(1.0+(nevac/bEion(0)),-0.66) * pow(1.0+Ta0/Tion[0],-0.66) ;
         bEelec(0 + 1) = bnion(0) / (lambda / sqrt(gEe) * sqrt(gEd)) * Z * 3.0 / 2.0 * Tr.Te[0];
-	}
-
-	if(fixBCs) {
-	lambda = lam_dec_length_ions;
-	bnion((NMESHP - 1) * 2 + 1) = -bnion((NMESHP - 1) * 2) / lambda;
-	lambda = lam_dec_length_energy;
-        bEion((NMESHP - 1) * 2 + 1) = -bEion((NMESHP - 1) * 2) / lambda;
-	bEelec((NMESHP - 1) * 2 + 1) = -bnion((NMESHP - 1) * 2) * Z * 3.0 / 2.0 * Tr.Te[NMESHP - 1] / lambda;
-	}
-	else {
         lambda = sqrt(Dion[NMESHP - 1] * (0.66 * 2.0 * pi * aR[NMESHP - 1] / nlimiters) /
                       (9.79e5 * sqrt(Z / mu * (Tr.Te[NMESHP - 1] + bnion((NMESHP - 1) * 2) / nr.ne[NMESHP - 1] * (bEion((NMESHP - 1) * 2) / (3.0 / 2.0 * bnion((NMESHP - 1) * 2))))) * pow(1.0 + (nevac / nr.ne[NMESHP - 1]), -0.66) * pow(1.0 + (nevac / bnion((NMESHP - 1) * 2)), -0.66)));
+	#ifdef debug
+		cout << "lambda LFS = " << lambda << " [m]" << endl;
+	#endif
         if (lambda < 0.0) {
             cout << "lambda<0.0 LFS after" << endl;
         }
@@ -326,18 +323,12 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
         bEion((NMESHP - 1) * 2 + 1) = -bEion((NMESHP - 1) * 2) / (lambda / sqrt(gEe) * sqrt(gEd));
         // bEion((NMESHP-1)*2+1) = -bnion((NMESHP-1)*2)/lambda*3.0/2.0*Tion[NMESHP-1]    ;//                                             * pow(1.0+(nevac/nr.ne[NMESHP-1]),-0.66) * pow(1.0+(nevac/bEion((NMESHP-1)*2)),-0.66) * pow(1.0+Ta0/Tion[NMESHP-1],-0.66);
         bEelec((NMESHP - 1) * 2 + 1) = -bnion((NMESHP - 1) * 2) / (lambda / sqrt(gEe) * sqrt(gEd)) * Z * 3.0 / 2.0 * Tr.Te[NMESHP - 1];
-	}
 
-	if (fixBCs) {
-	lambda = lam_dec_length_ions;
-	bnion1(0 + 1) = bnion1(0) / lambda;
-	lambda = lam_dec_length_energy;
-        bEion1(0 + 1) = bEion1(0) / lambda;
-	bEelec1(0 + 1) = bnion1(0) / lambda * Z * 3.0 / 2.0 * Tr.Te[0];
-	}
-	else {
         lambda = sqrt(Dion[0] * (0.66 * 2.0 * pi * aR[0] / nlimiters) /
                       (9.79e5 * sqrt(Z / mu * (Tr.Te[0] + bnion1(0) / nr.ne[0] * bEion1(0) / (3.0 / 2.0 * bnion1(0)))) * pow(1.0 + (nevac / nr.ne[0]), -0.66) * pow(1.0 + (nevac / bnion1(0)), -0.66)));
+	#ifdef debug
+		cout << "lambda HFS = " << lambda/100 << "[m]" << endl;
+	#endif
         if (lambda < 0.0) {
             cout << "lambda<0.0 HFS after" << endl;
         }
@@ -345,18 +336,11 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
         bEion1(0 + 1) = bEion1(0) / (lambda / sqrt(gEe) * sqrt(gEd));
         // bEion1(0+1)            = bnion1(0)/lambda*3.0/2.0*Tion[0]   ;//                                                          * pow(1.0+(nevac/nr.ne[0]),-0.66) * pow(1.0+(nevac/bEion1(0)),-0.66) * pow(1.0+Ta0/Tion[0],-0.66) ;
         bEelec1(0 + 1) = bnion1(0) / (lambda / sqrt(gEe) * sqrt(gEd)) * Z * 3.0 / 2.0 * Tr.Te[0];
-	}
-
-	if(fixBCs) {
-	lambda = lam_dec_length_ions;
-	bnion1((NMESHP - 1) * 2 + 1) = -bnion1((NMESHP - 1) * 2) / lambda;
-	lambda = lam_dec_length_energy;
-        bEion1((NMESHP - 1) * 2 + 1) = -bEion1((NMESHP - 1) * 2) / lambda;
-	bEelec1((NMESHP - 1) * 2 + 1) = -bnion1((NMESHP - 1) * 2) / lambda * Z * 3.0 / 2.0 * Tr.Te[NMESHP - 1];
-	}
-	else {
         lambda = sqrt(Dion[NMESHP - 1] * (0.66 * 2.0 * pi * aR[NMESHP - 1] / nlimiters) /
                       (9.79e5 * sqrt(Z / mu * (Tr.Te[NMESHP - 1] + bnion1((NMESHP - 1) * 2) / nr.ne[NMESHP - 1] * (bEion1((NMESHP - 1) * 2) / (3.0 / 2.0 * bnion1((NMESHP - 1) * 2))))) * pow(1.0 + (nevac / nr.ne[NMESHP - 1]), -0.66) * pow(1.0 + (nevac / bnion1((NMESHP - 1) * 2)), -0.66)));
+	#ifdef debug
+		cout << "lambda LFS = " << lambda/100 << "[m]" << endl;
+	#endif
         if (lambda < 0.0) {
             cout << "lambda<0.0 LFS after" << endl;
         }
@@ -364,7 +348,6 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
         bEion1((NMESHP - 1) * 2 + 1) = -bEion1((NMESHP - 1) * 2) / (lambda / sqrt(gEe) * sqrt(gEd));
         // bEion1((NMESHP-1)*2+1) = -bnion1((NMESHP-1)*2)/lambda*3.0/2.0*Tion[NMESHP-1]    ;//                                             * pow(1.0+(nevac/nr.ne[NMESHP-1]),-0.66) * pow(1.0+(nevac/bEion1((NMESHP-1)*2)),-0.66) * pow(1.0+Ta0/Tion[NMESHP-1],-0.66);
         bEelec1((NMESHP - 1) * 2 + 1) = -bnion1((NMESHP - 1) * 2) / (lambda / sqrt(gEe) * sqrt(gEd)) * Z * 3.0 / 2.0 * Tr.Te[NMESHP - 1];
-	}
     }
 
     if (1) {
@@ -468,14 +451,6 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
         }
     }
 
-    if(fixBCs) {
-     lambda = lam_dec_length_ions;
-     bnion(0 + 1) = bnion(0) / lambda;
-     lambda = lam_dec_length_energy;                       
-     bEion(0 + 1) = bEion(0) / lambda; 
-     bEelec(0 + 1) = bnion(0) / lambda * Z * 3.0 / 2.0 * Tr.Te[0];
-     }
-    else {
     lambda = sqrt(Dion[0] * (0.66 * 2.0 * pi * aR[0] / nlimiters) /
                   (9.79e5 * sqrt(Z / mu * (Tr.Te[0] + bnion(0) / nr.ne[0] * bEion(0) / (3.0 / 2.0 * bnion(0)))) * pow(1.0 + (nevac / nr.ne[0]), -0.66) * pow(1.0 + (nevac / bnion(0)), -0.66)));
     if (lambda < 0.0) {
@@ -485,17 +460,6 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
     bEion(0 + 1) = bEion(0) / (lambda / sqrt(gEe) * sqrt(gEd)); //                                                          * pow(1.0+(nevac/nr.ne[0]),-0.66) * pow(1.0+(nevac/bEion(0)),-0.66) * pow(1.0+Ta0/Tion[0],-0.66) ;
     // bEion(0+1)            = bnion(0)/lambda*3.0/2.0*Tion[0]   ;//                                                          * pow(1.0+(nevac/nr.ne[0]),-0.66) * pow(1.0+(nevac/bEion(0)),-0.66) * pow(1.0+Ta0/Tion[0],-0.66) ;
     bEelec(0 + 1) = bnion(0) / (lambda / sqrt(gEe) * sqrt(gEd)) * Z * 3.0 / 2.0 * Tr.Te[0]; //                                       * pow(1.0+(nevac/nr.ne[0]),-0.66);
-
-    }
-
-    if(fixBCs) {
-	lambda = lam_dec_length_ions;
-	bnion((NMESHP - 1) * 2 + 1) = -bnion((NMESHP - 1) * 2) / lambda;
-	lambda = lam_dec_length_energy;
-        bEion((NMESHP - 1) * 2 + 1) = -bEion((NMESHP - 1) * 2) / lambda;
-	bEelec((NMESHP - 1) * 2 + 1) = -bnion((NMESHP - 1) * 2) * Z * 3.0 / 2.0 * Tr.Te[NMESHP - 1] / lambda;
-	}
-    else {
     lambda = sqrt(Dion[NMESHP - 1] * (0.66 * 2.0 * pi * aR[NMESHP - 1] / nlimiters) /
                   (9.79e5 * sqrt(Z / mu * (Tr.Te[NMESHP - 1] + bnion((NMESHP - 1) * 2) / nr.ne[NMESHP - 1] * (bEion((NMESHP - 1) * 2) / (3.0 / 2.0 * bnion((NMESHP - 1) * 2))))) * pow(1.0 + (nevac / nr.ne[NMESHP - 1]), -0.66) * pow(1.0 + (nevac / bnion((NMESHP - 1) * 2)), -0.66)));
     if (lambda < 0.0) {
@@ -505,7 +469,6 @@ void transportions(double tstep) { // called in solver.cpp within timeStep.cpp i
     bEion((NMESHP - 1) * 2 + 1) = -bEion((NMESHP - 1) * 2) / (lambda / sqrt(gEe) * sqrt(gEd)); //                                             * pow(1.0+(nevac/nr.ne[NMESHP-1]),-0.66) * pow(1.0+(nevac/bEion((NMESHP-1)*2)),-0.66) * pow(1.0+Ta0/Tion[NMESHP-1],-0.66);
     // bEion((NMESHP-1)*2+1) = -bnion((NMESHP-1)*2)/lambda*3.0/2.0*Tion[NMESHP-1]    ;//                                             * pow(1.0+(nevac/nr.ne[NMESHP-1]),-0.66) * pow(1.0+(nevac/bEion((NMESHP-1)*2)),-0.66) * pow(1.0+Ta0/Tion[NMESHP-1],-0.66);
     bEelec((NMESHP - 1) * 2 + 1) = -bnion((NMESHP - 1) * 2) / (lambda / sqrt(gEe) * sqrt(gEd)) * Z * 3.0 / 2.0 * Tr.Te[NMESHP - 1]; //                    * pow(1.0+(nevac/nr.ne[NMESHP-1]),-0.66);
-    }
 }
 
 void transpH(double tstep) { // called in solver.cpp within timeStep.cpp in Tomator1D.cpp
@@ -523,39 +486,33 @@ void transpH(double tstep) { // called in solver.cpp within timeStep.cpp in Toma
     // #pragma omp parallel for private(vth, mfp)
     for (int id = 0; id < NMESHP; ++id) {
         // Neutral H diffusion coefficient
-        if (bDfix_neutr) {
-        	DH[id] = Dfix_neut;
-        	DH2[id] = Dfix_neut;
-        }
-        else {
-        	vth = sqrt((kb * TH_array[id] * 11600.0) / ma) * 100.0;
-        	mfp = vth / nuH_array[id];
-        	DH[id] = 1.0 / 3.0 * vth * 1.0 / (1.0 / mfp + 1.0 / (a / 2.0)); // DH[id] =  vth*a/2.0 ; // cm2/s
-        	#ifdef debug
-        		if (DH[id]>DmaxH){
-				DmaxH = DH[id];
-			}
-			if(DH[id]<DminH){
-				DminH = DH[id];
-			}
-		#endif
-        	// DH[id] =  1.0/3.0 * vth * a/2.0 ; // DH[id] =  vth*a/2.0 ; // cm2/s
-        	// cout << "   " << vth <<  "   " << mfp << "   " << a << "   " << DH[id] << endl;
+        vth = sqrt((kb * TH_array[id] * 11600.0) / ma) * 100.0;
+        mfp = vth / nuH_array[id];
+        DH[id] = 1.0 / 3.0 * vth * 1.0 / (1.0 / mfp + 1.0 / (a / 2.0)); // DH[id] =  vth*a/2.0 ; // cm2/s
+        #ifdef debug
+        	if (DH[id]>DmaxH){
+			DmaxH = DH[id];
+		}
+		if(DH[id]<DminH){
+			DminH = DH[id];
+		}
+	#endif
+        // DH[id] =  1.0/3.0 * vth * a/2.0 ; // DH[id] =  vth*a/2.0 ; // cm2/s
+        // cout << "   " << vth <<  "   " << mfp << "   " << a << "   " << DH[id] << endl;
         
-        	// Neutral H2 diffusion coefficient
-        	vth = sqrt((kb * TH2_array[id] * 11600.0) / (2.0 * ma)) * 100.0;
-        	mfp = vth / nuH2_array[id];
-        	DH2[id] = 1.0 / 3.0 * vth * 1.0 / (1.0 / mfp + 1.0 / (a / 2.0)); // DH[id] =  vth*a/2.0 ; // cm2/s
-        	// DH2[id] =  1.0/3.0 * vth * a/2.0 ; // DH[id] =  vth*a/2.0 ; // cm2/s // cout << "H2   " << mfp << "   " <<  DH2[id] << endl;
-        	#ifdef debug
-        		if (DH2[id]>DmaxH2){
-				DmaxH2 = DH2[id];
-			}
-			if(DH2[id]<DminH2){
-				DminH2 = DH2[id];
-			}
-		#endif
-    	}
+        // Neutral H2 diffusion coefficient
+        vth = sqrt((kb * TH2_array[id] * 11600.0) / (2.0 * ma)) * 100.0;
+        mfp = vth / nuH2_array[id];
+        DH2[id] = 1.0 / 3.0 * vth * 1.0 / (1.0 / mfp + 1.0 / (a / 2.0)); // DH[id] =  vth*a/2.0 ; // cm2/s
+        // DH2[id] =  1.0/3.0 * vth * a/2.0 ; // DH[id] =  vth*a/2.0 ; // cm2/s // cout << "H2   " << mfp << "   " <<  DH2[id] << endl;
+        #ifdef debug
+        	if (DH2[id]>DmaxH2){
+			DmaxH2 = DH2[id];
+		}
+		if(DH2[id]<DminH2){
+			DminH2 = DH2[id];
+		}
+	#endif
     }
     #ifdef debug
     	cout << "DHmin = " << DminH/1e4 << " [m2/s]; DHmax = " << DmaxH/1e4 << endl;
@@ -686,6 +643,7 @@ void transpH(double tstep) { // called in solver.cpp within timeStep.cpp in Toma
     vth = sqrt((kb * TH_array[NMESHP - 1] * 11600.0) / ma) * 100.0;
     bn1H((NMESHP - 1) * 2 + 1) = -1.0 / 2.0 * vth / DH[NMESHP - 1] * bn1H((NMESHP - 1) * 2) * (1.0 - RH);
     bE1H((NMESHP - 1) * 2 + 1) = -1.0 / 2.0 * gEdn * vth / (DH[NMESHP - 1]) * bn1H((NMESHP - 1) * 2) * 3.0 / 2.0 * TH_array[NMESHP - 1] * (1.0 - REH); //*(1.0-RH * (1.0 - ((1.0-REH) * (1.0-Ta0/TH_array[NMESHP-1]))));
+
     // H2 edge conditions
     // if (pcst) {
     //     bEH2(0)              = 3.0/2.0*nH20*Ta0;
@@ -989,24 +947,19 @@ void transpHe(double tstep) { // called in solver.cpp within timeStep.cpp in Tom
     // #pragma omp parallel for private(vth, mfp)
     for (int id = 0; id < NMESHP; ++id) {
         // double mfp;
-        if (bDfix_neutr) {
-        	DHeI[id] = Dfix_neut;
-        }
-        else {
-        	vth = sqrt((kb * THeI_array[id] * 11600.0) / (4.0 * ma)) * 100.0;
-        	mfp = vth / nuHeI_array[id];
-        	DHeI[id] = 1.0 / 3.0 * vth * 1.0 / (1.0 / mfp + 1.0 / (a / 2.0)); // vth*a/2.0 ; // cm2/s
+        vth = sqrt((kb * THeI_array[id] * 11600.0) / (4.0 * ma)) * 100.0;
+        mfp = vth / nuHeI_array[id];
+        DHeI[id] = 1.0 / 3.0 * vth * 1.0 / (1.0 / mfp + 1.0 / (a / 2.0)); // vth*a/2.0 ; // cm2/s
                                                                           // DHeI[id] = 1.0/3.0 * vth * a/2.0 ; // vth*a/2.0 ; // cm2/s
-        	// cout << "He   " << mfp << "   " <<  DHeI[id] << endl;
-        	#ifdef debug
-        		if (DHeI[id]>DmaxHe){
-				DmaxHe = DH[id];
-			}
-			if(DHeI[id]<DminHe){
-				DminHe = DH[id];
-			}
-        	#endif
-    	}
+        // cout << "He   " << mfp << "   " <<  DHeI[id] << endl;
+        #ifdef debug
+        	if (DHeI[id]>DmaxHe){
+			DmaxHe = DH[id];
+		}
+		if(DHeI[id]<DminHe){
+			DminHe = DH[id];
+		}
+        #endif
     }
     #ifdef debug
     	cout << "DHe_min = " << DminHe/1e4 << " [m2/s]; DHe_max =" << DmaxHe/1e4 << " [m2/s]" << endl;
