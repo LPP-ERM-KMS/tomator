@@ -5,3 +5,9 @@
 *.mod
 src/build
 tests/*.txt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+TomatorResults/
