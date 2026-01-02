@@ -1,5 +1,5 @@
 {
-    "description": "TCV #5151X simulation with fixed electron density power coupling (bnefix). Uses PID controller to adjust absorbed power fraction to maintain ne at control point. Transport: Fixed diffusion (bDfix, D=3330 cm²/s) and fixed convection (bVfix, V=333 cm/s).",
+    "description": "TCV #5151X simulation with fixed power fraction coupling (bfixpowerfrac). Absorbed power = Prf * pecabs0 (constant, no feedback). Transport: Fixed diffusion (bDfix, D=3330 cm²/s) and fixed convection (bVfix, V=333 cm/s).",
     "magnetic_field": {
         "Bt": {"value": 1.54, "unit": "T"},
         "Bv": {"value": 0.0035, "unit": "T"},
@@ -27,8 +27,8 @@
     "type": {
         "bgray": {"value": false, "unit": "-"},
         "bram": {"value": false, "unit": "-"},
-        "bfixpowerfrac": {"value": false, "unit": "-"},
-        "bnefix": {"value": true, "unit": "-"},
+        "bfixpowerfrac": {"value": true, "unit": "-"},
+        "bnefix": {"value": false, "unit": "-"},
         "bTOMAS": {"value": false, "unit": "-"},
         "bproptone": {"value": false, "unit": "-"},
         "bnopower": {"value": false, "unit": "-"},
@@ -50,8 +50,8 @@
     "necfix": {
         "ic": {"value": 91, "unit": "-"},
         "necfix": {"value": 7.4116e12, "unit": "cm⁻³"},
-        "Pini": {"value": 2.0, "unit": "-"},
-        "tauP": {"value": 1e-4, "unit": "s"}
+        "Pini": {"value": 1.0, "unit": "-"},
+        "tauP": {"value": 5e-05, "unit": "s"}
     },
     "tomas": {
         "Rdep1": {"value": 86.1875, "unit": "cm"},

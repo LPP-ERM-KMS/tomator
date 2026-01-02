@@ -83,14 +83,21 @@ class Species:
         Returns
         -------
         T : np.ndarray
-            Temperature array [eV]. Non-negative values only.
+            Temperature array [eV]. Clamped to [T_MIN, T_MAX] for stability.
         """
+        # Temperature clamp limits (matching collisions.py)
+        T_MIN = 0.026  # Room temperature ~0.026 eV
+        T_MAX_HEAVY = 1000.0  # Max for ions/neutrals
+        T_MAX_ELECTRON = 2e4  # Max for electrons
+        
         n_arr = self.n.x.array
         E_arr = self.E.x.array
         # Avoid division by zero and ensure non-negative temperature
         with np.errstate(divide='ignore', invalid='ignore'):
-            T = np.where(n_arr > 1e-10, E_arr / (1.5 * n_arr), 0.0)
-            T = np.maximum(T, 0.0)  # Clamp negative temperatures to 0
+            T = np.where(n_arr > 1e-10, E_arr / (1.5 * n_arr), T_MIN)
+            # Clamp to physical range
+            T_max = T_MAX_ELECTRON if self.name == "e" else T_MAX_HEAVY
+            T = np.clip(T, T_MIN, T_max)
         return T
     
     @property

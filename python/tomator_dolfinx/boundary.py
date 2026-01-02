@@ -231,6 +231,66 @@ class DecayLengthBC:
         self.inv_lambda_hfs.value = 1.0 / lambda_hfs
         self.inv_lambda_lfs.value = 1.0 / lambda_lfs
     
+    def update_energy_decay_lengths(
+        self, 
+        lambda_hfs: float, 
+        lambda_lfs: float,
+        gEdn: float = 5/3,
+        REH: float = 0.9,
+        RH: float = 0.5
+    ) -> None:
+        """
+        Update decay lengths for energy equation with correct physics.
+        
+        The energy BC considers that particles hitting the wall either:
+        1. Don't reflect (fraction 1-RH) → lose ALL their energy
+        2. Do reflect (fraction RH) → lose fraction (1-REH) of their energy
+        
+        Net energy loss coefficient = (1-RH) + RH*(1-REH) = 1 - RH*REH
+        
+        The density BC uses (1-RH), so the energy decay length is:
+            λ_E = λ_n * (1 - RH) / (gEdn * (1 - RH*REH))
+        
+        Note: The C++ Tomator1D uses (1-REH) instead of (1-RH*REH), which 
+        doesn't correctly account for energy carried away by non-reflecting 
+        particles.
+        
+        Parameters
+        ----------
+        lambda_hfs : float
+            Density decay length at HFS [m].
+        lambda_lfs : float
+            Density decay length at LFS [m].
+        gEdn : float
+            Energy diffusion factor (typically 5/3).
+        REH : float
+            Energy reflection coefficient (typically 0.9).
+        RH : float
+            Particle reflection coefficient (typically 0.5).
+        """
+        # Correct physics: energy loss = (1 - RH*REH)
+        # Particles that don't reflect lose all energy: (1-RH)
+        # Particles that reflect lose (1-REH) of their energy: RH*(1-REH)
+        # Total: (1-RH) + RH*(1-REH) = 1 - RH*REH
+        energy_loss_coeff = 1.0 - RH * REH
+        particle_loss_coeff = 1.0 - RH
+        
+        # Compute energy decay length from density decay length
+        # λ_E = λ_n * (1 - RH) / (gEdn * (1 - RH*REH))
+        factor = particle_loss_coeff / (gEdn * energy_loss_coeff)
+        
+        lambda_E_hfs = lambda_hfs * factor
+        lambda_E_lfs = lambda_lfs * factor
+        
+        # Ensure minimum decay length
+        lambda_E_hfs = max(lambda_E_hfs, 1e-4)
+        lambda_E_lfs = max(lambda_E_lfs, 1e-4)
+        
+        self.lambda_hfs = lambda_E_hfs
+        self.lambda_lfs = lambda_E_lfs
+        self.inv_lambda_hfs.value = 1.0 / lambda_E_hfs
+        self.inv_lambda_lfs.value = 1.0 / lambda_E_lfs
+    
     def get_weak_form_terms(
         self,
         n: ufl.Argument,  # Trial function
@@ -374,5 +434,87 @@ def compute_decay_length(
     # Ensure reasonable bounds
     decay_length = max(decay_length, 1e-4)  # Minimum 0.1 mm
     decay_length = min(decay_length, connection_length)
+    
+    return decay_length
+
+
+def compute_physics_decay_length(
+    D: float,
+    T: float,
+    m_amu: float,
+    R: float = 0.5,
+    lambda_min: float = 1e-4,
+    lambda_max: float = 1.0
+) -> float:
+    """
+    Compute physics-based decay length matching C++ Tomator1D formulation.
+    
+    From the C++ Robin BC:
+        dn/dr = ±1/2 * vth/D * n * (1-R)
+    
+    Comparing with Python form:
+        dn/dr = -n/λ
+    
+    This gives:
+        λ = 2 * D / (vth * (1 - R))
+    
+    Parameters
+    ----------
+    D : float
+        Diffusion coefficient at boundary [m²/s].
+    T : float
+        Temperature at boundary [eV].
+    m_amu : float
+        Particle mass [amu].
+    R : float
+        Particle reflection coefficient (0 to 1). Default 0.5.
+    lambda_min : float
+        Minimum decay length [m]. Default 0.1 mm.
+    lambda_max : float
+        Maximum decay length [m]. Default 1 m.
+        
+    Returns
+    -------
+    decay_length : float
+        Physics-based decay length [m].
+        
+    Notes
+    -----
+    The thermal velocity is computed as:
+        vth = sqrt(kB * T / m)
+    
+    with kB in J/K, T converted from eV to K (T_K = T_eV * 11600), 
+    and m in kg.
+    
+    In C++ (with cm units):
+        vth = sqrt((kb * TH_array[id] * 11600.0) / ma) * 100.0  [cm/s]
+    
+    In Python (with m units):
+        vth = sqrt(kB * T_eV * 11600.0 / m_kg)  [m/s]
+    """
+    # Physical constants
+    KB = 1.380649e-23      # Boltzmann constant [J/K]
+    AMU_TO_KG = 1.66054e-27  # amu to kg
+    
+    # Convert mass
+    m_kg = m_amu * AMU_TO_KG
+    
+    # Temperature in Kelvin
+    T_K = max(T, 0.01) * 11600.0  # Minimum 0.01 eV to avoid division by zero
+    
+    # Thermal velocity [m/s]
+    vth = np.sqrt(KB * T_K / m_kg)
+    
+    # Ensure R is in valid range and not exactly 1
+    R = np.clip(R, 0.0, 0.99)
+    
+    # Compute decay length: λ = 2 * D / (vth * (1 - R))
+    if D > 0 and vth > 0:
+        decay_length = 2.0 * D / (vth * (1.0 - R))
+    else:
+        decay_length = lambda_min
+    
+    # Clamp to valid range
+    decay_length = np.clip(decay_length, lambda_min, lambda_max)
     
     return decay_length

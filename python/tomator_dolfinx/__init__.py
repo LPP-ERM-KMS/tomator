@@ -32,11 +32,21 @@ from .mesh import (
 )
 from .species import Species, PlasmaState
 from .boundary import BoundaryConditions, DecayLengthBC
-from .transport import TransportCoefficients, TransportManager, DiffusionModel, ConvectionModel
+from .transport import (
+    TransportCoefficients, 
+    TransportManager, 
+    DiffusionModel, 
+    ConvectionModel,
+    compute_bohm_diffusion,
+    compute_bohm_diffusion_from_state,
+    compute_neutral_diffusion,
+    compute_neutral_diffusion_from_state
+)
 from .solver import BDF2Solver, TransportEquation, run_simulation
 from .io.json_input import load_input_file, create_default_params
 from .io.output import write_csv_output, OutputManager
 from .reactions import ReactionRates, compute_collision_sources
+from .parallel import compute_limiter_losses, compute_bpol_losses
 
 __version__ = "0.1.0"
 __all__ = [
@@ -57,6 +67,10 @@ __all__ = [
     "TransportManager",
     "DiffusionModel",
     "ConvectionModel",
+    "compute_bohm_diffusion",
+    "compute_bohm_diffusion_from_state",
+    "compute_neutral_diffusion",
+    "compute_neutral_diffusion_from_state",
     # Solver
     "BDF2Solver",
     "TransportEquation",
@@ -69,4 +83,5 @@ __all__ = [
     # Reactions
     "ReactionRates",
     "compute_collision_sources",
+    "compute_limiter_losses",
 ]

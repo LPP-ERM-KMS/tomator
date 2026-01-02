@@ -7,6 +7,7 @@ Implements:
 - Species transport with Robin/Dirichlet boundary conditions
 """
 
+from datetime import datetime
 from typing import Optional, Dict, Tuple, Callable
 import numpy as np
 import ufl
@@ -17,9 +18,11 @@ from dolfinx.fem import Function, FunctionSpace, Constant
 from dolfinx.fem.petsc import assemble_matrix, assemble_vector, apply_lifting, set_bc
 
 from .species import Species, PlasmaState
-from .boundary import BoundaryConditions, DecayLengthBC
-from .transport import TransportCoefficients, TransportManager
-from .reactions.sources import compute_sources_from_state
+from .boundary import BoundaryConditions, DecayLengthBC, compute_physics_decay_length
+from .transport import (TransportCoefficients, TransportManager, 
+                        compute_neutral_diffusion_from_state, compute_neutral_diffusion)
+from .reactions.collisions import compute_sources_from_state
+from .parallel import compute_limiter_losses, compute_bpol_losses
 
 
 class TransportEquation:
@@ -243,11 +246,11 @@ class TransportEquation:
         # Create solution vector
         n_new = fem.Function(self.V)
         
-        # Solve with KSP
+        # Solve with direct LU (fast for small 1D problems)
         ksp = PETSc.KSP().create(self.mesh.comm)
         ksp.setOperators(A)
-        ksp.setType(PETSc.KSP.Type.GMRES)
-        ksp.getPC().setType(PETSc.PC.Type.ILU)
+        ksp.setType(PETSc.KSP.Type.PREONLY)
+        ksp.getPC().setType(PETSc.PC.Type.LU)
         ksp.setFromOptions()
         ksp.solve(b, n_new.x.petsc_vec)
         n_new.x.scatter_forward()
@@ -325,7 +328,8 @@ class BDF2Solver:
         state: PlasmaState,
         transport: TransportManager,
         bc_handler: BoundaryConditions,
-        params: dict
+        params: dict,
+        radial_positions: np.ndarray = None
     ):
         """
         Initialize BDF2 solver.
@@ -346,11 +350,24 @@ class BDF2Solver:
             - accur: Target accuracy (max relative change)
             - decay_length_hfs: HFS decay length [m]
             - decay_length_lfs: LFS decay length [m]
+            - lHFS: HFS limiter position [m] (for parallel losses)
+            - lLFS: LFS limiter position [m] (for parallel losses)
+            - nlimiters: Number of poloidal limiters
+        radial_positions : np.ndarray, optional
+            Radial positions of mesh nodes [m]. If not provided, will
+            be extracted from the mesh geometry.
         """
         self.state = state
         self.transport = transport
         self.bc_handler = bc_handler
         self.params = params
+        
+        # Store radial positions for limiter losses calculation
+        if radial_positions is not None:
+            self.radial_positions = radial_positions
+        else:
+            # Extract from mesh geometry
+            self.radial_positions = state.mesh.geometry.x[:, 0].copy()
         
         # Time stepping parameters
         self.dt = params.get('dtinit', 1e-6)
@@ -379,6 +396,14 @@ class BDF2Solver:
         
         # Step counter
         self.step_count = 0
+        
+        # Initialize coupled power if RF power is specified
+        self.coupled_power = None
+        self._pecabs = 0.0
+        Prf = params.get('Prf', 0.0)
+        if Prf > 0:
+            from .coupledpower import CoupledPower
+            self.coupled_power = CoupledPower(params)
     
     def set_dirichlet_value(self, species_name: str, value: float) -> None:
         """
@@ -392,6 +417,314 @@ class BDF2Solver:
             Boundary value.
         """
         self.dirichlet_values[species_name] = value
+
+    def _update_robin_decay_lengths(
+        self,
+        species: Species,
+        D: Function,
+        m_amu: float = 1.0
+    ) -> None:
+        """
+        Update Robin BC decay lengths based on local physics (C++ approach).
+        
+        Computes decay length from:
+            λ = 2 * D / (vth * (1 - R))
+        
+        where:
+            vth = sqrt(kB * T / m) is the thermal velocity
+            R = reflection coefficient
+        
+        This is the physics-based approach used in C++ Tomator1D, where the
+        decay length adapts to local temperature and diffusion coefficient
+        rather than being a fixed geometric fraction.
+        
+        Parameters
+        ----------
+        species : Species
+            Species to compute decay length for.
+        D : Function
+            Diffusion coefficient function.
+        m_amu : float
+            Particle mass in atomic mass units.
+        """
+        # Get reflection coefficient from params (default 0.5 for density)
+        RH = self.params.get('RH', 0.5)
+        
+        coords = self.state.mesh.geometry.x[:, 0]
+        D_arr = D.x.array
+        
+        # Get temperature at boundaries from energy/density
+        E_arr = species.E.x.array
+        n_arr = species.n.x.array
+        
+        sorted_idx = np.argsort(coords)
+        
+        # HFS boundary (smallest r)
+        idx_hfs = sorted_idx[0]
+        if n_arr[idx_hfs] > 1e-30:
+            T_hfs = E_arr[idx_hfs] / (1.5 * n_arr[idx_hfs])
+        else:
+            # Use interior temperature as fallback
+            idx_interior = sorted_idx[1]
+            if n_arr[idx_interior] > 1e-30:
+                T_hfs = E_arr[idx_interior] / (1.5 * n_arr[idx_interior])
+            else:
+                T_hfs = self.params.get('Ta0', 0.026)
+        
+        # LFS boundary (largest r)
+        idx_lfs = sorted_idx[-1]
+        if n_arr[idx_lfs] > 1e-30:
+            T_lfs = E_arr[idx_lfs] / (1.5 * n_arr[idx_lfs])
+        else:
+            # Use interior temperature as fallback
+            idx_interior = sorted_idx[-2]
+            if n_arr[idx_interior] > 1e-30:
+                T_lfs = E_arr[idx_interior] / (1.5 * n_arr[idx_interior])
+            else:
+                T_lfs = self.params.get('Ta0', 0.026)
+        
+        # Compute physics-based decay lengths
+        lambda_hfs = compute_physics_decay_length(
+            D=D_arr[idx_hfs],
+            T=T_hfs,
+            m_amu=m_amu,
+            R=RH
+        )
+        
+        lambda_lfs = compute_physics_decay_length(
+            D=D_arr[idx_lfs],
+            T=T_lfs,
+            m_amu=m_amu,
+            R=RH
+        )
+        
+        # Update the Robin BC constants
+        self.transport_eq.robin_bc.update_decay_lengths(lambda_hfs, lambda_lfs)
+
+    def _update_robin_energy_decay_lengths(
+        self,
+        species: Species,
+        D: Function,
+        m_amu: float = 1.0
+    ) -> None:
+        """
+        Update Robin BC decay lengths for energy equation (C++ approach).
+        
+        The C++ energy BC for H is:
+            dE/dr = ±1/2 * gEdn * vth/D * n * 3/2 * T * (1 - REH)
+        
+        This uses REH (energy reflection) instead of RH, and includes gEdn factor.
+        The energy decay length relates to density decay length by:
+            λ_E = λ_n * (1 - RH) / (gEdn * (1 - REH))
+        
+        Parameters
+        ----------
+        species : Species
+            Species to compute decay length for.
+        D : Function
+            Diffusion coefficient function.
+        m_amu : float
+            Particle mass in atomic mass units.
+        """
+        # Get parameters
+        RH = self.params.get('RH', 0.5)
+        REH = self.params.get('REH', 0.9)
+        gEdn = self.params.get('gEdn', 5/3)
+        
+        coords = self.state.mesh.geometry.x[:, 0]
+        D_arr = D.x.array
+        
+        # Get temperature at boundaries from energy/density
+        E_arr = species.E.x.array
+        n_arr = species.n.x.array
+        
+        sorted_idx = np.argsort(coords)
+        
+        # HFS boundary (smallest r)
+        idx_hfs = sorted_idx[0]
+        if n_arr[idx_hfs] > 1e-30:
+            T_hfs = E_arr[idx_hfs] / (1.5 * n_arr[idx_hfs])
+        else:
+            idx_interior = sorted_idx[1]
+            if n_arr[idx_interior] > 1e-30:
+                T_hfs = E_arr[idx_interior] / (1.5 * n_arr[idx_interior])
+            else:
+                T_hfs = self.params.get('Ta0', 0.026)
+        
+        # LFS boundary (largest r)
+        idx_lfs = sorted_idx[-1]
+        if n_arr[idx_lfs] > 1e-30:
+            T_lfs = E_arr[idx_lfs] / (1.5 * n_arr[idx_lfs])
+        else:
+            idx_interior = sorted_idx[-2]
+            if n_arr[idx_interior] > 1e-30:
+                T_lfs = E_arr[idx_interior] / (1.5 * n_arr[idx_interior])
+            else:
+                T_lfs = self.params.get('Ta0', 0.026)
+        
+        # Compute density-based decay lengths first
+        lambda_n_hfs = compute_physics_decay_length(
+            D=D_arr[idx_hfs],
+            T=T_hfs,
+            m_amu=m_amu,
+            R=RH
+        )
+        
+        lambda_n_lfs = compute_physics_decay_length(
+            D=D_arr[idx_lfs],
+            T=T_lfs,
+            m_amu=m_amu,
+            R=RH
+        )
+        
+        # Update Robin BC with energy-specific decay lengths
+        self.transport_eq.robin_bc.update_energy_decay_lengths(
+            lambda_n_hfs, lambda_n_lfs, gEdn, REH, RH
+        )
+
+    def _compute_neutral_diffusion(
+        self,
+        species_name: str,
+        D: Function
+    ) -> None:
+        """
+        Compute physics-based diffusion coefficient for neutral species.
+        
+        Neutrals (H, H2, HeI) always use physics-based diffusion:
+            D = (1/3) * vth / (1/mfp + 1/(a/2))
+        
+        This is the C++ Tomator1D approach where neutral diffusion is
+        determined by collision physics.
+        
+        Parameters
+        ----------
+        species_name : str
+            Neutral species name ('H', 'H2', or 'HeI').
+        D : Function
+            Diffusion coefficient function to update in-place.
+        """
+        # Only compute for neutrals
+        if species_name not in ('H', 'H2', 'HeI'):
+            return
+        
+        # Get geometry
+        a_minor = self.params.get('a', 0.1)  # Minor radius [m]
+        
+        # Get nu_collision if available (computed in step())
+        nu_collision = getattr(self, '_nu_collision', None)
+        
+        # Compute physics-based diffusion with self-collisions for neutrals
+        D_physics = compute_neutral_diffusion_from_state(
+            species_name=species_name,
+            state=self.state,
+            a_minor=a_minor,
+            include_self_collision=True,
+            nu_collision=nu_collision
+        )
+        
+        # Update diffusion function
+        D.x.array[:] = D_physics
+
+    def _apply_energy_bc_with_flux(
+        self, 
+        E: Function, 
+        n: Function,
+        D: Function, 
+        n_bc: float, 
+        Ta0: float,
+        REH: float = 0.9
+    ) -> None:
+        """
+        Apply energy BC based on flux direction at boundaries.
+        
+        The flux direction determines the energy boundary condition:
+        - Inward flux: incoming particles at Ta0 + reflected particles at REH * T_interior
+        - Outward flux: particles leave with their local/interior temperature
+        
+        Flux: Γ = -D * dn/dr
+        At HFS (r_min): Γ > 0 means flux toward +r = INTO domain
+        At LFS (r_max): Γ < 0 means flux toward -r = INTO domain
+        
+        Parameters
+        ----------
+        E : Function
+            Energy density function to modify at boundaries.
+        n : Function
+            Density function (after transport solve).
+        D : Function
+            Diffusion coefficient function.
+        n_bc : float
+            Dirichlet boundary value for density.
+        Ta0 : float
+            Ambient/wall temperature [eV].
+        REH : float
+            Energy reflection coefficient (0 to 1). Default 0.9.
+        """
+        coords = self.state.mesh.geometry.x[:, 0]  # Radial coordinates
+        E_arr = E.x.array
+        n_arr = n.x.array
+        D_arr = D.x.array
+        
+        # Sort by radial position to find neighbors
+        sorted_idx = np.argsort(coords)
+        r_sorted = coords[sorted_idx]
+        
+        # Energy at ambient temperature for one particle: E = 3/2 * T
+        E_ambient = 1.5 * Ta0
+        
+        # === HFS boundary (smallest r) ===
+        idx_hfs = sorted_idx[0]           # Boundary DOF index
+        idx_interior_hfs = sorted_idx[1]  # First interior point
+        
+        dr_hfs = r_sorted[1] - r_sorted[0]
+        dn_dr_hfs = (n_arr[idx_interior_hfs] - n_arr[idx_hfs]) / dr_hfs
+        Gamma_hfs = -D_arr[idx_hfs] * dn_dr_hfs  # Positive = toward +r = INTO domain
+        
+        n_interior_hfs = n_arr[idx_interior_hfs]
+        E_interior_hfs = E_arr[idx_interior_hfs]
+        
+        if Gamma_hfs > 0:  # Inward flux at HFS
+            # Incoming particles at Ta0, reflected particles at T_interior
+            if n_interior_hfs > 1e-30:
+                T_interior = E_interior_hfs / (1.5 * n_interior_hfs)
+                T_effective = (1.0 - REH) * Ta0 + REH * T_interior
+                E_arr[idx_hfs] = n_bc * 1.5 * T_effective
+            else:
+                E_arr[idx_hfs] = n_bc * E_ambient
+        else:  # Outward flux at HFS
+            # Particles leave with their interior temperature
+            if n_interior_hfs > 1e-30:
+                E_per_particle = E_interior_hfs / n_interior_hfs
+                E_arr[idx_hfs] = n_bc * E_per_particle
+            else:
+                E_arr[idx_hfs] = n_bc * E_ambient
+        
+        # === LFS boundary (largest r) ===
+        idx_lfs = sorted_idx[-1]           # Boundary DOF index
+        idx_interior_lfs = sorted_idx[-2]  # First interior point
+        
+        dr_lfs = r_sorted[-1] - r_sorted[-2]
+        dn_dr_lfs = (n_arr[idx_lfs] - n_arr[idx_interior_lfs]) / dr_lfs
+        Gamma_lfs = -D_arr[idx_lfs] * dn_dr_lfs  # Positive = toward +r = OUT of domain
+        
+        n_interior_lfs = n_arr[idx_interior_lfs]
+        E_interior_lfs = E_arr[idx_interior_lfs]
+        
+        if Gamma_lfs < 0:  # Inward flux at LFS (negative = toward -r = INTO domain)
+            # Incoming particles at Ta0, reflected particles at T_interior
+            if n_interior_lfs > 1e-30:
+                T_interior = E_interior_lfs / (1.5 * n_interior_lfs)
+                T_effective = (1.0 - REH) * Ta0 + REH * T_interior
+                E_arr[idx_lfs] = n_bc * 1.5 * T_effective
+            else:
+                E_arr[idx_lfs] = n_bc * E_ambient
+        else:  # Outward flux at LFS
+            # Particles leave with their interior temperature
+            if n_interior_lfs > 1e-30:
+                E_per_particle = E_interior_lfs / n_interior_lfs
+                E_arr[idx_lfs] = n_bc * E_per_particle
+            else:
+                E_arr[idx_lfs] = n_bc * E_ambient
     
     def step(self, debug: bool = False) -> float:
         """
@@ -424,13 +757,174 @@ class BDF2Solver:
         # 1. Update BDF2 coefficients (pass step_count for startup stability)
         self.transport_eq.update_bdf2_coefficients(self.dt, self.dt_prev, self.step_count)
         
-        # 2. Compute collision source terms
-        dn_sources, dE_sources = compute_sources_from_state(self.state, self.params)
+        # 2. Compute collision source terms (dn, dE, nu)
+        dn_sources, dE_sources, nu_collision = compute_sources_from_state(self.state, self.params)
+        
+        # 2b. Compute parallel transport losses to limiters (SOL region)
+        lHFS = self.params.get('lHFS', None)
+        lLFS = self.params.get('lLFS', None)
+        nlimiters = self.params.get('nlimiters', 6)
+        
+        if lHFS is not None and lLFS is not None:
+            # Extract densities and temperatures for limiter loss calculation
+            ne = self.state.electrons.n.x.array.copy()
+            Te = self.state.electrons.T.copy()
+            nHi = self.state.species['Hi'].n.x.array.copy() if 'Hi' in self.state.species else np.zeros_like(ne)
+            THi = self.state.species['Hi'].T.copy() if 'Hi' in self.state.species else Te.copy()
+            
+            # Optional molecular species
+            nH2i = self.state.species['H2i'].n.x.array.copy() if 'H2i' in self.state.species else None
+            TH2i = self.state.species['H2i'].T.copy() if 'H2i' in self.state.species else None
+            nH3i = self.state.species['H3i'].n.x.array.copy() if 'H3i' in self.state.species else None
+            TH3i = self.state.species['H3i'].T.copy() if 'H3i' in self.state.species else None
+            
+            # Optional helium species
+            nHeII = self.state.species['HeII'].n.x.array.copy() if 'HeII' in self.state.species else None
+            THeII = self.state.species['HeII'].T.copy() if 'HeII' in self.state.species else None
+            nHeIII = self.state.species['HeIII'].n.x.array.copy() if 'HeIII' in self.state.species else None
+            THeIII = self.state.species['HeIII'].T.copy() if 'HeIII' in self.state.species else None
+            
+            dn_limiter, dE_limiter = compute_limiter_losses(
+                self.radial_positions,
+                lHFS, lLFS, nlimiters,
+                ne, Te, nHi, THi,
+                nH2i, TH2i, nH3i, TH3i,
+                nHeII, THeII, nHeIII, THeIII,
+                Ta0=self.params.get('Ta0', 0.026)
+            )
+            
+            # Add limiter losses to collision sources
+            for species_name, dn_lim in dn_limiter.items():
+                if species_name in dn_sources:
+                    dn_sources[species_name] += dn_lim
+                else:
+                    dn_sources[species_name] = dn_lim
+                    
+            for species_name, dE_lim in dE_limiter.items():
+                if species_name in dE_sources:
+                    dE_sources[species_name] += dE_lim
+                else:
+                    dE_sources[species_name] = dE_lim
+        
+        # 2c. Compute vertical diffusion losses (bpol_function)
+        Bt = self.params.get('Bt', None)
+        Bv = self.params.get('Bv', None)
+        b_vert = self.params.get('b', None)  # Vertical extent [cm]
+        R0 = self.params.get('R', None)  # Major radius [cm]
+        
+        if Bt is not None and Bv is not None and b_vert is not None and R0 is not None:
+            # Compute local toroidal field: Br = Bt * R0 / R [T]
+            # R0 and radial_positions are in different units - need to be consistent
+            # radial_positions is in [m], R0 is in [cm]
+            R_cm = self.radial_positions * 100.0  # Convert m to cm
+            Br = Bt * R0 / R_cm  # [T], 1/R scaling
+            
+            # Extract densities, temperatures, energies, and collision frequencies
+            ne = self.state.electrons.n.x.array.copy()
+            Te = self.state.electrons.T.copy()
+            nHi = self.state.species['Hi'].n.x.array.copy() if 'Hi' in self.state.species else np.zeros_like(ne)
+            THi = self.state.species['Hi'].T.copy() if 'Hi' in self.state.species else Te.copy()
+            EHi = 1.5 * THi * nHi  # Energy density [eV·m^-3]
+            nuHi = nu_collision.get('Hi', np.ones_like(ne) * 5e3)  # Use computed nu or minimum
+            
+            # Optional molecular species
+            nH2i = self.state.species['H2i'].n.x.array.copy() if 'H2i' in self.state.species else None
+            TH2i = self.state.species['H2i'].T.copy() if 'H2i' in self.state.species else None
+            EH2i = 1.5 * TH2i * nH2i if nH2i is not None else None
+            nuH2i = nu_collision.get('H2i', None)
+            
+            nH3i = self.state.species['H3i'].n.x.array.copy() if 'H3i' in self.state.species else None
+            TH3i = self.state.species['H3i'].T.copy() if 'H3i' in self.state.species else None
+            EH3i = 1.5 * TH3i * nH3i if nH3i is not None else None
+            nuH3i = nu_collision.get('H3i', None)
+            
+            # Optional helium species
+            nHeII = self.state.species['HeII'].n.x.array.copy() if 'HeII' in self.state.species else None
+            THeII = self.state.species['HeII'].T.copy() if 'HeII' in self.state.species else None
+            EHeII = 1.5 * THeII * nHeII if nHeII is not None else None
+            nuHeII = nu_collision.get('HeII', None)
+            
+            nHeIII = self.state.species['HeIII'].n.x.array.copy() if 'HeIII' in self.state.species else None
+            THeIII = self.state.species['HeIII'].T.copy() if 'HeIII' in self.state.species else None
+            EHeIII = 1.5 * THeIII * nHeIII if nHeIII is not None else None
+            nuHeIII = nu_collision.get('HeIII', None)
+            
+            # Get diffusion parameters
+            Dfsave = self.params.get('Dfsave', 1.0)
+            Dfix = self.params.get('Dfix', None) if self.params.get('bDfix', False) else None
+            gEd = self.params.get('gEd', 1.0)
+            
+            dn_bpol, dE_bpol = compute_bpol_losses(
+                Br=Br,
+                Bv=Bv,
+                b=b_vert,
+                ne=ne, Te=Te,
+                nHi=nHi, THi=THi, EHi=EHi, nuHi=nuHi,
+                nH2i=nH2i, TH2i=TH2i, EH2i=EH2i, nuH2i=nuH2i,
+                nH3i=nH3i, TH3i=TH3i, EH3i=EH3i, nuH3i=nuH3i,
+                nHeII=nHeII, THeII=THeII, EHeII=EHeII, nuHeII=nuHeII,
+                nHeIII=nHeIII, THeIII=THeIII, EHeIII=EHeIII, nuHeIII=nuHeIII,
+                Dfsave=Dfsave,
+                Dfix=Dfix,
+                gEd=gEd,
+                Ta0=self.params.get('Ta0', 0.026)
+            )
+            
+            # Add bpol losses to collision sources
+            for species_name, dn_bp in dn_bpol.items():
+                if species_name in dn_sources:
+                    dn_sources[species_name] += dn_bp
+                else:
+                    dn_sources[species_name] = dn_bp
+                    
+            for species_name, dE_bp in dE_bpol.items():
+                if species_name in dE_sources:
+                    dE_sources[species_name] += dE_bp
+                else:
+                    dE_sources[species_name] = dE_bp
+        
+        # 2d. Compute RF power deposition (coupled power)
+        if hasattr(self, 'coupled_power') and self.coupled_power is not None:
+            power_result = self.coupled_power.compute_power(
+                R=self.radial_positions,
+                ne=self.state.electrons.n.x.array.copy(),
+                Te=self.state.electrons.T.copy(),
+                dt=self.dt,
+                t=self.t,
+                nue=nu_collision.get('e', None)
+            )
+            
+            # Add power to electron energy source
+            # PRFe is in [eV/m³/s] (already SI since R and b are in meters)
+            if 'e' in dE_sources:
+                dE_sources['e'] += power_result.PRFe
+            else:
+                dE_sources['e'] = power_result.PRFe.copy()
+            
+            # Store absorbed power fraction for diagnostics
+            self._pecabs = power_result.pecabs
         
         if debug:
             _dbg("Source terms (dn/dt):", {
                 k: v for k, v in dn_sources.items() if v is not None
             })
+        
+        # Store nu_collision for use in transport calculations if needed
+        self._nu_collision = nu_collision
+        
+        # 2e. Update transport coefficients (Bohm, classical, etc.)
+        # For Bohm diffusion: D = Dfsave * T_eff / B
+        # Compute radial magnetic field: Br = Bt * R0 / R
+        Bt = self.params.get('Bt', None)
+        R0 = self.params.get('R', None)  # Major radius [cm]
+        
+        if Bt is not None and R0 is not None:
+            R_cm = self.radial_positions * 100.0  # Convert m to cm
+            B_radial = Bt * R0 / R_cm  # [T], 1/R scaling
+            self.transport.update_all(self.state, B_field=B_radial)
+        else:
+            # No magnetic field info - only FIXED diffusion will work
+            self.transport.update_all(self.state, B_field=None)
         
         # 3. Solve transport for each species
         self._solve_ions(dn_sources, dE_sources)
@@ -450,6 +944,9 @@ class BDF2Solver:
         
         # 4. Apply density floors (CRITICAL for stability, matching C++)
         self._apply_density_floors()
+        
+        # 4b. Apply temperature clamps (CRITICAL for stability, matching C++)
+        self._apply_temperature_clamps()
         
         # 5. Update electron density from quasi-neutrality
         self.state.compute_electron_density()
@@ -531,6 +1028,44 @@ class BDF2Solver:
             # Use smaller floor for neutrals since they can be very dilute
             n_arr[:] = np.maximum(n_arr, 1e-10)
     
+    def _apply_temperature_clamps(self) -> None:
+        """
+        Clamp energy density to enforce temperature limits.
+        
+        This is CRITICAL for numerical stability when densities are low.
+        The temperature T = E / (1.5 * n) can blow up if n is small.
+        We enforce E <= 1.5 * n * T_max for all species.
+        
+        Temperature limits (matching collisions.py):
+        - Heavy particles (ions, neutrals): T_max = 1000 eV
+        - Electrons: T_max = 20000 eV
+        """
+        T_MIN = 0.026  # Room temperature
+        T_MAX_HEAVY = 1000.0  # Max for ions/neutrals
+        T_MAX_ELECTRON = 2e4  # Max for electrons
+        
+        # Apply to all heavy species
+        all_names = ['Hi', 'H2i', 'H3i', 'HeII', 'HeIII', 'H', 'H2', 'HeI']
+        for name in all_names:
+            if name not in self.state.species:
+                continue
+            species = self.state.species[name]
+            n_arr = species.n.x.array
+            E_arr = species.E.x.array
+            
+            # E = 1.5 * n * T, so E_max = 1.5 * n * T_max
+            E_min = 1.5 * n_arr * T_MIN
+            E_max = 1.5 * n_arr * T_MAX_HEAVY
+            E_arr[:] = np.clip(E_arr, E_min, E_max)
+        
+        # Apply to electrons
+        if self.state.electrons is not None:
+            n_arr = self.state.electrons.n.x.array
+            E_arr = self.state.electrons.E.x.array
+            E_min = 1.5 * n_arr * T_MIN
+            E_max = 1.5 * n_arr * T_MAX_ELECTRON
+            E_arr[:] = np.clip(E_arr, E_min, E_max)
+    
     def _enforce_outflow_boundary(self, n: Function) -> None:
         """
         Enforce outflow-only boundary condition for ions.
@@ -590,13 +1125,17 @@ class BDF2Solver:
     
     def _solve_ions(self, dn_sources: dict, dE_sources: dict) -> None:
         """Solve transport equations for ion species."""
+        # Map ions to their atomic masses (for decay length calculation)
+        ion_mass = {'Hi': 1.0, 'H2i': 2.0, 'H3i': 3.0, 'HeII': 4.0, 'HeIII': 4.0}
+        
         for species in self.state.ions:
             if not species.solve_density:
                 continue
             
             name = species.name
             
-            # Get transport coefficients
+            # Get transport coefficients (updated by transport.update_all in step())
+            # D model depends on params: bDfix -> fixed, bDbohm -> Bohm, bDscaling -> classical
             coeff = self.transport.get(name)
             D = coeff.D
             V = coeff.V
@@ -617,6 +1156,12 @@ class BDF2Solver:
                     self.dirichlet_values[name], "both"
                 )
             
+            # For Robin BC species: update decay lengths from physics
+            # λ = 2 * D / (vth * (1 - R))
+            if use_robin:
+                m_amu = ion_mass.get(name, 1.0)
+                self._update_robin_decay_lengths(species, D, m_amu)
+            
             # Solve density equation
             self.transport_eq.solve(
                 D, V, species.n, species.n_prev, species.n_prev2,
@@ -628,10 +1173,28 @@ class BDF2Solver:
             self._enforce_outflow_boundary(species.n)
             
             # Solve energy equation (similar structure)
+            # C++ uses: B = Ts - coef1 * gEd * Ds * tstep + coef1 * gEv * Vs * tstep
+            # So for energy, scale D by gEd and V by gEv
             if species.solve_energy and name in dE_sources:
                 self.source.x.array[:] = dE_sources[name]
+                
+                # Get energy transport scaling factors
+                gEd = self.params.get('gEd', 5/3)
+                gEv = self.params.get('gEv', 5/3)
+                
+                # Create scaled transport coefficients for energy
+                D_energy = Function(self.state.V)
+                V_energy = Function(self.state.V)
+                D_energy.x.array[:] = gEd * D.x.array[:]
+                V_energy.x.array[:] = gEv * V.x.array[:]
+                
+                # Use energy-specific decay lengths for Robin BC species
+                if use_robin:
+                    m_amu = ion_mass.get(name, 1.0)
+                    self._update_robin_energy_decay_lengths(species, D, m_amu)
+                
                 self.transport_eq.solve(
-                    D, V, species.E, species.E_prev, species.E_prev2,
+                    D_energy, V_energy, species.E, species.E_prev, species.E_prev2,
                     self.source, bcs=[], use_robin_bc=use_robin
                 )
                 # Also enforce outflow for energy
@@ -639,6 +1202,13 @@ class BDF2Solver:
     
     def _solve_neutrals(self, dn_sources: dict, dE_sources: dict) -> None:
         """Solve transport equations for neutral species."""
+        # Get parameters for flux-based energy BC
+        Ta0 = self.params.get('Ta0', 0.026)  # Ambient temperature [eV]
+        REH = self.params.get('REH', 0.9)    # Energy reflection coefficient
+        
+        # Map species to their atomic masses (for decay length calculation)
+        species_mass = {'H': 1.0, 'H2': 2.0, 'HeI': 4.0}
+        
         for species in self.state.neutrals:
             if not species.solve_density:
                 continue
@@ -657,6 +1227,9 @@ class BDF2Solver:
                 V = Function(self.state.V)
                 V.x.array[:] = 0.0  # No convection for neutrals
             
+            # Neutrals always use physics-based diffusion from collision rates
+            self._compute_neutral_diffusion(name, D)
+            
             # Set source term
             if name in dn_sources:
                 self.source.x.array[:] = dn_sources[name]
@@ -666,11 +1239,17 @@ class BDF2Solver:
             # Determine BC type
             use_robin = (species.bc_type == "robin")
             bcs = []
+            has_dirichlet = (not use_robin and name in self.dirichlet_values)
+            n_bc = self.dirichlet_values.get(name, 0.0) if has_dirichlet else 0.0
             
-            if not use_robin and name in self.dirichlet_values:
-                bcs = self.bc_handler.get_dirichlet_bc(
-                    self.dirichlet_values[name], "both"
-                )
+            if has_dirichlet:
+                bcs = self.bc_handler.get_dirichlet_bc(n_bc, "both")
+            
+            # For Robin BC species (H): update decay lengths from physics
+            # λ = 2 * D / (vth * (1 - RH))
+            if use_robin:
+                m_amu = species_mass.get(name, 1.0)
+                self._update_robin_decay_lengths(species, D, m_amu)
             
             # Solve density equation
             self.transport_eq.solve(
@@ -679,12 +1258,41 @@ class BDF2Solver:
             )
             
             # Solve energy equation
+            # C++ transport.cpp uses gEd, gEv scaling for energy transport:
+            # B = Ts - coef1 * gEd * Ds * tstep + coef1 * gEv * Vs * tstep
             if species.solve_energy and name in dE_sources:
                 self.source.x.array[:] = dE_sources[name]
+                
+                # Get neutral energy transport scaling factor (gEdn for neutrals)
+                # C++ uses gEdn for neutral energy (boundary conditions), not gEd
+                gEdn = self.params.get('gEdn', 5/3)
+                
+                # Create scaled transport coefficients for energy
+                # Neutrals have no convection (V=0), so no gEv needed
+                D_energy = Function(self.state.V)
+                V_energy = Function(self.state.V)
+                D_energy.x.array[:] = gEdn * D.x.array[:]
+                V_energy.x.array[:] = 0.0  # Neutrals have no convection
+                
+                # For Robin BC species (H): use energy-specific decay lengths
+                # C++ uses: dE/dr = ±1/2 * gEdn * vth/D * n * 3/2 * T * (1 - REH)
+                # This differs from density BC by factor gEdn*(1-REH)/(1-RH)
+                if use_robin:
+                    m_amu = species_mass.get(name, 1.0)
+                    self._update_robin_energy_decay_lengths(species, D, m_amu)
+                
                 self.transport_eq.solve(
-                    D, V, species.E, species.E_prev, species.E_prev2,
+                    D_energy, V_energy, species.E, species.E_prev, species.E_prev2,
                     self.source, bcs=[], use_robin_bc=use_robin
                 )
+                
+                # Apply flux-based energy BC for Dirichlet density species (H2, HeI)
+                # - Inward flux: incoming at Ta0, reflected at REH * T_interior
+                # - Outward flux: particles leave with their local temperature
+                if has_dirichlet:
+                    self._apply_energy_bc_with_flux(
+                        species.E, species.n, D, n_bc, Ta0, REH
+                    )
     
     def _solve_electron_energy(self, dE_sources: dict) -> None:
         """Solve electron energy equation."""
@@ -711,9 +1319,20 @@ class BDF2Solver:
         else:
             self.source.x.array[:] = 0.0
         
+        # Get energy transport scaling factors (from C++ transport.cpp)
+        # C = Ts - coef1 * gEd * Ds * tstep + coef1 * gEv * Vs * tstep
+        gEd = self.params.get('gEd', 5/3)
+        gEv = self.params.get('gEv', 5/3)
+        
+        # Create scaled transport coefficients for energy
+        D_energy = Function(self.state.V)
+        V_energy = Function(self.state.V)
+        D_energy.x.array[:] = gEd * D.x.array[:]
+        V_energy.x.array[:] = gEv * V.x.array[:]
+        
         # Solve with Robin BC
         self.transport_eq.solve(
-            D, V, electrons.E, electrons.E_prev, electrons.E_prev2,
+            D_energy, V_energy, electrons.E, electrons.E_prev, electrons.E_prev2,
             self.source, bcs=[], use_robin_bc=True
         )
     
@@ -751,7 +1370,8 @@ class BDF2Solver:
 
 def run_simulation(
     params_or_file,
-    output_dir: str = None
+    output_dir: str = None,
+    show_plotter: bool = True
 ) -> PlasmaState:
     """
     Run a full simulation from input file or parameters dict.
@@ -762,6 +1382,8 @@ def run_simulation(
         Path to JSON input file, or dict of parameters.
     output_dir : str, optional
         Directory for output files.
+    show_plotter : bool
+        If True, launch interactive Bokeh plotter (default: True).
         
     Returns
     -------
@@ -797,6 +1419,10 @@ def run_simulation(
     if params.get('bHe', False):
         state.add_helium_species()
     
+    # Add molecular hydrogen species (H2, H2+, H3+) if enabled
+    if params.get('bH2', False):
+        state.add_molecular_hydrogen_species()
+    
     # Initialize from parameters
     state.initialize_from_params(params.get('initial_conditions', {}))
     
@@ -810,8 +1436,11 @@ def run_simulation(
         [s.name for s in state.all_species]
     )
     
-    # Create solver
-    solver = BDF2Solver(state, transport, bc_handler, params.get('time_step', {}))
+    # Merge time_step params with main params for limiter access
+    solver_params = {**params, **params.get('time_step', {})}
+    
+    # Create solver with radial positions for limiter losses
+    solver = BDF2Solver(state, transport, bc_handler, solver_params, radial_positions)
     
     # Set Dirichlet values for H2, HeI
     if 'nH2_bc' in params:
@@ -819,18 +1448,54 @@ def run_simulation(
     if 'nHeI_bc' in params:
         solver.set_dirichlet_value('HeI', params['nHeI_bc'])
     
-    # Output callback
+    # Output callback - append all outputs to a single file
     output_times = []
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_filename = f"Res_{timestamp}.csv"
+    
+    # Full path to output file for plotter
+    csv_filepath = None
+    if output_dir:
+        import os
+        os.makedirs(output_dir, exist_ok=True)
+        csv_filepath = os.path.join(output_dir, output_filename)
+    
+    # Launch plotter if requested
+    plotter_process = None
+    if show_plotter and csv_filepath:
+        try:
+            from .gui.plotter import launch_plotter
+            plotter_process = launch_plotter(csv_filepath, show=True)
+        except ImportError as e:
+            print(f"[Warning] Could not launch plotter: {e}")
+            print("[Warning] Install bokeh to enable interactive plotting.")
+    
     def output_callback(solver, t):
         output_interval = params.get('output_interval', 1e-4)
         if len(output_times) == 0 or t - output_times[-1] >= output_interval:
             output_times.append(t)
             if output_dir:
-                write_csv_output(solver.state, t, radial_positions, output_dir)
-            print(f"t = {t:.6e} s, dt = {solver.dt:.6e} s")
+                write_csv_output(solver.state, t, radial_positions, output_dir, 
+                                filename=output_filename, append=True)
+            # Get pecabs from coupled power if available (only for relevant modes)
+            pecabs_str = ""
+            show_pecabs = (params.get('bgray', False) or params.get('bram', False) or 
+                          params.get('bfixpowerfrac', False) or params.get('bnefix', False))
+            if show_pecabs and hasattr(solver, 'coupled_power') and solver.coupled_power is not None:
+                pecabs_str = f", pecabs = {solver.coupled_power.state.pecabs:.4f}"
+            print(f"t = {t:.6e} s, dt = {solver.dt:.6e} s{pecabs_str}")
     
     # Run simulation
-    t_end = params.get('tmainend', 1e-3)
-    solver.run_until(t_end, callback=output_callback)
+    try:
+        t_end = params.get('tmainend', 1e-3)
+        solver.run_until(t_end, callback=output_callback)
+    finally:
+        # Stop plotter when simulation ends
+        if plotter_process is not None:
+            try:
+                from .gui.plotter import stop_plotter
+                stop_plotter(plotter_process)
+            except Exception:
+                pass
     
     return state

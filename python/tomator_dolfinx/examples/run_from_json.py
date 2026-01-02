@@ -47,6 +47,11 @@ def main():
         action="store_true",
         help="Print verbose output"
     )
+    parser.add_argument(
+        "--no-plot",
+        action="store_true",
+        help="Disable interactive Bokeh plotter"
+    )
     
     args = parser.parse_args()
     
@@ -87,7 +92,7 @@ def main():
     print("Starting simulation...")
     print("=" * 60 + "\n")
     
-    state = run_simulation(params, output_dir=output_dir)
+    state = run_simulation(params, output_dir=output_dir, show_plotter=not args.no_plot)
     
     print("\n" + "=" * 60)
     print("Simulation completed successfully!")

@@ -3,15 +3,72 @@ JSON input file parser for Tomator simulations.
 
 Parses the JSON input format used by C++ Tomator1D and extracts
 parameters into a flat dictionary for the Python solver.
+
+Supports two JSON formats:
+1. Simple format: "param": value
+2. Value-unit format: "param": {"value": value, "unit": "unit_string"}
+
+The value-unit format is automatically detected and handled transparently.
 """
 
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Union
 from pathlib import Path
 
 
 # Physical constants
 KB = 1.380649e-23  # Boltzmann constant [J/K]
+
+
+def get_value(data: Union[Dict, float, int, bool, str], default: Any = None) -> Any:
+    """
+    Extract value from a parameter that may be either:
+    - A simple value (float, int, bool, str)
+    - A dict with {"value": ..., "unit": ...} format
+    
+    Parameters
+    ----------
+    data : dict or scalar
+        The parameter value, either plain or as value-unit dict.
+    default : any, optional
+        Default value if data is None.
+        
+    Returns
+    -------
+    value : scalar
+        The extracted numeric/boolean/string value.
+    """
+    if data is None:
+        return default
+    if isinstance(data, dict):
+        if 'value' in data:
+            return data['value']
+        # Empty dict or dict without 'value' key
+        return default
+    return data
+
+
+def dict_get(d: Dict, key: str, default: Any = None) -> Any:
+    """
+    Get a value from a dict, handling value-unit format.
+    
+    Parameters
+    ----------
+    d : dict
+        Dictionary to get value from.
+    key : str
+        Key to look up.
+    default : any, optional
+        Default value if key not found.
+        
+    Returns
+    -------
+    value : scalar
+        The extracted value.
+    """
+    if key not in d:
+        return default
+    return get_value(d[key], default)
 
 
 def compute_density_from_pressure(p_pa: float, T_eV: float) -> float:
@@ -58,59 +115,84 @@ def load_input_file(filename: str) -> Dict[str, Any]:
     # Magnetic field
     if 'magnetic_field' in raw:
         mf = raw['magnetic_field']
-        params['Bt'] = mf.get('Bt', 1.0)  # Toroidal field [T]
-        params['Bv'] = mf.get('Bv', 0.01)  # Vertical field [T]
-        params['Bh'] = mf.get('Bh', 0.001)  # Horizontal field [T]
+        params['Bt'] = dict_get(mf, 'Bt', 1.0)  # Toroidal field [T]
+        params['Bv'] = dict_get(mf, 'Bv', 0.01)  # Vertical field [T]
+        params['Bh'] = dict_get(mf, 'Bh', 0.001)  # Horizontal field [T]
     
     # Geometry - NOTE: C++ uses cm, we convert to m
     if 'toroidal_machine_geometry' in raw:
         geo = raw['toroidal_machine_geometry']
-        params['R'] = geo.get('R', 88.0) / 100.0  # Major radius [m]
-        params['a'] = geo.get('a', 28.0) / 100.0  # Minor radius [m]
-        params['b'] = geo.get('b', 75.0) / 100.0  # Vertical extent [m]
-        params['lHFS'] = geo.get('lHFS', 28.0) / 100.0  # HFS limiter distance [m]
-        params['lLFS'] = geo.get('lLFS', 28.0) / 100.0  # LFS limiter distance [m]
-        params['nlimiters'] = geo.get('nlimiters', 1)
-        params['Vpl'] = geo.get('Vpl', 1.0) / 1e6  # Plasma volume [m³]
+        params['R'] = dict_get(geo, 'R', 88.0) / 100.0  # Major radius [m]
+        params['a'] = dict_get(geo, 'a', 28.0) / 100.0  # Minor radius [m]
+        params['b'] = dict_get(geo, 'b', 75.0) / 100.0  # Vertical extent [m]
+        params['lHFS'] = dict_get(geo, 'lHFS', 28.0) / 100.0  # HFS limiter distance [m]
+        params['lLFS'] = dict_get(geo, 'lLFS', 28.0) / 100.0  # LFS limiter distance [m]
+        params['nlimiters'] = dict_get(geo, 'nlimiters', 1)
+        params['Vpl'] = dict_get(geo, 'Vpl', 1.0) / 1e6  # Plasma volume [m³]
     
     # Neutral pressure - convert from mbar to Pa (1 mbar = 100 Pa)
     if 'neutral_pressure' in raw:
         np_data = raw['neutral_pressure']
-        params['pHe'] = np_data.get('pHe', 0.0) * 100.0  # He pressure [Pa]
-        params['pH2'] = np_data.get('pH2', 0.0) * 100.0  # H2 pressure [Pa]
+        params['pHe'] = dict_get(np_data, 'pHe', 0.0) * 100.0  # He pressure [Pa]
+        params['pH2'] = dict_get(np_data, 'pH2', 0.0) * 100.0  # H2 pressure [Pa]
     
     # RF power
     if 'rf_power' in raw:
         rf = raw['rf_power']
-        params['Prf'] = rf.get('Prf', 0.0)  # RF power [kW]
-        params['freq'] = rf.get('freq', 1e6)  # Frequency [Hz]
+        params['Prf'] = dict_get(rf, 'Prf', 0.0)  # RF power [kW]
+        params['freq'] = dict_get(rf, 'freq', 1e6)  # Frequency [Hz]
+        params['dtpramp'] = dict_get(rf, 'dtpramp', 0.0)  # Power ramp time [s]
+    
+    # Coupled power mode flags
+    if 'type' in raw:
+        ptype = raw['type']
+        params['bnefix'] = dict_get(ptype, 'bnefix', False)
+        params['bfixpowerfrac'] = dict_get(ptype, 'bfixpowerfrac', False)
+        params['bproptone'] = dict_get(ptype, 'bproptone', False)
+        params['bnopower'] = dict_get(ptype, 'bnopower', False)
+    
+    # General EC parameters
+    if 'general_ec' in raw:
+        ec = raw['general_ec']
+        params['Rdep'] = dict_get(ec, 'Rdep', 88.0) / 100.0  # Deposition radius [m]
+        params['pecabs0'] = dict_get(ec, 'pecabs0', 0.1)      # Initial absorbed fraction
+        params['widthech'] = dict_get(ec, 'widthech', 2.0) / 100.0  # EC width [m]
+        params['echbackground'] = dict_get(ec, 'echbackground', 1e-5)  # Background fraction
+    
+    # necfix mode parameters
+    if 'necfix' in raw:
+        nf = raw['necfix']
+        params['ic'] = dict_get(nf, 'ic', 90)                # Control index
+        params['necfix'] = dict_get(nf, 'necfix', 1e13) * 1e6  # Target density [m^-3]
+        params['tauP'] = dict_get(nf, 'tauP', 5e-5)          # PI time constant [s]
+        params['Pini'] = dict_get(nf, 'Pini', 0.0)           # Initial PIerrorP value
     
     # Physics flags
     if 'physics_to_include' in raw:
         phys = raw['physics_to_include']
-        params['bH'] = phys.get('bH', True)
-        params['bH2'] = phys.get('bH2', False)
-        params['bHe'] = phys.get('bHe', False)
-        params['bion'] = phys.get('bion', True)
-        params['bcx'] = phys.get('bcx', True)
-        params['belas'] = phys.get('belas', False)
-        params['bcoulomb'] = phys.get('bcoulomb', False)
-        params['bimpur'] = phys.get('bimpur', False)
-        params['btranspions'] = phys.get('btranspions', True)
-        params['btranspneut'] = phys.get('btranspneut', True)
+        params['bH'] = dict_get(phys, 'bH', True)
+        params['bH2'] = dict_get(phys, 'bH2', False)
+        params['bHe'] = dict_get(phys, 'bHe', False)
+        params['bion'] = dict_get(phys, 'bion', True)
+        params['bcx'] = dict_get(phys, 'bcx', True)
+        params['belas'] = dict_get(phys, 'belas', False)
+        params['bcoulomb'] = dict_get(phys, 'bcoulomb', False)
+        params['bimpur'] = dict_get(phys, 'bimpur', False)
+        params['btranspions'] = dict_get(phys, 'btranspions', True)
+        params['btranspneut'] = dict_get(phys, 'btranspneut', True)
     
     # Diffusion parameters
     if 'diffusion' in raw:
         diff = raw['diffusion']
-        params['bDfix'] = diff.get('bDfix', True)
-        params['Dfix'] = diff.get('Dfix', 1.0) / 1e4  # Convert cm²/s to m²/s
-        params['bDbohm'] = diff.get('bDbohm', False)
-        params['Dfact'] = diff.get('Dfact', 1.0)
+        params['bDfix'] = dict_get(diff, 'bDfix', True)
+        params['Dfix'] = dict_get(diff, 'Dfix', 1.0) / 1e4  # Convert cm²/s to m²/s
+        params['bDbohm'] = dict_get(diff, 'bDbohm', False)
+        params['Dfact'] = dict_get(diff, 'Dfact', 1.0)
         
         # Set diffusion type
-        if diff.get('bDfix', True):
+        if dict_get(diff, 'bDfix', True):
             params['diffusion_type'] = 'fixed'
-        elif diff.get('bDbohm', False):
+        elif dict_get(diff, 'bDbohm', False):
             params['diffusion_type'] = 'bohm'
         else:
             params['diffusion_type'] = 'classical'
@@ -118,12 +200,12 @@ def load_input_file(filename: str) -> Dict[str, Any]:
     # Convection parameters
     if 'convection' in raw:
         conv = raw['convection']
-        params['bVfix'] = conv.get('bVfix', True)
-        params['Vfix'] = conv.get('Vfix', 0.0) / 100.0  # Convert cm/s to m/s
-        params['Vfact'] = conv.get('Vfact', 1.0)
+        params['bVfix'] = dict_get(conv, 'bVfix', True)
+        params['Vfix'] = dict_get(conv, 'Vfix', 0.0) / 100.0  # Convert cm/s to m/s
+        params['Vfact'] = dict_get(conv, 'Vfact', 1.0)
         
         # Set convection type
-        if conv.get('bVfix', True):
+        if dict_get(conv, 'bVfix', True):
             params['convection_type'] = 'fixed'
         else:
             params['convection_type'] = 'pressure'
@@ -140,28 +222,28 @@ def load_input_file(filename: str) -> Dict[str, Any]:
     if 'initial_conditions' in raw:
         ic = raw['initial_conditions']
         # Temperatures [eV]
-        params['Te0'] = ic.get('Te0', 10.0)
-        params['Ta0'] = ic.get('Ta0', 0.026)  # Room temperature / neutral temp
+        params['Te0'] = dict_get(ic, 'Te0', 10.0)
+        params['Ta0'] = dict_get(ic, 'Ta0', 0.026)  # Room temperature / neutral temp
         
         # Vacuum density floor (critical for stability)
         # C++ uses cm^-3, we keep it in cm^-3 and convert in solver
-        params['nevac'] = ic.get('nevac', 1.0)  # [cm^-3]
+        params['nevac'] = dict_get(ic, 'nevac', 1.0)  # [cm^-3]
         
         # Densities - convert from cm^-3 to m^-3
-        params['nH0'] = ic.get('nH0', 1e10) * 1e6
-        params['nHi0'] = ic.get('nHi0', 1e10) * 1e6
-        params['nH20'] = ic.get('nH20', 1e10) * 1e6
-        params['nH2i0'] = ic.get('nH2i0', 1e8) * 1e6
-        params['nH3i0'] = ic.get('nH3i0', 1e8) * 1e6
-        params['nHeII0'] = ic.get('nHeII0', 1e10) * 1e6
-        params['nHeIII0'] = ic.get('nHeIII0', 1e6) * 1e6
+        params['nH0'] = dict_get(ic, 'nH0', 1e10) * 1e6
+        params['nHi0'] = dict_get(ic, 'nHi0', 1e10) * 1e6
+        params['nH20'] = dict_get(ic, 'nH20', 1e10) * 1e6
+        params['nH2i0'] = dict_get(ic, 'nH2i0', 1e8) * 1e6
+        params['nH3i0'] = dict_get(ic, 'nH3i0', 1e8) * 1e6
+        params['nHeII0'] = dict_get(ic, 'nHeII0', 1e10) * 1e6
+        params['nHeIII0'] = dict_get(ic, 'nHeIII0', 1e6) * 1e6
         
         # nHeI0 and nH20: compute from pressure if not explicitly given
         # This matches C++ Tomator1D behavior: nHeI0 = computeN(pHe, Ta0)
         Ta0 = params.get('Ta0', 0.026)  # Neutral temperature [eV]
         
         if 'nHeI0' in ic:
-            params['nHeI0'] = ic['nHeI0'] * 1e6  # Convert cm^-3 to m^-3
+            params['nHeI0'] = dict_get(ic, 'nHeI0', 1e10) * 1e6  # Convert cm^-3 to m^-3
         elif 'pHe' in params and params['pHe'] > 0:
             # Compute from He pressure [Pa] and neutral temp [eV]
             params['nHeI0'] = compute_density_from_pressure(params['pHe'], Ta0)
@@ -179,10 +261,10 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['nH2_bc'] = params.get('nH20', 1e15)
         
         # Profile parameters - for Gaussian initialization
-        params['rmaxini'] = ic.get('rmaxini', params.get('R', 0.88) * 100) / 100.0  # [m]
-        params['widthini'] = ic.get('widthini', 5.0) / 100.0  # [m]
-        params['nebackgroundl'] = ic.get('nebackgroundl', 1e-5)  # HFS background fraction
-        params['nebackgroundr'] = ic.get('nebackgroundr', 1e-3)  # LFS background fraction
+        params['rmaxini'] = dict_get(ic, 'rmaxini', params.get('R', 0.88) * 100) / 100.0  # [m]
+        params['widthini'] = dict_get(ic, 'widthini', 5.0) / 100.0  # [m]
+        params['nebackgroundl'] = dict_get(ic, 'nebackgroundl', 1e-5)  # HFS background fraction
+        params['nebackgroundr'] = dict_get(ic, 'nebackgroundr', 1e-3)  # LFS background fraction
         
     params['initial_conditions'] = {
         'Te0': params.get('Te0', 10.0),
@@ -208,9 +290,12 @@ def load_input_file(filename: str) -> Dict[str, Any]:
     # Edge/boundary conditions
     if 'edge_conditions' in raw:
         edge = raw['edge_conditions']
-        params['RH'] = edge.get('RH', 0.5)  # Reflection coefficient for H
-        params['gEd'] = edge.get('gEd', 5/3)  # Energy flux factor for diffusion
-        params['gEv'] = edge.get('gEv', 5/3)  # Energy flux factor for convection
+        params['RH'] = dict_get(edge, 'RH', 0.5)  # Reflection coefficient for H
+        params['REH'] = dict_get(edge, 'REH', 0.9)  # Energy reflection coefficient for neutrals
+        params['gEd'] = dict_get(edge, 'gEd', 5/3)  # Energy flux factor for diffusion
+        params['gEv'] = dict_get(edge, 'gEv', 5/3)  # Energy flux factor for convection
+        params['gEdn'] = dict_get(edge, 'gEdn', 5/3)  # Energy flux factor for neutral diffusion
+        params['gEe'] = dict_get(edge, 'gEe', 5/3)  # Energy flux factor for electrons
     
     # Decay lengths (derive from geometry if not specified)
     params['decay_length_hfs'] = params.get('lHFS', 0.2) * 0.1  # ~10% of limiter distance
@@ -219,17 +304,17 @@ def load_input_file(filename: str) -> Dict[str, Any]:
     # Simulation grid
     if 'simulation_grid' in raw:
         grid = raw['simulation_grid']
-        params['nmeshp'] = grid.get('nmeshp', 101)
+        params['nmeshp'] = dict_get(grid, 'nmeshp', 101)
     
     # Time stepping
     if 'time_step' in raw:
         ts = raw['time_step']
-        params['t0'] = ts.get('t0', 0.0)
-        params['tmainend'] = ts.get('tmainend', 1e-3)
-        params['accur'] = ts.get('accur', 0.05)
-        params['dtmax'] = ts.get('dtmax', 1e-5)
-        params['dtmin'] = ts.get('dtmin', 1e-10)
-        params['dtinit'] = ts.get('dtinit', 1e-9)
+        params['t0'] = dict_get(ts, 't0', 0.0)
+        params['tmainend'] = dict_get(ts, 'tmainend', 1e-3)
+        params['accur'] = dict_get(ts, 'accur', 0.05)
+        params['dtmax'] = dict_get(ts, 'dtmax', 1e-5)
+        params['dtmin'] = dict_get(ts, 'dtmin', 1e-10)
+        params['dtinit'] = dict_get(ts, 'dtinit', 1e-9)
     
     params['time_step'] = {
         'dtinit': params.get('dtinit', 1e-9),
@@ -244,9 +329,9 @@ def load_input_file(filename: str) -> Dict[str, Any]:
     # Output parameters
     if 'output_parameters' in raw:
         out = raw['output_parameters']
-        params['Nlog'] = out.get('Nlog', 100)
-        params['dtsave'] = out.get('dtsave', 1e-4)
-        params['output_interval'] = out.get('dtsave', 1e-4)
+        params['Nlog'] = dict_get(out, 'Nlog', 100)
+        params['dtsave'] = dict_get(out, 'dtsave', 1e-4)
+        params['output_interval'] = dict_get(out, 'dtsave', 1e-4)
     
     return params
 

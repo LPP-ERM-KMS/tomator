@@ -19,7 +19,8 @@ def write_csv_output(
     t: float,
     radial_positions: np.ndarray,
     output_dir: str,
-    filename: Optional[str] = None
+    filename: Optional[str] = None,
+    append: bool = True
 ) -> str:
     """
     Write current state to CSV file.
@@ -38,7 +39,9 @@ def write_csv_output(
     output_dir : str
         Output directory path.
     filename : str, optional
-        Specific filename. If None, auto-generated.
+        Specific filename. If None, auto-generated with timestamp.
+    append : bool
+        If True, append to existing file. If False, overwrite.
         
     Returns
     -------
@@ -76,10 +79,16 @@ def write_csv_output(
     # Stack data
     data = np.column_stack(data_columns)
     
+    # Determine write mode
+    file_exists = os.path.exists(filepath)
+    mode = 'a' if append and file_exists else 'w'
+    write_header = (mode == 'w')
+    
     # Write CSV
-    with open(filepath, 'w', newline='') as f:
+    with open(filepath, mode, newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(header)
+        if write_header:
+            writer.writerow(header)
         writer.writerows(data)
     
     return filepath

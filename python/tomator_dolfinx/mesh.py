@@ -101,8 +101,9 @@ def create_mesh_from_geometry(
     """
     Create mesh from tokamak geometry parameters.
     
-    This matches the C++ Tomator1D convention where the grid spans
-    from R - lHFS to R + lLFS (major radius ± limiter distances).
+    The grid spans from R - a to R + a (major radius ± minor radius).
+    The limiter positions lHFS and lLFS define where the SOL begins
+    and parallel losses occur (handled separately by limiters function).
     
     Parameters
     ----------
@@ -111,9 +112,9 @@ def create_mesh_from_geometry(
     a : float
         Minor radius [m].
     lHFS : float
-        Distance from magnetic axis to HFS limiter [m].
+        Absolute radial position of HFS limiter [m] (for parallel loss calc).
     lLFS : float
-        Distance from magnetic axis to LFS limiter [m].
+        Absolute radial position of LFS limiter [m] (for parallel loss calc).
     num_cells : int
         Number of mesh cells.
     comm : MPI communicator
@@ -126,8 +127,8 @@ def create_mesh_from_geometry(
     radial_positions : np.ndarray
         Array of radial positions.
     """
-    r_min = R - lHFS
-    r_max = R + lLFS
+    r_min = R - a
+    r_max = R + a
     
     return create_uniform_mesh(r_min, r_max, num_cells, comm)
 

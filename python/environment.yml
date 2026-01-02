@@ -21,3 +21,4 @@ dependencies:
   # Optional: for plotting/analysis
   - matplotlib
   - pandas
+  - bokeh
