@@ -1,5 +1,5 @@
 {
-    "description": "TCV #5151X simulation with fixed power fraction coupling (bfixpowerfrac). Absorbed power = Prf * pecabs0 (constant, no feedback). Transport: Fixed diffusion (bDfix, D=3330 cm²/s) and fixed advection (bVfix, V=333 cm/s).",
+    "description": "TCV #5151X simulation with fixed electron density power coupling (bnefix). Uses PID controller to adjust absorbed power fraction to maintain ne at control point. Transport: Bohm diffusion (bDbohm, Dfact=1/16) and fixed advection (bVfix, V=333 cm/s).",
     "magnetic_field": {
         "Bt": {"value": 1.54, "unit": "T"},
         "Bv": {"value": 0.0035, "unit": "T"},
@@ -37,7 +37,7 @@
     },
     "general_ec": {
         "Rdep": {"value": 91.85, "unit": "cm"},
-        "pecabs0": {"value": 0.0137, "unit": "-"},
+        "pecabs0": {"value": 0.025, "unit": "-"},
         "widthech": {"value": 1.8667, "unit": "cm"},
         "echbackground": {"value": 1e-05, "unit": "-"},
         "harmonic": {"value": 2.0, "unit": "-"},
@@ -81,9 +81,9 @@
         "fixedTe": {"value": false, "unit": "-"}
     },
     "diffusion": {
-        "Dfix": {"bool": true, "Dfix": 3330.0, "unit": "cm²/s"},
-        "Dbohm": {"bool": false, "Dfact": 1.0, "unit": "-"},
-        "Dscaling": {"bool": false, "Dfact": 1.0, "unit": "-"}
+        "Dfix": {"bool": false, "Dfix": 0.0, "unit": "cm²/s"},
+        "Dbohm": {"bool": false, "Dfact": 0.0625, "unit": "-"},
+        "Dgyrogeom": {"bool": true, "Dfact": 1.0, "unit": "-"}
     },
     "advection": {
         "Vfix": {"bool": true, "value": 333.0, "unit": "cm/s"},
@@ -146,7 +146,8 @@
         "fixBC": {"bool": false, "value": 2, "unit": "cm"}
     },
     "simulation_grid": {
-        "nmeshp": {"value": 161, "unit": "-"}
+        "nmeshp": {"value": 161, "unit": "-"},
+        "fem_degree": {"value": 1, "unit": "-"}
     },
     "input_file": {
         "bfinput": {"value": false, "unit": "-"}

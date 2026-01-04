@@ -381,8 +381,9 @@ class PlasmaState:
         nebackgroundl = params.get("nebackgroundl", 1e-5)  # HFS background (fraction)
         nebackgroundr = params.get("nebackgroundr", 1e-3)  # LFS background (fraction)
         
-        # Get mesh coordinates
-        coords = self.mesh.geometry.x[:, 0]  # 1D coordinates [m]
+        # Get DOF coordinates (works for any polynomial degree)
+        # For degree=1, this equals mesh vertices; for degree>1, includes interior points
+        coords = self.V.tabulate_dof_coordinates()[:, 0]  # 1D coordinates [m]
         
         # Compute Gaussian profile (matching C++ functions.cpp)
         # fct_n0 = background + exp(-((r - rmaxini)/widthini)^2)

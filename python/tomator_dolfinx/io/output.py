@@ -20,7 +20,9 @@ def write_csv_output(
     radial_positions: np.ndarray,
     output_dir: str,
     filename: Optional[str] = None,
-    append: bool = True
+    append: bool = True,
+    transport_data: Optional[dict] = None,
+    power_data: Optional[np.ndarray] = None
 ) -> str:
     """
     Write current state to CSV file.
@@ -42,6 +44,11 @@ def write_csv_output(
         Specific filename. If None, auto-generated with timestamp.
     append : bool
         If True, append to existing file. If False, overwrite.
+    transport_data : dict, optional
+        Dictionary with 'D' and 'V' arrays for diffusion and advection.
+        Keys can be species names (e.g., 'Hi', 'e') or just 'D', 'V' for common values.
+    power_data : np.ndarray, optional
+        RF power deposition profile [eV/m³/s].
         
     Returns
     -------
@@ -75,6 +82,27 @@ def write_csv_output(
             
             header.extend([f'n{name}', f'E{name}', f'T{name}'])
             data_columns.extend([n, E, T])
+    
+    # Add transport data (D, V) if provided
+    if transport_data is not None:
+        # Add ion D, V (common for all ions)
+        if 'D' in transport_data:
+            header.append('D')
+            data_columns.append(transport_data['D'])
+        if 'V' in transport_data:
+            header.append('V')
+            data_columns.append(transport_data['V'])
+        # Add neutral-specific diffusion coefficients
+        for neutral_name in ['H', 'H2', 'HeI']:
+            key = f'D_{neutral_name}'
+            if key in transport_data:
+                header.append(key)
+                data_columns.append(transport_data[key])
+    
+    # Add coupled power if provided
+    if power_data is not None:
+        header.append('PRFe')
+        data_columns.append(power_data)
     
     # Stack data
     data = np.column_stack(data_columns)

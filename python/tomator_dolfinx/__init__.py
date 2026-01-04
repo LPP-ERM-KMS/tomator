@@ -31,16 +31,23 @@ from .mesh import (
     get_radial_coordinate
 )
 from .species import Species, PlasmaState
-from .boundary import BoundaryConditions, DecayLengthBC
+from .boundary import (
+    BoundaryConditions, 
+    DecayLengthBC,
+    compute_neutral_decay_length,
+    compute_ion_decay_length,
+)
 from .transport import (
     TransportCoefficients, 
     TransportManager, 
     DiffusionModel, 
-    ConvectionModel,
+    AdvectionModel,
     compute_bohm_diffusion,
     compute_bohm_diffusion_from_state,
     compute_neutral_diffusion,
-    compute_neutral_diffusion_from_state
+    compute_neutral_diffusion_from_state,
+    compute_gyrogeom_diffusion,
+    compute_gyrogeom_diffusion_from_state,
 )
 from .solver import BDF2Solver, TransportEquation, run_simulation
 from .io.json_input import load_input_file, create_default_params
@@ -62,15 +69,19 @@ __all__ = [
     # Boundary conditions
     "BoundaryConditions",
     "DecayLengthBC",
+    "compute_neutral_decay_length",
+    "compute_ion_decay_length",
     # Transport
     "TransportCoefficients",
     "TransportManager",
     "DiffusionModel",
-    "ConvectionModel",
+    "AdvectionModel",
     "compute_bohm_diffusion",
     "compute_bohm_diffusion_from_state",
     "compute_neutral_diffusion",
     "compute_neutral_diffusion_from_state",
+    "compute_gyrogeom_diffusion",
+    "compute_gyrogeom_diffusion_from_state",
     # Solver
     "BDF2Solver",
     "TransportEquation",

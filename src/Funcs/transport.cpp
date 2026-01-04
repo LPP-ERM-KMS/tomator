@@ -158,7 +158,7 @@ void transpCoef() { // called in Tomator1D.cpp
             #endif
         }
         for (int im = 0; im < NMESHP; ++im) {
-            Dion[im] = max(1e2, Dfsave * Dionh[im] / Br[im]);
+            Dion[im] = max(1e2, Dfsave * 1e4 * Dionh[im] / Br[im]);
             #ifdef debug
             if(Dion[im]>Dmax){
                 Dmax = Dion[im];

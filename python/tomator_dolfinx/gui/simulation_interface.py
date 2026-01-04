@@ -65,8 +65,10 @@ PARAMETER_DEFINITIONS = {
     # necfix (PID controller)
     "ic": ("Control Index", "", "Mesh index of density control point"),
     "necfix": ("Target ne", "cm⁻³", "Target electron density for PID"),
-    "Pini": ("Initial pecabs", "", "Initial absorbed power fraction"),
-    "tauP": ("PID Time Constant", "s", "PID controller response time"),
+    "P_KI_ini": ("Initial Integral", "", "Initial integral term value"),
+    "P_KP": ("PID Kp", "", "Proportional gain"),
+    "P_KI": ("PID Ki", "1/s", "Integral gain"),
+    "P_KD": ("PID Kd", "s", "Derivative gain"),
     
     # TOMAS
     "Rdep1": ("Antenna 1 Position", "cm", "Radial position of antenna 1"),
@@ -101,12 +103,12 @@ PARAMETER_DEFINITIONS = {
     "bDscaling": ("Scaling D", "", "Use temperature-dependent scaling"),
     "Dfact": ("D Factor", "", "Diffusion scaling factor (Dfsave)"),
     
-    # Convection
-    "bVfix": ("Fixed V", "", "Use constant convection velocity"),
-    "Vfix": ("V Fixed Value", "cm/s", "Fixed convection velocity value"),
+    # Advection
+    "bVfix": ("Fixed V", "", "Use constant advection velocity"),
+    "Vfix": ("V Fixed Value", "cm/s", "Fixed advection velocity value"),
     "bVscaling": ("Scaling V", "", "Use pressure-driven pinch: V = -Vfact×D×∇p/p"),
-    "veq": ("V Equation", "", "Convection model equation number"),
-    "Vfact": ("V Factor", "", "Convection scaling factor"),
+    "veq": ("V Equation", "", "Advection model equation number"),
+    "Vfact": ("V Factor", "", "Advection scaling factor"),
     
     # Tune D and V (PID)
     "btunedv": ("Tune D&V", "", "Enable PID tuning of D and V"),
@@ -115,7 +117,7 @@ PARAMETER_DEFINITIONS = {
     "nelfix": ("Left ne Target", "cm⁻³", "Target ne at left control point"),
     "ir": ("Right Index", "", "Right control point mesh index"),
     "nerfix": ("Right ne Target", "cm⁻³", "Target ne at right control point"),
-    "Vini": ("Initial V", "cm/s", "Initial convection velocity for tuning"),
+    "Vini": ("Initial V", "cm/s", "Initial advection velocity for tuning"),
     "tauV": ("V Time Constant", "s", "PID time constant for V tuning"),
     "Dini": ("Initial D", "cm²/s", "Initial diffusion for tuning"),
     "tauD": ("D Time Constant", "s", "PID time constant for D tuning"),
@@ -159,7 +161,7 @@ PARAMETER_DEFINITIONS = {
     "RH": ("Particle Reflection", "", "Particle reflection coefficient at wall"),
     "REH": ("Energy Reflection", "", "Energy reflection coefficient at wall"),
     "gEd": ("γ_Ed Factor", "", "Energy diffusion enhancement factor"),
-    "gEv": ("γ_Ev Factor", "", "Energy convection enhancement factor"),
+    "gEv": ("γ_Ev Factor", "", "Energy advection enhancement factor"),
     "gEdn": ("γ_Edn Factor", "", "Neutral energy transport factor"),
     "gEe": ("γ_Ee Factor", "", "Electron energy transport factor"),
     
@@ -227,7 +229,7 @@ SECTION_GROUPS = {
     ],
     "Transport": [
         ("diffusion", "Diffusion"),
-        ("convection", "Convection"),
+        ("advection", "Advection"),
         ("tune_d_and_v", "D&V Tuning (PID)"),
     ],
     "Physics & Conditions": [

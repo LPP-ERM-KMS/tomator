@@ -321,7 +321,8 @@ def compute_bpol_losses(
     EHeIII: np.ndarray = None,
     nuHeIII: np.ndarray = None,
     Dfsave: float = 1.0,
-    Dfix: float = None,
+    D_ion: np.ndarray = None,
+    diffusion_model: str = 'gyrogeom',
     gEd: float = 1.0,
     Ta0: float = 0.026
 ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
@@ -361,8 +362,14 @@ def compute_bpol_losses(
         He++ quantities.
     Dfsave : float
         Diffusion scaling factor. Default 1.0.
-    Dfix : float, optional
-        If provided, use fixed diffusion coefficient instead of computing.
+    D_ion : np.ndarray, optional
+        Pre-computed ion diffusion coefficient [m²/s]. Used directly for
+        'fixed' and 'bohm' models. For 'gyrogeom', this is ignored and
+        vertical diffusion is computed with Bv/Br formula.
+    diffusion_model : str
+        Diffusion model type: 'fixed', 'bohm', or 'gyrogeom'. Default 'gyrogeom'.
+        - 'fixed' or 'bohm': Use D_ion directly (no Bv dependence)
+        - 'gyrogeom': Compute Dv = Dfsave * 0.333 * nu * mfp * (gr + mfp * Bv/Br)
     gEd : float
         Energy loss rate factor. Default 1.0.
     Ta0 : float
@@ -398,13 +405,15 @@ def compute_bpol_losses(
     # In C++: gr = ... / Br[im] / 1e4, equivalent to dividing by B in Gauss
     Br_safe = np.maximum(np.abs(Br), 1e-6)  # Prevent division by zero [T]
     
-    # Compute density-weighted averages for diffusion coefficient
-    # Following C++ bpol_function logic
+    # Compute vertical diffusion coefficient based on diffusion model
+    # - Fixed/Bohm: use pre-computed D_ion directly (already calculated for radial transport)
+    # - Gyrogeom: compute vertical-specific formula with Bv/Br term
     
-    if Dfix is not None:
-        # Use fixed diffusion coefficient
-        Dv = np.full(n_points, Dfix)
-    else:
+    if diffusion_model.lower() in ('fixed', 'bohm') and D_ion is not None:
+        # Use pre-computed diffusion coefficient directly
+        # Convert from m²/s to cm²/s (factor 1e4) since b is in cm
+        Dv = D_ion * 1e4  # [cm²/s]
+    elif diffusion_model.lower() == 'gyrogeom':
         # Compute weighted mean free path, gyroradius, and collision frequency
         # mfp = n * 9.79e5 * sqrt((Te + Ti*ni/ne) / mu) / max(nu, 5e3) [cm]
         # gr = n * 1.02e2 / Z * sqrt(mu * Ti) / Br / 1e4 [cm]
@@ -477,6 +486,13 @@ def compute_bpol_losses(
         
         # Vertical diffusion coefficient: Dv = Dfsave * 0.333 * nu * mfp * (gr + mfp * Bv/Br) [cm^2/s]
         Dv = Dfsave * 0.333 * nu_avg * mfp_avg * (gr_avg + mfp_avg * Bv / Br_safe)
+    else:
+        # Fallback: if D_ion provided without model specification, use it
+        if D_ion is not None:
+            Dv = D_ion * 1e4  # [cm²/s]
+        else:
+            # Default to small diffusion if nothing provided
+            Dv = np.full(n_points, 1e2)  # 1e2 cm²/s = 0.01 m²/s minimum
     
     # Loss time: tau = b^2 / (2 * Dv) [s]
     Dv_safe = np.maximum(Dv, 1e-10)

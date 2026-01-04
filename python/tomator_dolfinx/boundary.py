@@ -438,7 +438,7 @@ def compute_decay_length(
     return decay_length
 
 
-def compute_physics_decay_length(
+def compute_neutral_decay_length(
     D: float,
     T: float,
     m_amu: float,
@@ -511,6 +511,116 @@ def compute_physics_decay_length(
     # Compute decay length: λ = 2 * D / (vth * (1 - R))
     if D > 0 and vth > 0:
         decay_length = 2.0 * D / (vth * (1.0 - R))
+    else:
+        decay_length = lambda_min
+    
+    # Clamp to valid range
+    decay_length = np.clip(decay_length, lambda_min, lambda_max)
+    
+    return decay_length
+
+
+def compute_ion_decay_length(
+    D: float,
+    Te: float,
+    Ti: float,
+    a_R: float,
+    nlimiters: int = 1,
+    Z: float = 1.0,
+    mu: float = 1.0,
+    ne: float = 1e18,
+    ni: float = 1e18,
+    nevac: float = 1e12,
+    lambda_min: float = 1e-4,
+    lambda_max: float = 1.0
+) -> float:
+    """
+    Compute physics-based decay length for IONS matching C++ Tomator1D.
+    
+    From C++ transport.cpp:
+        lambda = sqrt(Dion * (0.66 * 2 * pi * aR / nlimiters) /
+                      (9.79e5 * sqrt(Z/mu * (Te + Ti)) * 
+                       pow(1 + nevac/ne, -0.66) * pow(1 + nevac/ni, -0.66)))
+    
+    This is based on:
+        λ = sqrt(D * L_conn / c_s)
+    
+    where:
+        L_conn = 0.66 * 2π * a_R / n_limiters  [connection length]
+        c_s = 9.79e5 * sqrt(Z/μ * (Te + Ti))   [sound speed in cm/s]
+    
+    The low-density corrections pow(1 + nevac/n, -0.66) reduce λ when 
+    density approaches vacuum level.
+    
+    Parameters
+    ----------
+    D : float
+        Ion diffusion coefficient at boundary [m²/s].
+    Te : float
+        Electron temperature at boundary [eV].
+    Ti : float
+        Ion temperature at boundary [eV].
+    a_R : float
+        Local radius [m].
+    nlimiters : int
+        Number of limiters. Default 1.
+    Z : float
+        Ion charge state. Default 1.
+    mu : float
+        Ion mass number [amu]. Default 1 (hydrogen).
+    ne : float
+        Electron density [m^-3].
+    ni : float
+        Ion density [m^-3].
+    nevac : float
+        Vacuum density floor [m^-3] (used for low-density corrections).
+    lambda_min : float
+        Minimum decay length [m]. Default 0.1 mm.
+    lambda_max : float
+        Maximum decay length [m]. Default 1 m.
+        
+    Returns
+    -------
+    decay_length : float
+        Physics-based ion decay length [m].
+        
+    Notes
+    -----
+    The C++ uses cm units internally, hence the 9.79e5 factor for sound speed.
+    In SI: c_s = sqrt(e*(Te+Ti)/m_p) ≈ 9790 * sqrt((Te+Ti)/μ) [m/s]
+    
+    Converting C++ formula to SI:
+        D is in m²/s (need to convert to cm²/s by *1e4)
+        a_R is in m (need to convert to cm by *100)
+        Result is in cm, need to convert back to m
+    """
+    # Ensure valid temperatures
+    Te = max(Te, 0.01)  # Minimum 0.01 eV
+    Ti = max(Ti, 0.01)
+    
+    # Connection length [m]
+    L_conn = 0.66 * 2.0 * np.pi * a_R / max(nlimiters, 1)
+    
+    # Sound speed factor: 9.79e5 cm/s for T in eV = 9790 m/s
+    # c_s = 9790 * sqrt(Z/mu * (Te + Ti)) [m/s]
+    cs_factor = 9790.0  # m/s per sqrt(eV)
+    cs = cs_factor * np.sqrt(Z / mu * (Te + Ti))
+    
+    # Low-density correction factors (same as C++)
+    # These reduce decay length when density is low
+    ne_safe = max(ne, 1e10)  # Avoid division by zero
+    ni_safe = max(ni, 1e10)
+    
+    corr_e = np.power(1.0 + nevac / ne_safe, -0.66)
+    corr_i = np.power(1.0 + nevac / ni_safe, -0.66)
+    
+    # Compute decay length: λ = sqrt(D * L_conn / (c_s * corrections))
+    if D > 0 and cs > 0:
+        denominator = cs * corr_e * corr_i
+        if denominator > 0:
+            decay_length = np.sqrt(D * L_conn / denominator)
+        else:
+            decay_length = lambda_min
     else:
         decay_length = lambda_min
     

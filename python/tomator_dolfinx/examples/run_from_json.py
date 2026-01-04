@@ -76,7 +76,7 @@ def main():
     
     # Override end time if specified
     if args.tend is not None:
-        params['tend'] = args.tend
+        params['tmainend'] = args.tend
     
     # Set output directory
     if args.output is not None:

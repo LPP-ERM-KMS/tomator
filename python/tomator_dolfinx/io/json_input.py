@@ -111,6 +111,8 @@ def load_input_file(filename: str) -> Dict[str, Any]:
     
     # Flatten nested structure into single dict
     params = {}
+
+    params['operator_splitting'] = False  # Default to operator splitting
     
     # Magnetic field
     if 'magnetic_field' in raw:
@@ -164,8 +166,10 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         nf = raw['necfix']
         params['ic'] = dict_get(nf, 'ic', 90)                # Control index
         params['necfix'] = dict_get(nf, 'necfix', 1e13) * 1e6  # Target density [m^-3]
-        params['tauP'] = dict_get(nf, 'tauP', 5e-5)          # PI time constant [s]
-        params['Pini'] = dict_get(nf, 'Pini', 0.0)           # Initial PIerrorP value
+        params['P_KP'] = dict_get(nf, 'P_KP', 10.0)          # PID proportional gain
+        params['P_KI'] = dict_get(nf, 'P_KI', 10000.0)       # PID integral gain
+        params['P_KD'] = dict_get(nf, 'P_KD', 0.1)           # PID derivative gain
+        params['P_KI_ini'] = dict_get(nf, 'P_KI_ini', 0.0)   # Initial integral term value
     
     # Physics flags
     if 'physics_to_include' in raw:
@@ -184,38 +188,105 @@ def load_input_file(filename: str) -> Dict[str, Any]:
     # Diffusion parameters
     if 'diffusion' in raw:
         diff = raw['diffusion']
-        params['bDfix'] = dict_get(diff, 'bDfix', True)
-        params['Dfix'] = dict_get(diff, 'Dfix', 1.0) / 1e4  # Convert cm²/s to m²/s
-        params['bDbohm'] = dict_get(diff, 'bDbohm', False)
-        params['Dfact'] = dict_get(diff, 'Dfact', 1.0)
         
-        # Set diffusion type
-        if dict_get(diff, 'bDfix', True):
-            params['diffusion_type'] = 'fixed'
-        elif dict_get(diff, 'bDbohm', False):
+        # Support new nested structure: {"Dfix": {"bool": true, "Dfix": 3330.0, "unit": "cm²/s"}}
+        # as well as old flat structure: {"bDfix": {"value": true}, "Dfix": {"value": 3330.0}}
+        
+        # Check for new nested structure first
+        if 'Dfix' in diff and isinstance(diff['Dfix'], dict) and 'bool' in diff['Dfix']:
+            # New structure
+            params['bDfix'] = diff['Dfix'].get('bool', False)
+            params['Dfix'] = diff['Dfix'].get('Dfix', 1.0) / 1e4  # Convert cm²/s to m²/s
+        else:
+            # Old structure
+            params['bDfix'] = dict_get(diff, 'bDfix', True)
+            params['Dfix'] = dict_get(diff, 'Dfix', 1.0) / 1e4  # Convert cm²/s to m²/s
+        
+        if 'Dbohm' in diff and isinstance(diff['Dbohm'], dict) and 'bool' in diff['Dbohm']:
+            # New structure
+            params['bDbohm'] = diff['Dbohm'].get('bool', False)
+            params['Dfact'] = diff['Dbohm'].get('Dfact', 1.0)
+        else:
+            # Old structure
+            params['bDbohm'] = dict_get(diff, 'bDbohm', False)
+            params['Dfact'] = dict_get(diff, 'Dfact', 1.0)
+        
+        # Support both Dgyrogeom (new name) and Dscaling (legacy name)
+        if 'Dgyrogeom' in diff and isinstance(diff['Dgyrogeom'], dict) and 'bool' in diff['Dgyrogeom']:
+            # New structure with Dgyrogeom
+            params['bDgyrogeom'] = diff['Dgyrogeom'].get('bool', False)
+            if params['bDgyrogeom']:
+                params['Dfact'] = diff['Dgyrogeom'].get('Dfact', params.get('Dfact', 1.0))
+        elif 'Dscaling' in diff and isinstance(diff['Dscaling'], dict) and 'bool' in diff['Dscaling']:
+            # Legacy structure with Dscaling
+            params['bDgyrogeom'] = diff['Dscaling'].get('bool', False)
+            if params['bDgyrogeom']:
+                params['Dfact'] = diff['Dscaling'].get('Dfact', params.get('Dfact', 1.0))
+        else:
+            # Old flat structure
+            params['bDgyrogeom'] = dict_get(diff, 'bDscaling', dict_get(diff, 'bDgyrogeom', False))
+        
+        # Set diffusion type based on priority: gyrogeom > bohm > fixed
+        if params.get('bDgyrogeom', False):
+            params['diffusion_type'] = 'gyrogeom'
+        elif params.get('bDbohm', False):
             params['diffusion_type'] = 'bohm'
+        elif params.get('bDfix', False):
+            params['diffusion_type'] = 'fixed'
         else:
-            params['diffusion_type'] = 'classical'
+            params['diffusion_type'] = 'fixed'
     
-    # Convection parameters
-    if 'convection' in raw:
-        conv = raw['convection']
-        params['bVfix'] = dict_get(conv, 'bVfix', True)
-        params['Vfix'] = dict_get(conv, 'Vfix', 0.0) / 100.0  # Convert cm/s to m/s
-        params['Vfact'] = dict_get(conv, 'Vfact', 1.0)
+    # Advection parameters (also accepts old 'convection' key for backward compatibility)
+    adv_key = 'advection' if 'advection' in raw else 'convection'
+    if adv_key in raw:
+        adv = raw[adv_key]
         
-        # Set convection type
-        if dict_get(conv, 'bVfix', True):
-            params['convection_type'] = 'fixed'
+        # Support new nested structure: {"Vfix": {"bool": true, "value": 333.0, "unit": "cm/s"}}
+        # as well as old flat structure: {"bVfix": {"value": true}, "Vfix": {"value": 333.0}}
+        
+        # Check for new nested structure first
+        if 'Vfix' in adv and isinstance(adv['Vfix'], dict) and 'bool' in adv['Vfix']:
+            # New structure
+            params['bVfix'] = adv['Vfix'].get('bool', False)
+            params['Vfix'] = adv['Vfix'].get('value', 0.0) / 100.0  # Convert cm/s to m/s
         else:
-            params['convection_type'] = 'pressure'
+            # Old structure
+            params['bVfix'] = dict_get(adv, 'bVfix', True)
+            params['Vfix'] = dict_get(adv, 'Vfix', 0.0) / 100.0  # Convert cm/s to m/s
+        
+        if 'Vscaling' in adv and isinstance(adv['Vscaling'], dict) and 'bool' in adv['Vscaling']:
+            # New structure
+            params['bVscaling'] = adv['Vscaling'].get('bool', False)
+            params['veq'] = adv['Vscaling'].get('veq', 8)
+            params['Vfact'] = adv['Vscaling'].get('Vfact', 1.0)
+        else:
+            # Old structure
+            params['bVscaling'] = dict_get(adv, 'bVscaling', False)
+            params['veq'] = dict_get(adv, 'veq', 8)
+            params['Vfact'] = dict_get(adv, 'Vfact', 1.0)
+        
+        # Set advection type
+        if params['bVfix']:
+            params['advection_type'] = 'fixed'
+        else:
+            params['advection_type'] = 'pressure'
     
     # Transport dict for TransportManager
+    # Include all transport-related flags for proper model selection
     params['transport'] = {
         'Dfix': params.get('Dfix', 0.01),
         'Vfix': params.get('Vfix', 0.0),
         'diffusion_type': params.get('diffusion_type', 'fixed'),
-        'convection_type': params.get('convection_type', 'fixed'),
+        'advection_type': params.get('advection_type', 'fixed'),
+        # Include bool flags for model selection in initialize_from_params
+        'bDfix': params.get('bDfix', True),
+        'bDbohm': params.get('bDbohm', False),
+        'bDgyrogeom': params.get('bDgyrogeom', False),
+        'Dfact': params.get('Dfact', 1.0),  # Scaling factor (Dfsave) for Bohm/Gyrogeom
+        'bVfix': params.get('bVfix', True),
+        'bVscaling': params.get('bVscaling', False),
+        'veq': params.get('veq', 8),
+        'Vfact': params.get('Vfact', 1.0),
     }
     
     # Initial conditions
@@ -293,18 +364,30 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['RH'] = dict_get(edge, 'RH', 0.5)  # Reflection coefficient for H
         params['REH'] = dict_get(edge, 'REH', 0.9)  # Energy reflection coefficient for neutrals
         params['gEd'] = dict_get(edge, 'gEd', 5/3)  # Energy flux factor for diffusion
-        params['gEv'] = dict_get(edge, 'gEv', 5/3)  # Energy flux factor for convection
+        params['gEv'] = dict_get(edge, 'gEv', 5/3)  # Energy flux factor for advection
         params['gEdn'] = dict_get(edge, 'gEdn', 5/3)  # Energy flux factor for neutral diffusion
         params['gEe'] = dict_get(edge, 'gEe', 5/3)  # Energy flux factor for electrons
+        
+        # Fixed BC option for ions (C++ fixBCs)
+        # If true, use fixed decay length instead of physics-based calculation
+        if 'fixBC' in edge and isinstance(edge['fixBC'], dict) and 'bool' in edge['fixBC']:
+            params['fixBC'] = edge['fixBC'].get('bool', False)
+            params['fixBC_value'] = edge['fixBC'].get('value', 2.0) / 100.0  # Convert cm to m
+        else:
+            params['fixBC'] = dict_get(edge, 'fixBC', False)
+            params['fixBC_value'] = 0.02  # Default 2 cm in m
     
-    # Decay lengths (derive from geometry if not specified)
-    params['decay_length_hfs'] = params.get('lHFS', 0.2) * 0.1  # ~10% of limiter distance
-    params['decay_length_lfs'] = params.get('lLFS', 0.2) * 0.1
+    # Decay lengths - initial values only, updated dynamically based on actual D
+    params['decay_length_hfs'] = 0.01  # [m] - will be recomputed from physics
+    params['decay_length_lfs'] = 0.01  # [m] - will be recomputed from physics
     
     # Simulation grid
     if 'simulation_grid' in raw:
         grid = raw['simulation_grid']
         params['nmeshp'] = dict_get(grid, 'nmeshp', 101)
+        # FEM polynomial degree: 1=linear, 2=quadratic, 3=cubic
+        # Higher degree gives wider stencil and can improve stability
+        params['fem_degree'] = dict_get(grid, 'fem_degree', 1)
     
     # Time stepping
     if 'time_step' in raw:
@@ -332,6 +415,10 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['Nlog'] = dict_get(out, 'Nlog', 100)
         params['dtsave'] = dict_get(out, 'dtsave', 1e-4)
         params['output_interval'] = dict_get(out, 'dtsave', 1e-4)
+        # Profiling flag (can be plain bool or {"value": bool})
+        if 'profile' in out:
+            profile_val = out['profile']
+            params['profile'] = profile_val if isinstance(profile_val, bool) else profile_val.get('value', False)
     
     return params
 
@@ -400,7 +487,7 @@ def create_default_params() -> Dict[str, Any]:
             'Dfix': 0.1,
             'Vfix': 0.0,
             'diffusion_type': 'fixed',
-            'convection_type': 'fixed',
+            'advection_type': 'fixed',
         },
         
         # Initial conditions

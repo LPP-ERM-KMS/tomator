@@ -1,5 +1,5 @@
 {
-    "description": "TCV #5151X simulation with fixed electron density power coupling (bnefix). Uses PID controller to adjust absorbed power fraction to maintain ne at control point. Transport: Fixed diffusion (bDfix, D=3330 cm²/s) and fixed convection (bVfix, V=333 cm/s).",
+    "description": "TCV #5151X simulation with fixed electron density power coupling (bnefix). Uses PID controller to adjust absorbed power fraction to maintain ne at control point. Transport: Fixed diffusion (bDfix, D=3330 cm²/s) and fixed advection (bVfix, V=333 cm/s).",
     "magnetic_field": {
         "Bt": {"value": 1.54, "unit": "T"},
         "Bv": {"value": 0.0035, "unit": "T"},
@@ -25,8 +25,6 @@
         "dtpramp": {"value": 0.0, "unit": "s"}
     },
     "type": {
-        "bgray": {"value": false, "unit": "-"},
-        "bram": {"value": false, "unit": "-"},
         "bfixpowerfrac": {"value": false, "unit": "-"},
         "bnefix": {"value": true, "unit": "-"},
         "bTOMAS": {"value": false, "unit": "-"},
@@ -45,13 +43,13 @@
         "harmonic": {"value": 2.0, "unit": "-"},
         "muw": {"value": 0.01, "unit": "-"}
     },
-    "gray": {},
-    "ram": {},
     "necfix": {
         "ic": {"value": 91, "unit": "-"},
         "necfix": {"value": 7.4116e12, "unit": "cm⁻³"},
-        "Pini": {"value": 2.0, "unit": "-"},
-        "tauP": {"value": 1e-4, "unit": "s"}
+        "P_KI_ini": {"value": 2.0, "unit": "-"},
+        "P_KP": {"value": 10.0, "unit": "-"},
+        "P_KI": {"value": 10000.0, "unit": "-"},
+        "P_KD": {"value": 0.1, "unit": "-"}
     },
     "tomas": {
         "Rdep1": {"value": 86.1875, "unit": "cm"},
@@ -83,18 +81,13 @@
         "fixedTe": {"value": false, "unit": "-"}
     },
     "diffusion": {
-        "bDfix": {"value": true, "unit": "-"},
-        "Dfix": {"value": 3330.0, "unit": "cm²/s"},
-        "bDbohm": {"value": false, "unit": "-"},
-        "bDscaling": {"value": false, "unit": "-"},
-        "Dfact": {"value": 1.0, "unit": "-"}
+        "Dfix": {"bool": true, "Dfix": 3330.0, "unit": "cm²/s"},
+        "Dbohm": {"bool": false, "Dfact": 1.0, "unit": "-"},
+        "Dscaling": {"bool": false, "Dfact": 1.0, "unit": "-"}
     },
-    "convection": {
-        "bVfix": {"value": true, "unit": "-"},
-        "Vfix": {"value": 333.0, "unit": "cm/s"},
-        "bVscaling": {"value": false, "unit": "-"},
-        "veq": {"value": 8, "unit": "-"},
-        "Vfact": {"value": 5.0, "unit": "-"}
+    "advection": {
+        "Vfix": {"bool": true, "value": 333.0, "unit": "cm/s"},
+        "Vscaling": {"bool": false, "veq": 8, "Vfact": 5.0, "unit": "-"}
     },
     "tune_d_and_v": {
         "btunedv": {"value": false, "unit": "-"},
@@ -131,7 +124,7 @@
         "nebackgroundr": {"value": 0.001, "unit": "-"},
         "Ta0": {"value": 0.02587, "unit": "eV"},
         "Te0": {"value": 3.0, "unit": "eV"},
-        "nevac": {"value": 1e3, "unit": "cm⁻³"},
+        "nevac": {"value": 1e7, "unit": "cm⁻³"},
         "nH0": {"value": 2e6, "unit": "cm⁻³"},
         "nHi0": {"value": 1e6, "unit": "cm⁻³"},
         "nH2i0": {"value": 1e6, "unit": "cm⁻³"},
@@ -149,10 +142,12 @@
         "gEd": {"value": 1.6667, "unit": "-"},
         "gEv": {"value": 1.6667, "unit": "-"},
         "gEdn": {"value": 1.6667, "unit": "-"},
-        "gEe": {"value": 1.6667, "unit": "-"}
+        "gEe": {"value": 1.6667, "unit": "-"},
+        "fixBC": {"bool": false, "value": 2, "unit": "cm"}
     },
     "simulation_grid": {
-        "nmeshp": {"value": 161, "unit": "-"}
+        "nmeshp": {"value": 161, "unit": "-"},
+        "fem_degree": {"value": 1, "unit": "-"}
     },
     "input_file": {
         "bfinput": {"value": false, "unit": "-"}
@@ -160,10 +155,11 @@
     "time_step": {
         "t0": {"value": 0.0, "unit": "s"},
         "tmainend": {"value": 1.0, "unit": "s"},
-        "accur": {"value": 0.05, "unit": "-"},
-        "dtmax": {"value": 2e-05, "unit": "s"},
-        "dtmin": {"value": 2e-08, "unit": "s"},
-        "dtinit": {"value": 1e-9, "unit": "s"}
+        "accur": {"value": 0.1, "unit": "-"},
+        "dtmax": {"value": 1e-4, "unit": "s"},
+        "dtmin": {"value": 1e-5, "unit": "s"},
+        "dtinit": {"value": 1e-9, "unit": "s"},
+        "maxtstepincrement": {"value": 1.5, "unit": "-"}
     },
     "time_step_for_rf_coupling": {
         "bupdateRFstep": {"value": true, "unit": "-"},
@@ -179,9 +175,7 @@
         "cc": {"value": 91, "unit": "-"},
         "Nloopsave": {"value": 5000, "unit": "-"},
         "bOutdt": {"value": true, "unit": "-"},
-        "dtsave": {"value": 0.0001, "unit": "s"}
-    },
-    "solver_parameters": {
-        "solvertolerance": {"value": 1e-10, "unit": "-"}
+        "dtsave": {"value": 0.0005, "unit": "s"},
+        "profile": true
     }
 }

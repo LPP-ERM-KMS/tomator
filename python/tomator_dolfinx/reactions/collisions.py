@@ -4,6 +4,12 @@ Source term calculations for plasma species.
 Computes collision source terms dn/dt and dE/dt for each species
 based on the reaction rate coefficients.
 
+IMPORTANT: Energy source terms (dE) returned by this module represent d(nT)/dt,
+i.e., the rate of change of thermal energy per particle times density.
+The solver must multiply these by ENERGY_FACTOR = 3/2 to obtain the actual
+d(E)/dt where E = (3/2) * n * T is the thermal energy density.
+This matches the C++ Tomator1D implementation (Tomator1D.cpp lines 169-177).
+
 NOTE: All densities are expected in SI units (m^-3).
 Rate coefficients from rates.py are in CGS (cm³/s) and are converted internally.
 Output source terms are in SI: dn [m^-3/s], dE [eV·m^-3/s].
@@ -291,7 +297,7 @@ def compute_collision_sources(
         dE['e'] -= rate_exc * 10.2  # Excitation energy loss
         # Collision frequency: H collides with electrons
         nu['e'] += k_exc * nH
-        nu['H'] += k_exc * ne
+        # nu['H'] += k_exc * ne  # Excitation by e- doesn't affect H diffusion (negligible momentum transfer)
         
         # 2. H ionization: e + H -> e + H+ + e
         k_ion = rates.H_ionization(Te) * ndamp(nH_cgs) * CM3_TO_M3
@@ -306,7 +312,7 @@ def compute_collision_sources(
         dE['e'] -= rate_ion * 13.6  # Ionization energy loss
         # Collision frequency
         nu['e'] += k_ion * nH
-        nu['H'] += k_ion * ne
+        # nu['H'] += k_ion * ne  # Ionization is a sink, not diffusion (H is destroyed)
         
         # 3. Three-body recombination: e + e + H+ -> e + H
         # Note: 3-body rate is cm⁶/s, need CM3_TO_M3² = 1e-12
@@ -375,7 +381,7 @@ def compute_collision_sources(
         dE['H2'] += rate_eH2_elas * L_eH2 * (Te - TH2)
         # Collision frequencies
         nu['e'] += k_eH2_elas * nH2
-        nu['H2'] += k_eH2_elas * ne
+        # nu['H2'] += k_eH2_elas * ne  # e- elastic: negligible momentum transfer (m_e/m_H2 ~ 1/3672)
         
         # ----- Reaction 2.2.1a: e + H2(v=0) -> e + H2(v=1) vibrational excitation -----
         # Energy loss: 0.5 eV (no density change)
@@ -386,7 +392,7 @@ def compute_collision_sources(
         dE['e'] -= rate_H2_exc_a * 0.5
         # nu for vibrational excitation
         nu['e'] += np.where(mask_exc, k_H2_exc_a * nH2, 0.0)
-        nu['H2'] += np.where(mask_exc, k_H2_exc_a * ne, 0.0)
+        # nu['H2'] += np.where(mask_exc, k_H2_exc_a * ne, 0.0)  # Excitation by e- doesn't affect H2 diffusion
         
         # ----- Reaction 2.2.1b: e + H2(v=0) -> e + H2(v=2) vibrational excitation -----
         # Energy loss: 1.0 eV (no density change)
@@ -395,7 +401,7 @@ def compute_collision_sources(
         rate_H2_exc_b = np.where(mask_exc, rate_H2_exc_b, 0.0)
         dE['e'] -= rate_H2_exc_b * 1.0
         nu['e'] += np.where(mask_exc, k_H2_exc_b * nH2, 0.0)
-        nu['H2'] += np.where(mask_exc, k_H2_exc_b * ne, 0.0)
+        # nu['H2'] += np.where(mask_exc, k_H2_exc_b * ne, 0.0)  # Excitation by e- doesn't affect H2 diffusion
         
         # ----- Reaction 2.2.2: e + H2(X) -> e + H2(B) electronic excitation -----
         # Energy loss: 12.1 eV (no density change)
@@ -403,7 +409,7 @@ def compute_collision_sources(
         rate_H2_exc_B = safe_rate(k_H2_exc_B, ne, nH2)
         dE['e'] -= rate_H2_exc_B * 12.1
         nu['e'] += k_H2_exc_B * nH2
-        nu['H2'] += k_H2_exc_B * ne
+        # nu['H2'] += k_H2_exc_B * ne  # Excitation by e- doesn't affect H2 diffusion
         
         # ----- Reaction 2.2.3: e + H2(X) -> e + H2(C) electronic excitation -----
         # Energy loss: 12.4 eV (no density change)
@@ -411,7 +417,7 @@ def compute_collision_sources(
         rate_H2_exc_C = safe_rate(k_H2_exc_C, ne, nH2)
         dE['e'] -= rate_H2_exc_C * 12.4
         nu['e'] += k_H2_exc_C * nH2
-        nu['H2'] += k_H2_exc_C * ne
+        # nu['H2'] += k_H2_exc_C * ne  # Excitation by e- doesn't affect H2 diffusion
         
         # ----- Reaction 2.2.4: e + H2(X) -> e + H2(E,F) electronic excitation -----
         # Energy loss: 12.7 eV (no density change)
@@ -419,7 +425,7 @@ def compute_collision_sources(
         rate_H2_exc_EF = safe_rate(k_H2_exc_EF, ne, nH2)
         dE['e'] -= rate_H2_exc_EF * 12.7
         nu['e'] += k_H2_exc_EF * nH2
-        nu['H2'] += k_H2_exc_EF * ne
+        # nu['H2'] += k_H2_exc_EF * ne  # Excitation by e- doesn't affect H2 diffusion
         
         # ----- Reaction 2.2.5-2.2.8: e + H2 -> e + H + H (dissociation) -----
         # Note: This is the actual dissociation using RRH2(DISS,...) 2D table
@@ -435,7 +441,7 @@ def compute_collision_sources(
         dE['H'] += rate_H2_diss * (TH2 + 6.0)  # TH2 + 2*3.0 eV kinetic energy
         # Collision frequencies
         nu['e'] += k_H2_diss * nH2
-        nu['H2'] += k_H2_diss * ne
+        # nu['H2'] += k_H2_diss * ne  # Dissociation is a sink, not diffusion (H2 is destroyed)
         
         # ----- Reaction 2.2.9: e + H2 -> 2e + H2+ (ionization) -----
         k_H2_ion = rates.H2_ionization(Te, ne_cgs) * ndamp(nH2_cgs) * CM3_TO_M3
@@ -450,7 +456,7 @@ def compute_collision_sources(
         dE['e'] -= rate_H2_ion * E_H2_ion  # Electron energy loss
         # Collision frequencies
         nu['e'] += k_H2_ion * nH2
-        nu['H2'] += k_H2_ion * ne
+        # nu['H2'] += k_H2_ion * ne  # Ionization is a sink, not diffusion (H2 is destroyed)
         
         # ----- RECO: e + H2+ -> H2 (recombination to ground state H2) -----
         # From C++ collisions.cpp lines 306-317: uses RRH2(RECO) and produces H2
@@ -504,7 +510,7 @@ def compute_collision_sources(
         dE['e'] -= rate_H2_diss_ion * 18.0  # Energy cost from C++
         # Collision frequencies
         nu['e'] += k_H2_diss_ion * nH2
-        nu['H2'] += k_H2_diss_ion * ne
+        # nu['H2'] += k_H2_diss_ion * ne  # Dissociative ionization is a sink, not diffusion (H2 is destroyed)
         
         # ----- Reaction 2.2.15a: e + H3+ -> H2 + H -----
         # From C++ collisions.cpp lines 404-416: uses REAC2215 for both H3+ recombination channels
@@ -680,7 +686,7 @@ def compute_collision_sources(
         dE['HeII'] += rate_HeI_ion * THeI
         # Collision frequencies
         nu['e'] += k_HeI_ion * nHeI
-        nu['HeI'] += k_HeI_ion * ne
+        # nu['HeI'] += k_HeI_ion * ne  # Ionization is a sink, not diffusion (HeI is destroyed)
         
         # HeII ionization: e + He+ -> e + He++ + e
         k_HeII_ion = rates.HeII_ionization(Te, ne_cgs) * ndamp(nHeII_cgs) * CM3_TO_M3

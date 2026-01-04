@@ -51,7 +51,7 @@ Example input files are provided in `python/tomator_dolfinx/examples/`:
 
 ### Input File Format
 
-JSON input files use a value-unit format for clarity but note that these cannot be changed (yet):
+JSON input files use a value-unit format for clarity but note that units cannot be changed (yet):
 
 ```json
 "magnetic_field": {

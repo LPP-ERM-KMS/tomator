@@ -22,6 +22,7 @@ from bokeh.models import (
     CustomJS,
     Span,
     Label,
+    PrintfTickFormatter,
 )
 from bokeh.plotting import figure, curdoc
 from bokeh.layouts import gridplot
@@ -34,7 +35,7 @@ from bokeh.layouts import gridplot
 DATA_FILE = os.environ.get('TOMATOR_CSV_FILE', None)
 
 # Plot dimensions
-SCALE_FACTOR = 1
+SCALE_FACTOR = 0.7
 PLOT_WIDTH = round((960 * 2 / 3) * SCALE_FACTOR)
 PLOT_HEIGHT = round(445 * SCALE_FACTOR)
 
@@ -100,6 +101,16 @@ def should_plot_temperature(column):
     return column.startswith('T') and column != 'Te'
 
 
+def should_plot_transport(column):
+    """Check if a column is a transport coefficient (D or V)."""
+    return column in ['D', 'V']
+
+
+def should_plot_power(column):
+    """Check if a column is a power profile (PRFe)."""
+    return column in ['PRFe']
+
+
 # =============================================================================
 # Plot initialization
 # =============================================================================
@@ -131,6 +142,7 @@ def initialize_plots(radial_positions):
         y_axis_label="Density [m⁻³]",
         y_axis_type="log",
         x_range=Range1d(start=r_min, end=r_max),
+        y_range=Range1d(start=1e10, end=1e20),
     )
     
     # Plot 3: Temperature vs radial position
@@ -154,6 +166,7 @@ def initialize_plots(radial_positions):
         x_range=Range1d(start=0, end=1e-3),
         y_range=Range1d(start=0, end=1e18),
     )
+    ne_te_time_plot.xaxis.formatter = PrintfTickFormatter(format="%.1e")
     
     # Plot 5: Concentration vs time (log scale) - explicit Range1d
     concentration_time_plot = figure(
@@ -166,6 +179,7 @@ def initialize_plots(radial_positions):
         x_range=Range1d(start=0, end=1e-3),
         y_range=Range1d(start=1e10, end=1e20),
     )
+    concentration_time_plot.xaxis.formatter = PrintfTickFormatter(format="%.1e")
     
     # Plot 6: Temperature vs time - explicit Range1d
     temperature_time_plot = figure(
@@ -177,6 +191,41 @@ def initialize_plots(radial_positions):
         x_range=Range1d(start=0, end=1e-3),
         y_range=Range1d(start=0, end=100),
     )
+    temperature_time_plot.xaxis.formatter = PrintfTickFormatter(format="%.1e")
+    
+    # Plot 7: D & V (transport coefficients) vs radial position
+    transport_plot = figure(
+        width=PLOT_WIDTH,
+        height=PLOT_HEIGHT,
+        title="D & V vs Radial Position",
+        x_axis_label="R [m]",
+        y_axis_label="D [m²/s]",
+        x_range=Range1d(start=r_min, end=r_max),
+        y_range=Range1d(start=0, end=10),
+    )
+    
+    # Plot 8: PRFe (coupled RF power) vs radial position
+    power_plot = figure(
+        width=PLOT_WIDTH,
+        height=PLOT_HEIGHT,
+        title="PRFe vs Radial Position",
+        x_axis_label="R [m]",
+        y_axis_label="PRFe [W/m³]",
+        x_range=Range1d(start=r_min, end=r_max),
+        y_range=Range1d(start=0, end=1e6),
+    )
+    
+    # Plot 9: PRFe (coupled RF power) vs time
+    power_time_plot = figure(
+        width=PLOT_WIDTH,
+        height=PLOT_HEIGHT,
+        title="PRFe vs Time",
+        x_axis_label="Time [s]",
+        y_axis_label="PRFe [W/m³]",
+        x_range=Range1d(start=0, end=1e-3),
+        y_range=Range1d(start=0, end=1e6),
+    )
+    power_time_plot.xaxis.formatter = PrintfTickFormatter(format="%.1e")
     
     return (
         ne_te_plot,
@@ -185,6 +234,9 @@ def initialize_plots(radial_positions):
         ne_te_time_plot,
         concentration_time_plot,
         temperature_time_plot,
+        transport_plot,
+        power_plot,
+        power_time_plot,
     )
 
 
@@ -259,6 +311,7 @@ def plot_species_time(plot, column, timestamps, counter, sources_time):
 def setup_all_plots(
     ne_te_plot, concentration_plot, temperature_plot,
     ne_te_time_plot, concentration_time_plot, temperature_time_plot,
+    transport_plot, power_plot, power_time_plot,
     radial_positions, timestamps, sources_rad, sources_time
 ):
     """Set up all plot data sources for detected columns."""
@@ -284,6 +337,54 @@ def setup_all_plots(
             plot_species_radial(temperature_plot, column, radial_positions, counter_temp, sources_rad)
             plot_species_time(temperature_time_plot, column, timestamps, counter_temp, sources_time)
             counter_temp += 1
+    
+    # Set up D & V transport plot with dual y-axes
+    if 'D' in df.columns:
+        sources_rad['D'] = ColumnDataSource(
+            data=dict(x=radial_positions, y=[0] * len(radial_positions))
+        )
+        transport_plot.line("x", "y", source=sources_rad['D'], legend_label="D (ion)", color="blue", line_width=2)
+    
+    # Add neutral diffusion coefficients (different colors) - scaled by 1/1000 to fit on same axis
+    NEUTRAL_D_SCALE = 0.001  # Neutral D is ~1000x larger than ion D
+    neutral_colors = {'D_H': 'green', 'D_H2': 'purple', 'D_HeI': 'orange'}
+    for col_name, color in neutral_colors.items():
+        if col_name in df.columns:
+            sources_rad[col_name] = ColumnDataSource(
+                data=dict(x=radial_positions, y=[0] * len(radial_positions))
+            )
+            transport_plot.line("x", "y", source=sources_rad[col_name], 
+                               legend_label=f"{col_name}/1000", color=color, line_width=1.5, line_dash="dashed")
+    
+    if 'V' in df.columns:
+        # V can be negative (inward pinch), so use secondary axis
+        transport_plot.extra_y_ranges = {"V": Range1d(start=-10, end=10)}
+        transport_plot.add_layout(LinearAxis(y_range_name="V", axis_label="V [m/s]"), "right")
+        sources_rad['V'] = ColumnDataSource(
+            data=dict(x=radial_positions, y=[0] * len(radial_positions))
+        )
+        transport_plot.line("x", "y", source=sources_rad['V'], legend_label="V", color="red",
+                            line_width=2, y_range_name="V")
+    
+    transport_plot.legend.location = "top_left"
+    transport_plot.legend.click_policy = "hide"
+    
+    # Set up PRFe power plot
+    if 'PRFe' in df.columns:
+        sources_rad['PRFe'] = ColumnDataSource(
+            data=dict(x=radial_positions, y=[0] * len(radial_positions))
+        )
+        power_plot.line("x", "y", source=sources_rad['PRFe'], legend_label="PRFe", color="orange", line_width=2)
+        power_plot.legend.location = "top_left"
+        power_plot.legend.click_policy = "hide"
+        
+        # PRFe vs time
+        sources_time['PRFe'] = ColumnDataSource(
+            data=dict(x=timestamps, y=[0] * len(timestamps))
+        )
+        power_time_plot.line("x", "y", source=sources_time['PRFe'], legend_label="PRFe", color="orange", line_width=2)
+        power_time_plot.legend.location = "top_left"
+        power_time_plot.legend.click_policy = "hide"
     
     # Configure legends
     for plot in [concentration_plot, temperature_plot, concentration_time_plot, temperature_time_plot]:
@@ -344,7 +445,7 @@ def setup_interactive_elements(ne_te_plot, ne_te_time_plot):
 # Update functions
 # =============================================================================
 
-def scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, time_val=None):
+def scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, transport_plot, power_plot, time_val=None):
     """Scale radial plot axes based on current data."""
     global df
     
@@ -413,15 +514,55 @@ def scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, time_va
         if all_temp_values:
             min_temp = min(all_temp_values)
             max_temp = max(all_temp_values)
-            temp_range = max_temp - min_temp if max_temp > min_temp else max_temp * 0.1
-            temperature_plot.y_range.start = max(0, min_temp - temp_range * 0.05)
+            temp_range = max_temp - min_temp if max_temp > min_temp else max(max_temp * 0.1, 0.1)
+            temperature_plot.y_range.start = min_temp - temp_range * 0.05
             temperature_plot.y_range.end = max_temp + temp_range * 0.1
     
     temperature_plot.x_range.start = x_start
     temperature_plot.x_range.end = x_end
+    
+    # Scale transport plot (D & V) - include scaled neutral diffusion
+    NEUTRAL_D_SCALE = 0.001  # Same scale factor as in data update
+    all_D_vals = []
+    if 'D' in df_slice.columns:
+        all_D_vals.extend(df_slice['D'].values.tolist())
+    # Include scaled neutral diffusion values
+    for col_name in ['D_H', 'D_H2', 'D_HeI']:
+        if col_name in df_slice.columns:
+            all_D_vals.extend((df_slice[col_name].values * NEUTRAL_D_SCALE).tolist())
+    
+    if all_D_vals:
+        min_D = min(all_D_vals)
+        max_D = max(all_D_vals)
+        D_range = max_D - min_D if max_D > min_D else max(max_D * 0.1, 0.1)
+        transport_plot.y_range.start = max(0, min_D - D_range * 0.05)
+        transport_plot.y_range.end = max_D + D_range * 0.1
+    
+    if 'V' in df_slice.columns and hasattr(transport_plot, 'extra_y_ranges') and 'V' in transport_plot.extra_y_ranges:
+        V_vals = df_slice['V'].values
+        min_V = V_vals.min()
+        max_V = V_vals.max()
+        V_range = max_V - min_V if max_V > min_V else max(abs(max_V) * 0.1, 0.1)
+        transport_plot.extra_y_ranges["V"].start = min_V - V_range * 0.1
+        transport_plot.extra_y_ranges["V"].end = max_V + V_range * 0.1
+    
+    transport_plot.x_range.start = x_start
+    transport_plot.x_range.end = x_end
+    
+    # Scale power plot (PRFe)
+    if 'PRFe' in df_slice.columns:
+        PRFe_vals = df_slice['PRFe'].values
+        min_P = PRFe_vals.min()
+        max_P = PRFe_vals.max()
+        P_range = max_P - min_P if max_P > min_P else max(max_P * 0.1, 1.0)
+        power_plot.y_range.start = max(0, min_P - P_range * 0.05)
+        power_plot.y_range.end = max_P + P_range * 0.1
+    
+    power_plot.x_range.start = x_start
+    power_plot.x_range.end = x_end
 
 
-def scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_plot, radius_val=None):
+def scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_plot, power_time_plot=None, radius_val=None):
     """Scale time plot axes based on current data."""
     global df
     
@@ -517,19 +658,31 @@ def scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_
             min_temp = min(all_temp_values)
             max_temp = max(all_temp_values)
             temp_range = max_temp - min_temp if max_temp > min_temp else max(max_temp * 0.1, 0.1)
-            y_temp_start = max(0, min_temp - temp_range * 0.05)
+            y_temp_start = min_temp - temp_range * 0.05
             y_temp_end = max(y_temp_start + 0.1, max_temp + temp_range * 0.1)
             temperature_time_plot.y_range.start = y_temp_start
             temperature_time_plot.y_range.end = y_temp_end
     
     temperature_time_plot.x_range.start = x_start
     temperature_time_plot.x_range.end = x_end
+    
+    # Scale power time plot
+    if power_time_plot is not None and 'PRFe' in df_slice.columns:
+        PRFe_vals = df_slice['PRFe'].values
+        min_P = PRFe_vals.min()
+        max_P = PRFe_vals.max()
+        P_range = max_P - min_P if max_P > min_P else max(max_P * 0.1, 1.0)
+        power_time_plot.y_range.start = max(0, min_P - P_range * 0.05)
+        power_time_plot.y_range.end = max(1.0, max_P + P_range * 0.1)
+        power_time_plot.x_range.start = x_start
+        power_time_plot.x_range.end = x_end
 
 
 def update_data(
     radial_positions,
     ne_te_plot, concentration_plot, temperature_plot,
     ne_te_time_plot, concentration_time_plot, temperature_time_plot,
+    transport_plot, power_plot, power_time_plot,
 ):
     """Periodic callback to check for file changes and update plots."""
     global DATA_FILE, selected_radius, selected_time, last_modified_time, df
@@ -600,11 +753,16 @@ def update_data(
     temperature_time_plot.title.text = f"Temperature vs Time at R = {selected_radius:.4f} m"
     
     # Update radial sources with data at display_time
+    NEUTRAL_D_SCALE = 0.001  # Same scale factor as in setup
     for column in sources_rad:
         if column in df_radial.columns:
+            y_data = df_radial[column].tolist()
+            # Scale neutral diffusion coefficients to fit on same axis as ion D
+            if column in ['D_H', 'D_H2', 'D_HeI']:
+                y_data = [v * NEUTRAL_D_SCALE for v in y_data]
             sources_rad[column].data = dict(
                 x=current_radial_positions,
-                y=df_radial[column].tolist()
+                y=y_data
             )
     
     # Update time sources with current timestamps for selected radius
@@ -621,8 +779,8 @@ def update_data(
     timestamp_trigger_source.data = {'last_time': [last_time]}
     
     # Scale plots based on displayed data
-    scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, display_time)
-    scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_plot, selected_radius)
+    scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, transport_plot, power_plot, display_time)
+    scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_plot, power_time_plot, selected_radius)
 
 
 # =============================================================================
@@ -660,12 +818,14 @@ def modify_doc(doc):
     (
         ne_te_plot, concentration_plot, temperature_plot,
         ne_te_time_plot, concentration_time_plot, temperature_time_plot,
+        transport_plot, power_plot, power_time_plot,
     ) = initialize_plots(radial_positions)
     
     # Set up data sources and plot lines
     setup_all_plots(
         ne_te_plot, concentration_plot, temperature_plot,
         ne_te_time_plot, concentration_time_plot, temperature_time_plot,
+        transport_plot, power_plot, power_time_plot,
         radial_positions, timestamps, sources_rad, sources_time
     )
     
@@ -790,8 +950,9 @@ def modify_doc(doc):
         ne_te_time_plot.title.text = f"ne & Te vs Time at R = {selected_radius:.4f} m"
         concentration_time_plot.title.text = f"Concentration vs Time at R = {selected_radius:.4f} m"
         temperature_time_plot.title.text = f"Temperature vs Time at R = {selected_radius:.4f} m"
+        power_time_plot.title.text = f"PRFe vs Time at R = {selected_radius:.4f} m"
         
-        scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_plot, selected_radius)
+        scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_plot, power_time_plot, selected_radius)
     
     # Python callback for time selection
     def on_time_selected(attr, old, new):
@@ -806,11 +967,16 @@ def modify_doc(doc):
         # Update radial sources for new time
         df_time = df[df[TIME_COL] == selected_time]
         radial_pos = df_time[RADIAL_COL].tolist()
+        NEUTRAL_D_SCALE = 0.001  # Same scale factor as elsewhere
         for column in sources_rad:
             if column in df_time.columns:
+                y_data = df_time[column].tolist()
+                # Scale neutral diffusion coefficients to fit on same axis as ion D
+                if column in ['D_H', 'D_H2', 'D_HeI']:
+                    y_data = [v * NEUTRAL_D_SCALE for v in y_data]
                 sources_rad[column].data = dict(
                     x=radial_pos,
-                    y=df_time[column].tolist()
+                    y=y_data
                 )
         
         # Update titles
@@ -819,7 +985,7 @@ def modify_doc(doc):
         concentration_plot.title.text = f"Concentration vs Radial Position at t = {time_ms:.2f} ms"
         temperature_plot.title.text = f"Temperature vs Radial Position at t = {time_ms:.2f} ms"
         
-        scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, selected_time)
+        scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, transport_plot, power_plot, selected_time)
     
     # Attach callbacks
     ne_te_plot.js_on_event("tap", callback_radial)
@@ -834,6 +1000,7 @@ def modify_doc(doc):
         radial_positions,
         ne_te_plot, concentration_plot, temperature_plot,
         ne_te_time_plot, concentration_time_plot, temperature_time_plot,
+        transport_plot, power_plot, power_time_plot,
     )
     
     # Periodic update callback (every 2 seconds)
@@ -842,14 +1009,16 @@ def modify_doc(doc):
             radial_positions,
             ne_te_plot, concentration_plot, temperature_plot,
             ne_te_time_plot, concentration_time_plot, temperature_time_plot,
+            transport_plot, power_plot, power_time_plot,
         ),
         2000,
     )
     
-    # Arrange plots in grid
+    # Arrange plots in grid (3x3 with transport and power on bottom row)
     grid = gridplot([
         [ne_te_plot, concentration_plot, temperature_plot],
         [ne_te_time_plot, concentration_time_plot, temperature_time_plot],
+        [transport_plot, power_plot, power_time_plot],
     ])
     
     doc.add_root(grid)

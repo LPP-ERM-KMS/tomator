@@ -1,7 +1,7 @@
 """
 Transport coefficient calculations for plasma species.
 
-Provides diffusion (D) and convection (V) coefficients as dolfinx Functions,
+Provides diffusion (D) and advection (V) coefficients as dolfinx Functions,
 supporting uniform values initially with placeholders for Bohm/classical models.
 """
 
@@ -16,13 +16,14 @@ from .species import Species, PlasmaState
 
 class DiffusionModel(Enum):
     """Available diffusion coefficient models."""
-    FIXED = "fixed"         # Spatially uniform, fixed value
-    BOHM = "bohm"           # D ~ T / B
-    CLASSICAL = "classical" # Classical transport with collisions
+    FIXED = "fixed"                       # Spatially uniform, fixed value
+    BOHM = "bohm"                         # D ~ T / B
+    GYROGEOM = "gyrogeom"                 # Gyro-Geometric Diffusion (bDscaling)
+    NEUTRAL = "neutral"                   # Physics-based neutral diffusion (collision-limited)
 
 
-class ConvectionModel(Enum):
-    """Available convection velocity models."""
+class AdvectionModel(Enum):
+    """Available advection velocity models."""
     FIXED = "fixed"         # Spatially uniform, fixed value
     PRESSURE = "pressure"   # Pressure-driven pinch
 
@@ -31,7 +32,7 @@ class TransportCoefficients:
     """
     Transport coefficients (D, V) for a species.
     
-    Stores diffusion and convection as dolfinx Functions that can be
+    Stores diffusion and advection as dolfinx Functions that can be
     spatially varying. Initially supports uniform values; models for
     Bohm, classical transport to be added later.
     
@@ -40,11 +41,11 @@ class TransportCoefficients:
     D : fem.Function
         Diffusion coefficient [m²/s].
     V : fem.Function
-        Convection velocity [m/s] (positive = outward).
+        Advection velocity [m/s] (positive = outward).
     D_model : DiffusionModel
         Model used for diffusion coefficient.
-    V_model : ConvectionModel
-        Model used for convection velocity.
+    V_model : AdvectionModel
+        Model used for advection velocity.
     """
     
     def __init__(
@@ -53,7 +54,7 @@ class TransportCoefficients:
         D_value: float = 1.0,
         V_value: float = 0.0,
         D_model: DiffusionModel = DiffusionModel.FIXED,
-        V_model: ConvectionModel = ConvectionModel.FIXED,
+        V_model: AdvectionModel = AdvectionModel.FIXED,
         name: str = "",
         Dfsave: float = 1.0
     ):
@@ -67,11 +68,11 @@ class TransportCoefficients:
         D_value : float
             Initial/fixed diffusion coefficient [m²/s].
         V_value : float
-            Initial/fixed convection velocity [m/s].
+            Initial/fixed advection velocity [m/s].
         D_model : DiffusionModel
             Diffusion model type.
-        V_model : ConvectionModel
-            Convection model type.
+        V_model : AdvectionModel
+            Advection model type.
         name : str
             Species name for labeling functions.
         Dfsave : float
@@ -103,7 +104,7 @@ class TransportCoefficients:
         D_value : float
             Diffusion coefficient [m²/s].
         V_value : float
-            Convection velocity [m/s].
+            Advection velocity [m/s].
         """
         self.D.x.array[:] = D_value
         self.V.x.array[:] = V_value
@@ -131,19 +132,25 @@ class TransportCoefficients:
         if self.D_model == DiffusionModel.FIXED:
             # Keep current values
             pass
+        elif self.D_model == DiffusionModel.NEUTRAL:
+            # Neutral diffusion is computed in solver using collision physics
+            # D = (1/3) * vth / (1/mfp + 1/(a/2))
+            # Nothing to do here - solver handles it
+            pass
         elif self.D_model == DiffusionModel.BOHM:
             # Bohm diffusion: D = Dfsave * T_eff / B
             self._update_bohm_diffusion(state, B_field, self.Dfsave)
-        elif self.D_model == DiffusionModel.CLASSICAL:
-            # Classical transport with collisions
-            self._update_classical_diffusion(state, species, B_field)
+        elif self.D_model == DiffusionModel.GYROGEOM:
+            # Gyro-Geometric Diffusion: D ~ (1/3)*nu*mfp*(rho + mfp*Bh/Bt)
+            # This requires nu_collision dict - handled in solver, not here
+            pass
         
-        if self.V_model == ConvectionModel.FIXED:
+        if self.V_model == AdvectionModel.FIXED:
             # Keep current values
             pass
-        elif self.V_model == ConvectionModel.PRESSURE:
-            # Pressure-driven convection
-            self._update_pressure_convection(state, species, B_field)
+        elif self.V_model == AdvectionModel.PRESSURE:
+            # Pressure-driven advection
+            self._update_pressure_advection(state, species, B_field)
     
     def _update_bohm_diffusion(
         self,
@@ -171,33 +178,18 @@ class TransportCoefficients:
         
         D_bohm = compute_bohm_diffusion_from_state(
             state, B_field, Dfsave=Dfsave,
-            D_min=0.01, D_max=1e4
+            D_min=0.01, D_max=100
         )
         self.D.x.array[:] = D_bohm
     
-    def _update_classical_diffusion(
+    def _update_pressure_advection(
         self,
         state: Optional[PlasmaState],
         species: Optional[Species],
         B_field: Optional[np.ndarray]
     ) -> None:
         """
-        Update diffusion using classical transport model.
-        
-        Placeholder implementation - to be completed.
-        Classical: D = (1/3) * nu * lambda_mfp * (rho_s + lambda_mfp * B_h/B_t)
-        """
-        # TODO: Implement classical transport from C++ transport.cpp
-        pass
-    
-    def _update_pressure_convection(
-        self,
-        state: Optional[PlasmaState],
-        species: Optional[Species],
-        B_field: Optional[np.ndarray]
-    ) -> None:
-        """
-        Update convection using pressure-driven model.
+        Update advection using pressure-driven model.
         
         Placeholder implementation - to be completed.
         """
@@ -236,7 +228,7 @@ class TransportManager:
         D_value: float = 1.0,
         V_value: float = 0.0,
         D_model: DiffusionModel = DiffusionModel.FIXED,
-        V_model: ConvectionModel = ConvectionModel.FIXED,
+        V_model: AdvectionModel = AdvectionModel.FIXED,
         Dfsave: float = 1.0
     ) -> TransportCoefficients:
         """
@@ -249,11 +241,11 @@ class TransportManager:
         D_value : float
             Initial diffusion coefficient [m²/s].
         V_value : float
-            Initial convection velocity [m/s].
+            Initial advection velocity [m/s].
         D_model : DiffusionModel
             Diffusion model type.
-        V_model : ConvectionModel
-            Convection model type.
+        V_model : AdvectionModel
+            Advection model type.
         Dfsave : float
             Bohm diffusion scaling factor (default 1.0).
             
@@ -292,59 +284,68 @@ class TransportManager:
         """
         Initialize transport coefficients from parameter dictionary.
         
+        Expects pre-parsed flat parameters from json_input.load_input_file(),
+        which handles JSON structure parsing and unit conversion.
+        
         Parameters
         ----------
         params : dict
-            Dictionary with transport parameters, e.g.:
-            {
-                "Dfix": 1.0,
-                "Vfix": 0.0,
-                "diffusion_type": "fixed",
-                "convection_type": "fixed",
-                ...
-            }
+            Flattened parameter dictionary with:
+            - Dfix: fixed diffusion coefficient [m²/s]
+            - Vfix: fixed advection velocity [m/s]
+            - diffusion_type: 'fixed', 'bohm', or 'gyrogeom'
+            - advection_type: 'fixed' or 'pressure'
+            - bDfix, bDbohm, bDgyrogeom: bool flags
+            - Dfact: scaling factor for Bohm/Gyrogeom models
         species_names : list
             List of species names to initialize.
         """
-        # Get global values (apply to all species unless overridden)
-        D_fix = params.get("Dfix", 1.0)
-        V_fix = params.get("Vfix", 0.0)
-        Dfsave = params.get("Dfsave", params.get("Dfact", 1.0))  # Bohm scaling factor
+        # Get pre-parsed values (already in SI units from json_input.py)
+        D_fix = params.get("Dfix", 0.01)  # [m²/s]
+        V_fix = params.get("Vfix", 0.0)   # [m/s]
+        Dfsave = params.get("Dfact", 1.0)  # Scaling factor
         
-        # Determine models from params - check C++ style bool flags first
-        # Priority: bDfix > bDbohm > bDscaling > diffusion_type string
-        D_model = DiffusionModel.FIXED  # Default
-        
-        if params.get("bDfix", True):
-            # Fixed diffusion coefficient (default behavior)
-            D_model = DiffusionModel.FIXED
+        # Determine diffusion model from bool flags (priority: gyrogeom > bohm > fixed)
+        D_model = DiffusionModel.FIXED
+        if params.get("bDgyrogeom", False):
+            D_model = DiffusionModel.GYROGEOM
         elif params.get("bDbohm", False):
-            # Bohm diffusion: D = Dfsave * T_eff / B
             D_model = DiffusionModel.BOHM
-        elif params.get("bDscaling", False):
-            # Classical diffusion with collision scaling
-            D_model = DiffusionModel.CLASSICAL
+        elif params.get("bDfix", True):
+            D_model = DiffusionModel.FIXED
         else:
-            # Fallback to string-based type if no bool flags
+            # Fallback to string-based type
             diff_type = params.get("diffusion_type", "fixed").lower()
             if diff_type == "bohm":
                 D_model = DiffusionModel.BOHM
-            elif diff_type == "classical":
-                D_model = DiffusionModel.CLASSICAL
+            elif diff_type in ("gyrogeom", "gyrobohm", "scaling"):
+                D_model = DiffusionModel.GYROGEOM
         
-        # Convection model
-        V_model = ConvectionModel.FIXED
-        conv_type = params.get("convection_type", "fixed").lower()
-        if conv_type == "pressure":
-            V_model = ConvectionModel.PRESSURE
+        # Determine advection model
+        V_model = AdvectionModel.FIXED
+        if params.get("bVscaling", False):
+            V_model = AdvectionModel.PRESSURE
+        elif not params.get("bVfix", True):
+            adv_type = params.get("advection_type", "fixed").lower()
+            if adv_type == "pressure":
+                V_model = AdvectionModel.PRESSURE
         
         # Initialize coefficients for each species
+        # Neutrals (H, HeI, H2) always use NEUTRAL model - their diffusion is
+        # computed using physics-based collision rates (D = vth * mfp / 3)
+        neutral_species = {'H', 'HeI', 'H2'}
+        
         for name in species_names:
             # Check for species-specific overrides
             D_species = params.get(f"D_{name}", D_fix)
             V_species = params.get(f"V_{name}", V_fix)
             
-            self.add_species(name, D_species, V_species, D_model, V_model, Dfsave)
+            # Neutrals use NEUTRAL model (D computed in solver from collision physics)
+            # Ions use the selected model (Bohm, fixed, gyrogeom)
+            if name in neutral_species:
+                self.add_species(name, D_species, V_species, DiffusionModel.NEUTRAL, V_model, Dfsave)
+            else:
+                self.add_species(name, D_species, V_species, D_model, V_model, Dfsave)
     
     def update_all(
         self,
@@ -414,7 +415,7 @@ def compute_neutral_diffusion(
     T_eV: np.ndarray,
     m_amu: float,
     a_minor: float,
-    D_min: float = 1e-4,
+    D_min: float = 0.01,
     D_max: float = 1e4
 ) -> np.ndarray:
     """
@@ -587,9 +588,9 @@ def compute_bohm_diffusion(
     n_ions: dict,
     T_ions: dict,
     B_radial: np.ndarray,
-    Dfsave: float = 1.0,
+    Dfsave: float = 0.0625,
     D_min: float = 0.01,
-    D_max: float = 1e4,
+    D_max: float = 100,
     T_floor: float = 0.05
 ) -> np.ndarray:
     """
@@ -673,9 +674,9 @@ def compute_bohm_diffusion(
 def compute_bohm_diffusion_from_state(
     state,  # PlasmaState
     B_radial: np.ndarray,
-    Dfsave: float = 1.0,
+    Dfsave: float = 0.0625,
     D_min: float = 0.01,
-    D_max: float = 1e4
+    D_max: float = 100
 ) -> np.ndarray:
     """
     Compute Bohm diffusion coefficient from PlasmaState.
@@ -718,5 +719,257 @@ def compute_bohm_diffusion_from_state(
     
     return compute_bohm_diffusion(
         ne, Te, n_ions, T_ions, B_radial,
+        Dfsave=Dfsave, D_min=D_min, D_max=D_max
+    )
+
+
+# =========================================================================
+# Gyro-Geometric Diffusion (GGD) for Ions (from C++ transport.cpp, bDscaling)
+#
+# D = Dfsave * (1/3) * nu * mfp * (rho + mfp * Bh/Bt)
+#
+# where for each ion species i:
+#   mfp_i = 9.79e5 * sqrt(T_eff_i / m_i) / nu_i   [cm]
+#   rho_i = 1.02e2 / Z_i * sqrt(m_i * T_i) / B_r  [cm] (gyro radius)
+#   nu_i  = collision frequency [1/s]
+#
+# The total is density-weighted average over all ion species.
+# Final D is in [cm²/s], converted to [m²/s] (factor 1e-4).
+#
+# This combines collision physics (mfp, nu) with gyro-motion (rho) and
+# magnetic geometry (Bh/Bt ratio).
+# =========================================================================
+
+
+def compute_gyrogeom_diffusion(
+    ne: np.ndarray,
+    Te: np.ndarray,
+    n_ions: dict,
+    T_ions: dict,
+    nu_ions: dict,
+    B_radial: np.ndarray,
+    Bh: float,
+    Bt: float,
+    Dfsave: float = 1.0,
+    D_min: float = 0.01,
+    D_max: float = 100,
+) -> np.ndarray:
+    """
+    Compute Gyro-Geometric Diffusion (GGD) coefficient for ions.
+    
+    From C++ Tomator1D (transport.cpp), bDscaling mode:
+    
+    For each ion species i:
+      mfp_i = n_i * 9.79e5 * sqrt(T_eff_i / m_i) / max(nu_i, 1e4)
+      rho_i = n_i * 1.02e2 / Z_i * sqrt(m_i * T_i) / B_r / 1e4
+      nu_i_weighted = n_i * max(nu_i, 1e4)
+    
+    Average over all ions:
+      mfp = sum(mfp_i) / sum(n_i)
+      rho = sum(rho_i) / sum(n_i)
+      nu  = sum(nu_i_weighted) / sum(n_i)
+    
+    D = Dfsave * (1/3) * nu * mfp * (rho + mfp * Bh/Bt)  [cm²/s]
+    D = max(1e2, D)  [cm²/s] = max(0.01, D) [m²/s]
+    
+    Parameters
+    ----------
+    ne : np.ndarray
+        Electron density [m^-3].
+    Te : np.ndarray
+        Electron temperature [eV].
+    n_ions : dict
+        Dictionary of ion densities [m^-3] keyed by species name.
+        Expected keys: 'Hi', 'H2i', 'H3i', 'HeII', 'HeIII'
+    T_ions : dict
+        Dictionary of ion temperatures [eV] keyed by species name.
+    nu_ions : dict
+        Dictionary of ion collision frequencies [1/s] keyed by species name.
+    B_radial : np.ndarray
+        Radial magnetic field strength [T].
+    Bh : float
+        Horizontal (poloidal) magnetic field [T].
+    Bt : float
+        Toroidal magnetic field [T].
+    Dfsave : float
+        Diffusion scaling factor (default 1.0).
+    D_min : float
+        Minimum diffusion coefficient [m²/s].
+    D_max : float
+        Maximum diffusion coefficient [m²/s].
+        
+    Returns
+    -------
+    D : np.ndarray
+        Gyro-Geometric diffusion coefficient [m²/s].
+        
+    Notes
+    -----
+    The C++ code uses CGS units internally:
+    - mfp coefficient 9.79e5 gives cm when T is in eV, m in amu
+    - rho coefficient 1.02e2 gives cm when T is in eV, m in amu, B in T
+    - Division by 1e4 converts from cm to m for B_r in the gyro radius
+    - Final D is in cm²/s, minimum 1e2 cm²/s = 0.01 m²/s
+    """
+    n_points = len(ne)
+    
+    # Ion species properties: (mass [amu], charge Z)
+    ion_props = {
+        'Hi': (1.0, 1),
+        'H2i': (2.0, 1),
+        'H3i': (3.0, 1),
+        'HeII': (4.0, 1),
+        'HeIII': (4.0, 2),
+    }
+    
+    # Accumulators for density-weighted averaging
+    mfp_sum = np.zeros(n_points)
+    rho_sum = np.zeros(n_points)
+    nu_sum = np.zeros(n_points)
+    n_total = np.zeros(n_points)
+    
+    # Minimum collision frequency to avoid division issues (C++ uses 5e3)
+    nu_min = 5e3  # [1/s]
+    
+    # Radial B field (avoid division by zero)
+    B_r = np.maximum(np.abs(B_radial), 1e-6)
+    
+    for ion, (m_amu, Z) in ion_props.items():
+        if ion not in n_ions:
+            continue
+        
+        n_i = n_ions[ion]
+        if n_i is None:
+            continue
+        
+        # Convert to array if scalar
+        if np.isscalar(n_i):
+            n_i = np.full(n_points, n_i)
+        
+        # Get temperature (default to Te if not available)
+        T_i = T_ions.get(ion, Te)
+        if T_i is None:
+            T_i = Te
+        if np.isscalar(T_i):
+            T_i = np.full(n_points, T_i)
+        
+        # Get collision frequency
+        nu_i = nu_ions.get(ion, np.full(n_points, nu_min))
+        if nu_i is None:
+            nu_i = np.full(n_points, nu_min)
+        nu_i = np.maximum(nu_i, nu_min)
+        
+        # Effective temperature for mean free path calculation
+        # T_eff = Te + T_i * n_i / ne (from C++ code)
+        ne_safe = np.maximum(ne, 1e10)
+        T_eff = Te + T_i * n_i / ne_safe
+        
+        # Mean free path contribution [cm]
+        # mfp_i = n_i * 9.79e5 * sqrt(T_eff / m) / nu_i
+        mfp_i = n_i * 9.79e5 * np.sqrt(T_eff / m_amu) / nu_i
+        
+        # Gyro radius contribution [cm]
+        # rho_i = n_i * 1.02e2 / Z * sqrt(m * T_i) / B_r / 1e4
+        # Note: /1e4 converts B_r effect (T to Gauss factor essentially)
+        rho_i = n_i * 1.02e2 / Z * np.sqrt(m_amu * T_i) / B_r / 1e4
+        
+        # Collision frequency contribution
+        nu_i_weighted = n_i * nu_i
+        
+        # Accumulate
+        mfp_sum += mfp_i
+        rho_sum += rho_i
+        nu_sum += nu_i_weighted
+        n_total += n_i
+    
+    # Avoid division by zero
+    n_total = np.maximum(n_total, 1e10)
+    
+    # Density-weighted averages
+    mfp = mfp_sum / n_total  # [cm]
+    rho = rho_sum / n_total  # [cm]
+    nu = nu_sum / n_total    # [1/s]
+    
+    # Gyro-Geometric diffusion formula [cm²/s]
+    # D = (1/3) * nu * mfp * (rho + mfp * Bh/Bt)
+    Bt_safe = max(abs(Bt), 1e-6)
+    D_cgs = 0.333 * nu * mfp * (rho + mfp * Bh / Bt_safe)
+    
+    # Apply scaling factor
+    D_cgs = Dfsave * D_cgs
+    
+    # Convert to SI: cm²/s -> m²/s (factor 1e-4)
+    D = D_cgs * 1e-4
+    
+    # Apply bounds
+    D = np.clip(D, D_min, D_max)
+    
+    return D
+
+
+def compute_gyrogeom_diffusion_from_state(
+    state,  # PlasmaState
+    nu_collision: dict,
+    B_radial: np.ndarray,
+    Bh: float,
+    Bt: float,
+    Dfsave: float = 1.0,
+    D_min: float = 0.01,
+    D_max: float = 100
+) -> np.ndarray:
+    """
+    Compute Gyro-Geometric Diffusion (GGD) coefficient from PlasmaState.
+    
+    Convenience function that extracts densities and temperatures from
+    the PlasmaState object and calls compute_gyrogeom_diffusion.
+    
+    Parameters
+    ----------
+    state : PlasmaState
+        Current plasma state with all densities and temperatures.
+    nu_collision : dict
+        Dictionary of collision frequencies [1/s] keyed by species name.
+        Required keys: 'Hi', 'H2i', 'H3i', 'HeII', 'HeIII'
+    B_radial : np.ndarray
+        Radial magnetic field strength [T].
+    Bh : float
+        Horizontal (poloidal) magnetic field [T].
+    Bt : float
+        Toroidal magnetic field [T].
+    Dfsave : float
+        Diffusion scaling factor (default 1.0).
+    D_min : float
+        Minimum diffusion coefficient [m²/s].
+    D_max : float
+        Maximum diffusion coefficient [m²/s].
+        
+    Returns
+    -------
+    D : np.ndarray
+        Gyro-Geometric diffusion coefficient [m²/s].
+    """
+    # Get electron density and temperature
+    ne = state.electrons.n.x.array.copy()
+    Te = state.electrons.T  # T property returns array
+    
+    # Build ion density and temperature dictionaries
+    n_ions = {}
+    T_ions = {}
+    
+    ion_species = ['Hi', 'H2i', 'H3i', 'HeII', 'HeIII']
+    for ion in ion_species:
+        s = state.species.get(ion)
+        if s is not None:
+            n_ions[ion] = s.n.x.array.copy()
+            T_ions[ion] = s.T  # Property returns array
+    
+    # Extract ion collision frequencies
+    nu_ions = {}
+    for ion in ion_species:
+        if ion in nu_collision:
+            nu_ions[ion] = nu_collision[ion]
+    
+    return compute_gyrogeom_diffusion(
+        ne, Te, n_ions, T_ions, nu_ions, B_radial, Bh, Bt,
         Dfsave=Dfsave, D_min=D_min, D_max=D_max
     )

@@ -63,7 +63,10 @@ class CoupledPower:
         - echbackground : Background power fraction
         - necfix : Target electron density for nefix mode [m^-3]
         - ic : Radial index for nefix density control
-        - tauP : PI controller time constant [s]
+        - P_KP : PID proportional gain
+        - P_KI : PID integral gain
+        - P_KD : PID derivative gain
+        - P_KI_ini : Initial integral term value
         - b : Vertical extent [m]
     
     Attributes
@@ -99,12 +102,14 @@ class CoupledPower:
         # nefix mode parameters
         self.necfix = params.get('necfix', 1e19)  # m^-3
         self.ic = params.get('ic', 90)  # control index
-        self.tauP = params.get('tauP', 5e-5)  # s
-        self.Pini = params.get('Pini', 0.0)  # Initial PIerrorP value
+        self.P_KP = params.get('P_KP', 10.0)      # PID proportional gain
+        self.P_KI = params.get('P_KI', 10000.0)   # PID integral gain
+        self.P_KD = params.get('P_KD', 0.1)       # PID derivative gain
+        self.P_KI_ini = params.get('P_KI_ini', 0.0)  # Initial integral term
         
         # Initialize state
         self.state.pecabs = self.pecabs0
-        self.state.PIerrorP = self.Pini  # Initialize from Pini (C++ behavior)
+        self.state.PIerrorP = self.P_KI_ini  # Initialize integral term
         
         # Determine mode from boolean flags
         self.mode = self._determine_mode()
@@ -349,64 +354,61 @@ class CoupledPower:
         
         # ===== PID Controller =====
         #
-        # Error: e = 1 - nefact
+        # Standard PID formulation:
+        #   correction = 1 + Kp * e(t) + Ki * ∫e(t)dt + Kd * de/dt
+        #
+        # Error: e = 1 - nefact = (ne_target - ne_avg) / ne_target
         #   - Positive when density below target (need more power)
         #   - Negative when density above target (need less power)
         
         error = 1.0 - nefact
         
-        # PID gains (tuned for stability)
-        Kp = 0.5   # Proportional gain
-        Ki = 0.3   # Integral gain
-        Kd = 2.0   # Derivative gain (on filtered derivative)
-        
-        # Exponential relaxation factors
-        alpha = 1.0 - np.exp(-dt / self.tauP)            # For integral term
-        alphaD = 1.0 - np.exp(-dt / (10.0 * self.tauP))  # For derivative filter (slower)
+        # PID gains from parameters
+        Kp = self.P_KP  # Proportional gain - immediate response to error
+        Ki = self.P_KI  # Integral gain [1/s] - eliminates steady-state error
+        Kd = self.P_KD  # Derivative gain [s] - dampens oscillations/overshoot
         
         # --- Proportional term ---
-        # Use softer scaling: nefact^(-Kp) instead of 1/nefact
-        P_term = nefact ** (-Kp)
+        # Standard: Kp * error
+        # If nefact=0.5 (50% of target), error=0.5, P_term=2.5 → boost power
+        # If nefact=1.5 (150% of target), error=-0.5, P_term=-2.5 → reduce power
+        P_term = Kp * error
         
         # --- Integral term ---
-        # Accumulate error with relaxation
-        self.state.PIerrorP += alpha * Ki * error
-        
-        # Anti-windup: limit integral term
-        PIerrorP_max = 1.5
-        PIerrorP_min = -0.6
-        self.state.PIerrorP = np.clip(self.state.PIerrorP, PIerrorP_min, PIerrorP_max)
+        # Standard integral: accumulate error over time
+        self.state.PIerrorP += Ki * error * dt
         
         I_term = self.state.PIerrorP
         
         # --- Derivative term ---
-        # Use FILTERED derivative to avoid amplifying rapid changes
-        # Instead of d(nefact)/dt, use exponentially smoothed change
-        # This prevents the derivative from blowing up with small dt
-        #
-        # Filtered derivative: D_filtered = alphaD * (nefact - prev_nefact) / tauD
-        # This gives a smooth derivative that doesn't depend on dt directly
+        # Use derivative of ERROR (not nefact) to properly dampen
+        # d(error)/dt = d(1-nefact)/dt = -d(nefact)/dt
+        if dt > 0:
+            d_error_dt = (error - self.state.prev_error) / dt
+        else:
+            d_error_dt = 0.0
         
-        delta_nefact = nefact - self.state.prev_nefact
-        
-        # Filtered derivative (bounded by tauD, not dt)
-        D_term = -Kd * alphaD * delta_nefact
+        # Standard derivative on error
+        D_term = Kd * d_error_dt
         
         # Store current values for next iteration
         self.state.prev_error = error
         self.state.prev_nefact = nefact
         
-        # Combine PID terms
-        # P_term provides base scaling
-        # I_term eliminates steady-state error  
-        # D_term dampens oscillations
-        correction = P_term * (1.0 + I_term + D_term)
-        correction = np.clip(correction, 0.05, 10.0)  # Reasonable bounds
+        # Combine PID terms additively
+        # Base correction = 1.0 (no change when at target)
+        # P_term: immediate proportional response
+        # I_term: accumulated integral to eliminate steady-state error
+        # D_term: derivative to dampen oscillations
+        correction = 1.0 + P_term + I_term + D_term
         
-        pecabs = pecabs_base * correction
+        # Feedforward: scale power with density to stabilize Te
+        # This keeps power-per-electron roughly constant as density changes
+        # PID correction then adjusts around this base
+        pecabs = pecabs_base * nefact * correction
         
-        # Clamp pecabs to valid range [0.001, 1.0]
-        pecabs = np.clip(pecabs, 0.001, 1.0)
+        # Minimum pecabs of 0.1%
+        pecabs = max(pecabs, 0.001)
         
         self.state.pecabs = pecabs
         
