@@ -1016,94 +1016,38 @@ class BDF2Solver:
             else:
                 E_arr[idx_lfs] = n_bc * E_ambient
     
-    def _limit_solution_change(self) -> Tuple[float, float]:
+    def _compute_max_change(self) -> float:
         """
-        Limit solution change to prevent extreme jumps.
-        
-        Only limits changes that are extremely large (> LIMIT_THRESHOLD).
-        Normal changes within accuracy target are allowed - timestep adaptation
-        handles those. This prevents numerical blowup while not slowing convergence.
+        Compute maximum relative change across all species (for timestep adaptation).
         
         Returns
         -------
-        max_change_before : float
-            The maximum relative change BEFORE limiting (for timestep adaptation).
-        max_change_after : float
-            The maximum relative change after limiting.
+        max_change : float
+            Maximum relative change in density or energy across all species.
         """
-        # Only limit changes larger than this threshold (prevents blowup without slowing convergence)
-        LIMIT_THRESHOLD = 0.5  # 50% change limit
+        max_change = 0.0
         
-        max_change_before = 0.0
-        max_change_after = 0.0
-        
-        # Apply per-point limiting to all species
         for species in self.state.all_species:
             n_new = species.n.x.array
             n_old = species.n_prev.x.array
             E_new = species.E.x.array
             E_old = species.E_prev.x.array
             
-            # Compute per-point relative change for density
             with np.errstate(divide='ignore', invalid='ignore'):
                 rel_change_n = np.abs(n_new - n_old) / np.maximum(np.abs(n_old), 1e-30)
-            
-            # Track max change BEFORE limiting
-            max_change_before = max(max_change_before, np.max(rel_change_n))
-            
-            # Find points exceeding LIMIT_THRESHOLD (not accuracy!)
-            exceed_n = rel_change_n > LIMIT_THRESHOLD
-            if np.any(exceed_n):
-                # Compute per-point limiting factor (avoid div by zero)
-                safe_rel_change_n = np.maximum(rel_change_n, 1e-30)
-                factor_n = LIMIT_THRESHOLD / safe_rel_change_n
-                # Apply: limited = old + factor * (new - old)
-                n_new[exceed_n] = n_old[exceed_n] + factor_n[exceed_n] * (n_new[exceed_n] - n_old[exceed_n])
-                max_change_after = max(max_change_after, LIMIT_THRESHOLD)
-            else:
-                max_change_after = max(max_change_after, np.max(rel_change_n) if len(rel_change_n) > 0 else 0.0)
-            
-            # Compute per-point relative change for energy
-            with np.errstate(divide='ignore', invalid='ignore'):
                 rel_change_E = np.abs(E_new - E_old) / np.maximum(np.abs(E_old), 1e-30)
             
-            # Track max change BEFORE limiting
-            max_change_before = max(max_change_before, np.max(rel_change_E))
-            
-            # Find points exceeding LIMIT_THRESHOLD
-            exceed_E = rel_change_E > LIMIT_THRESHOLD
-            if np.any(exceed_E):
-                # Compute per-point limiting factor (avoid div by zero)
-                safe_rel_change_E = np.maximum(rel_change_E, 1e-30)
-                factor_E = LIMIT_THRESHOLD / safe_rel_change_E
-                # Apply: limited = old + factor * (new - old)
-                E_new[exceed_E] = E_old[exceed_E] + factor_E[exceed_E] * (E_new[exceed_E] - E_old[exceed_E])
-                max_change_after = max(max_change_after, LIMIT_THRESHOLD)
-            else:
-                max_change_after = max(max_change_after, np.max(rel_change_E) if len(rel_change_E) > 0 else 0.0)
+            max_change = max(max_change, np.max(rel_change_n), np.max(rel_change_E))
         
-        # Apply to electrons - only limit ENERGY, not density
-        # Electron density is determined by quasi-neutrality, not directly limited
+        # Electrons (energy only)
         if self.state.electrons is not None:
             E_new = self.state.electrons.E.x.array
             E_old = self.state.electrons.E_prev.x.array
-            
-            # Energy limiting only
             with np.errstate(divide='ignore', invalid='ignore'):
                 rel_change_E = np.abs(E_new - E_old) / np.maximum(np.abs(E_old), 1e-30)
-            
-            max_change_before = max(max_change_before, np.max(rel_change_E))
-            
-            exceed_E = rel_change_E > LIMIT_THRESHOLD
-            if np.any(exceed_E):
-                safe_rel_change_E = np.maximum(rel_change_E, 1e-30)
-                factor_E = LIMIT_THRESHOLD / safe_rel_change_E
-                E_new[exceed_E] = E_old[exceed_E] + factor_E[exceed_E] * (E_new[exceed_E] - E_old[exceed_E])
-                max_change_after = max(max_change_after, LIMIT_THRESHOLD)
-            else:
-                max_change_after = max(max_change_after, np.max(rel_change_E) if len(rel_change_E) > 0 else 0.0)
+            max_change = max(max_change, np.max(rel_change_E))
         
-        return max_change_before, max_change_after
+        return max_change
 
     # =========================================================================
     # Helper methods for cleaner code organization
@@ -1651,7 +1595,9 @@ class BDF2Solver:
         # For operator splitting, we only need nu here (sources computed in reaction step)
         # ================================================================
         tic('collisions')
-        dn_sources, dE_sources, nu_collision = compute_sources_from_state(self.state, self.params)
+        dn_sources, dE_sources, nu_collision = compute_sources_from_state(
+            self.state, self.params, dt=self.dt, accur=self.accuracy
+        )
         toc('collisions')
         
         # Store nu for transport coefficient and loss calculations
@@ -1661,11 +1607,6 @@ class BDF2Solver:
         ENERGY_FACTOR = 1.5
         for species_name in dE_sources:
             dE_sources[species_name] *= ENERGY_FACTOR
-        
-        if debug:
-            _dbg("Collision sources (dn/dt):", {
-                k: v for k, v in dn_sources.items() if v is not None
-            })
         
         # ================================================================
         # STEP 3: Compute transport coefficients D and V
@@ -1784,7 +1725,10 @@ class BDF2Solver:
         # STEP 9: Limit solution change and adapt timestep
         # ================================================================
         tic('limit_adapt')
-        max_change_raw, max_change_limited = self._limit_solution_change()
+        # Solver-level limiting disabled - reaction-level limiting in collisions.py handles this
+        # max_change_raw, max_change_limited = self._limit_solution_change()
+        max_change_raw = self._compute_max_change()
+        max_change_limited = max_change_raw
         
         # Recompute ne after ion limiting, preserve Te
         self._recompute_electron_density_preserve_temperature()
