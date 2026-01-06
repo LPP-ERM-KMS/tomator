@@ -198,6 +198,87 @@ extern bool bcx;
 extern bool belas;
 extern bool bcoulomb;
 extern bool bimpur;
+
+// Individual reaction flags (for debugging/validation)
+// bH section reactions
+extern bool bH_exc;       // Reaction 2.1.1-2.1.4b H excitation
+extern bool bH_ion;       // Reaction 2.1.5-2.1.7 H ionization
+extern bool bH_3body;     // 3-body recombination (e + e + H+ -> e + H)
+extern bool bH_rec;       // Reaction 2.1.8a H radiative recombination
+
+// bH2 section reactions
+extern bool bH2_elas;     // H2 elastic scattering
+extern bool bH2_exc;      // Reaction 2.2.1-2.2.4 H2 excitation
+extern bool bH2_dis;      // Reaction 2.2.5-2.2.8 H2 dissociation
+extern bool bH2_ion;      // Reaction 2.2.9 H2 ionization
+extern bool bH2i_rec;     // H2+ recombination
+extern bool bH2_dision;   // Reaction 2.2.10 H2 dissociative ionization
+extern bool bH2i_dis;     // Reaction 2.2.12 H2+ dissociation
+extern bool bH2i_disexc;  // Reaction 2.2.13 H2+ dissociative excitation
+extern bool bH2i_disrec;  // Reaction 2.2.14 H2+ dissociative recombination
+extern bool bH3i_disrec;  // Reaction 2.2.15 H3+ dissociative recombination
+extern bool bH3i_dis;     // Reaction 2.2.16 H3+ dissociation
+
+// bHe section reactions
+extern bool bHeI_ion;     // Reaction 2.3.9-2.3.12 HeI ionization
+extern bool bHeII_ion;    // Reaction 2.3.19 HeII ionization
+extern bool bHe_cooling;  // He cooling (ADAS or IAEA)
+extern bool bHeII_rec;    // Reaction 2.3.13 HeII recombination
+extern bool bHeIII_rec;   // HeIII recombination
+
+// bcx section reactions
+extern bool bcx_HiH;      // Reaction 3.1.8-3.1.11 H+ + H charge exchange
+extern bool bcx_HiH2;     // Reaction 3.2.3 H+ + H2 charge exchange
+extern bool bcx_H2iH2;    // Reaction 4.3.1 H2+ + H2 charge exchange
+extern bool bcx_HeIIH;    // He+ + H charge exchange
+extern bool bcx_HeIIHeI;  // Reaction 5.3.1 He+ + He charge exchange
+extern bool bcx_HeIIIH;   // He++ + H charge exchange
+extern bool bcx_HeIIIHeI; // Reaction 6.3.1 He++ + He charge exchange
+
+// bion section reactions
+extern bool bion_HiH_exca;    // Reaction 3.1.1 H+ + H excitation a
+extern bool bion_HiH_excb;    // Reaction 3.1.2 H+ + H excitation b
+extern bool bion_HiH2_exca;   // Reaction 3.2.1 H+ + H2 excitation a
+extern bool bion_HiH2_excb;   // Reaction 3.2.2 H+ + H2 excitation b
+extern bool bion_HiH_ion;     // Reaction 3.1.6 H+ + H ionization
+extern bool bion_HiHeI_ion;   // Reaction 3.3.2 H+ + He ionization
+extern bool bion_HiH2_325;    // Reaction 3.2.5 H+ + H2
+extern bool bion_HiH2i_326;   // Reaction 3.2.6 H+ + H2+
+extern bool bion_H2iH2_H3i;   // Reaction 4.3.3 H2+ + H2 -> H3+
+extern bool bion_HeIIH2_cxdis; // Reaction 5.2.3 He+ + H2 charge exchange dissociation
+
+// belas section reactions
+extern bool belas_HiH;      // Hi + H elastic
+extern bool belas_H2iH;     // H2i + H elastic
+extern bool belas_H3iH;     // H3i + H elastic
+extern bool belas_HeIIH;    // HeII + H elastic
+extern bool belas_HiH2;     // Hi + H2 elastic
+extern bool belas_H2iH2;    // H2i + H2 elastic
+extern bool belas_H3iH2;    // H3i + H2 elastic
+extern bool belas_HeIIH2;   // HeII + H2 elastic
+extern bool belas_HHeI;     // H + HeI elastic
+extern bool belas_HiHeI;    // Hi + HeI elastic
+extern bool belas_HeIIHeI;  // HeII + HeI elastic
+extern bool belas_HH2;      // H + H2 elastic
+extern bool belas_HeIH2;    // HeI + H2 elastic
+extern bool belas_HeIHeI;   // HeI + HeI elastic
+extern bool belas_H2H2;     // H2 + H2 elastic
+extern bool belas_HH;       // H + H elastic
+
+// bcoulomb section reactions
+extern bool bcoulomb_ee;      // electron-electron
+extern bool bcoulomb_eHi;     // electron-Hi
+extern bool bcoulomb_eH2i;    // electron-H2i
+extern bool bcoulomb_eH3i;    // electron-H3i
+extern bool bcoulomb_eHeII;   // electron-HeII
+extern bool bcoulomb_eHeIII;  // electron-HeIII
+extern bool bcoulomb_HiH2i;   // Hi-H2i
+extern bool bcoulomb_HiH3i;   // Hi-H3i
+extern bool bcoulomb_HiHeII;  // Hi-HeII
+extern bool bcoulomb_H2iH3i;  // H2i-H3i
+extern bool bcoulomb_H2iHeII; // H2i-HeII
+extern bool bcoulomb_H3iHeII; // H3i-HeII
+
 extern bool btranspions;
 extern bool btranspneut;
 extern bool bedge;

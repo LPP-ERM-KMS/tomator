@@ -1,0 +1,14 @@
+#!/bin/bash
+#SBATCH --job-name=T1D-benchmark                # job name reflecting your run
+#SBATCH --mail-user=tom.wauters@iter.org    # Where to send mail
+#SBATCH --mail-type=END                     # Mail events (NONE, BEGIN, END, FAIL, ALL)
+#SBATCH --ntasks=1                          # Number of tasks: here run on a single CPU
+#SBATCH --mem=1gb                           # Job memory request: here 1GB
+#SBATCH --time=47:59:59                     # Time limit in format hrs:min:sec
+#SBATCH --output=Log_benchmark.log          # Standard output and error log file
+
+# Set output directory to current folder (cpp/)
+export TOMATORRESULTS=$(pwd)
+ml IMAS
+
+./Tomator1D ../Benchmark_cpp_python.json

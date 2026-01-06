@@ -1314,9 +1314,9 @@ class ReactionRates:
     @staticmethod
     def H2i_dissociative_ionization(Te: np.ndarray) -> np.ndarray:
         """
-        Dissociative ionization of H2+.
-        e + H2+ -> 2e + H+ + H+ (or e + H2+ -> 2e + H + H+)
-        Reaction 2.2.10
+        Dissociative ionization of H2 (neutral molecule).
+        e + H2 -> e + H+ + H + e
+        Reaction 2.2.10 from HYDHEL
         
         Parameters
         ----------
@@ -1328,19 +1328,8 @@ class ReactionRates:
         k : np.ndarray
             Rate coefficient [cm³/s].
         """
-        k = np.zeros_like(Te)
-        mask = Te > 0.6
-        Te_safe = np.clip(Te[mask], 0.6, 2e4)  # Tmax from C++
-        
-        # From reactionrates.cpp REAC2210 fit
-        # Using polynomial fit coefficients
-        ln_Te = _safe_log(Te_safe)
-        ln_k = (-1.78116019e1 - 5.48227234 * ln_Te + 1.31818119 * ln_Te**2 
-                - 8.71309800e-2 * ln_Te**3 - 1.29002818e-2 * ln_Te**4
-                + 3.33645952e-3 * ln_Te**5 - 2.27065797e-4 * ln_Te**6
-                - 1.02821768e-5 * ln_Te**7 + 2.53094912e-6 * ln_Te**8)
-        k[mask] = np.exp(ln_k)
-        return k
+        # Use HYDHEL database to compute rate at runtime
+        return hydhel_db.compute_rate('2.2.10', Te)
     
     @staticmethod
     def Hi_H2_charge_exchange(THi: np.ndarray, TH2: np.ndarray) -> np.ndarray:

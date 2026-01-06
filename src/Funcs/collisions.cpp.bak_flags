@@ -178,72 +178,60 @@ void collisions() {
             if (nH2 > 0.0) // Go through this only when Hydrogen is present
             {
                 // 1.) Reaction 2.1.1-2.1.4b Excitation (H_exc)
-                if (bH_exc) {
-                    if (Te > 0.6) {
-                        k = 9.70346e-8 * pow((10.2 / Te), 0.92457) * exp(-10.2 / Te) / (0.01351 + (10.2 / Te)); // ok 17/02/2010
-                        dEe += -k * ne * nH * 10.2;                                                             // ok 17/02/2010
+                if (bH_exc && Te > 0.6) {
+                    k = 9.70346e-8 * pow((10.2 / Te), 0.92457) * exp(-10.2 / Te) / (0.01351 + (10.2 / Te)); // ok 17/02/2010
+                    dEe += -k * ne * nH * 10.2;                                                             // ok 17/02/2010
 
-                        nue += +k * nH;
-                        if (nue < 0.0) {
-                            cout << "nue 1 " << endl;
-                        }
+                    nue += +k * nH;
+                    if (nue < 0.0) {
+                        cout << "nue 1 " << endl;
                     }
                 }
                 // 2.) Reaction 2.1.5-2.1.7 Ionization (H_ion)
-                if (bH_ion) {
-                    if (Te > 0.6) {
-                        k = 2.91e-8 * pow((13.6 / Te), 0.39) * exp(-13.6 / Te) / (0.232 + 13.6 / Te) * ndamp(nH);
-                        knn = k * ne * nH;
-                        dnH += -knn;
-                        dnHi += +knn;
-                        dne += +knn;
+                if (bH_ion && Te > 0.6) {
+                    k = 2.91e-8 * pow((13.6 / Te), 0.39) * exp(-13.6 / Te) / (0.232 + 13.6 / Te) * ndamp(nH);
+                    knn = k * ne * nH;
+                    dnH += -knn;
+                    dnHi += +knn;
+                    dne += +knn;
 
-                        dEH += -knn * TH;
-                        dEHi += +knn * TH;
-                        dEe += -knn * 13.6;
+                    dEH += -knn * TH;
+                    dEHi += +knn * TH;
+                    dEe += -knn * 13.6;
 
-                        nuH += +k * ne;
-                        nue += +k * nH; // if(nue < 0.0)     {cout << "nue 2 " << endl;}
-                    }
-                }
-                // 3.) 3-body recombination (e + e + H+ -> e + H)
-                if (bH_3body) {
-                    if (Te > 0.6) {
-                        // Need ionization rate k for 3-body rate calculation [170.8160 = 4.0*3.14*13.6]
-                        double k_ion = 2.91e-8 * pow((13.6 / Te), 0.39) * exp(-13.6 / Te) / (0.232 + 13.6 / Te);
-                        k = 1.4804e-25 * pow((170.8160 / Te), 1.5) * exp(13.6 / Te) * k_ion * ndamp(nHi);
-                        knn = k * ne * ne * nHi;
-                        dnHi += -knn;
-                        dnH += +knn;
-                        dne += -knn;
+                    nuH += +k * ne;
+                    nue += +k * nH; // if(nue < 0.0)     {cout << "nue 2 " << endl;}
+                    // 3 body recombination           [170.8160 = 4.0*3.14*13.6]
+                    k = 1.4804e-25 * pow((170.8160 / Te), 1.5) * exp(13.6 / Te) * k * ndamp(nHi);
+                    knn = k * ne * ne * nHi;
+                    dnHi += -knn;
+                    dnH += +knn;
+                    dne += -knn;
 
-                        dEHi += -knn * THi;
-                        dEH += +knn * THi;
-                        dEe += +knn * (13.6 - Te / 3.0);
+                    dEHi += -knn * THi;
+                    dEH += +knn * THi;
+                    dEe += +knn * (13.6 - Te / 3.0);
 
-                        nuHi += +k * ne * ne;
-                        nue += +k * ne * nHi; // if(nue < 0.0)     {cout << "nue 3 " << endl;}
-                    }
+                    nuHi += +k * ne * ne;
+                    nue += +k * ne * nHi; // if(nue < 0.0)     {cout << "nue 3 " << endl;}
                 }
                 // Reaction 2.1.8a Radiative recombination (H_rec)
-                if (bH_rec) {
-                    if (Te < 1000.0) {
-                        k = 7.982e-11 / (sqrt(Te / 2.713e-4) * pow((1 + sqrt(Te / 2.713e-4)), (1.0 - 0.7480)) * pow((1 + sqrt(Te / 60.631)), (1.0 + 0.7480))) * ndamp(nHi);
-                        knn = k * ne * nHi;
-                        // k += 7.1e-20 * pow(Te/20,-15/3); // added 20/02/2014, estimated correction
-                        dnHi += -knn;
-                        dne += -knn;
-                        dnH += +knn;
+                if (bH_rec && Te < 1000.0) {
+                    k = 7.982e-11 / (sqrt(Te / 2.713e-4) * pow((1 + sqrt(Te / 2.713e-4)), (1.0 - 0.7480)) * pow((1 + sqrt(Te / 60.631)), (1.0 + 0.7480))) * ndamp(nHi);
+                    knn = k * ne * nHi;
+                    // k += 7.1e-20 * pow(Te/20,-15/3); // added 20/02/2014, estimated correction
+                    dnHi += -knn;
+                    dne += -knn;
+                    dnH += +knn;
 
-                        dEHi += -knn * THi;
-                        dEH += +knn * THi;
-                        // dEe    +=   - knn*Te/3.0; //CHECK diff with realTe
-                        dEe += -knn * Te * 0.667 * (3.0 / 2.0 + // 20220530 hydhel -. Te * (3/2 + dln(k)/dnl(Te)) which is approximately Te for Te<10
-                                                    (log(k) - log(7.982e-11 / (sqrt(Te * 0.99 / 2.713e-4) * pow((1 + sqrt(Te * 0.99 / 2.713e-4)), (1.0 - 0.7480)) * pow((1 + sqrt(Te * 0.99 / 60.631)), (1.0 + 0.7480))) * ndamp(nHi))) / (log(Te) - log(0.99 * Te)));
-                        nue += +k * nHi;
-                        if (nue < 0.0) {
-                            cout << "nue 4 " << endl;
-                        }
+                    dEHi += -knn * THi;
+                    dEH += +knn * THi;
+                    // dEe    +=   - knn*Te/3.0; //CHECK diff with realTe
+                    dEe += -knn * Te * 0.667 * (3.0 / 2.0 + // 20220530 hydhel -. Te * (3/2 + dln(k)/dnl(Te)) which is approximately Te for Te<10
+                                                (log(k) - log(7.982e-11 / (sqrt(Te * 0.99 / 2.713e-4) * pow((1 + sqrt(Te * 0.99 / 2.713e-4)), (1.0 - 0.7480)) * pow((1 + sqrt(Te * 0.99 / 60.631)), (1.0 + 0.7480))) * ndamp(nHi))) / (log(Te) - log(0.99 * Te)));
+                    nue += +k * nHi;
+                    if (nue < 0.0) {
+                        cout << "nue 4 " << endl;
                     }
                 }
             }
@@ -256,41 +244,40 @@ void collisions() {
         if (bH2) {
             if (nH2 > 0.0) {
                 //                cout << "  " << dEe ;
+                // H2 elastic scattering (bH2_elas)
                 if (bH2_elas) {
                     k = RRH2(ELAS, ne, Te); // 2016/02/24
-                    knn = k * ne * nH2;
-                    L2 = 4.0 * me * (2.0 * mi) / pow(me + (2.0 * mi), 2.0); // Langevins energy loss parameter
-                    dEe += +knn * L2 * (TH2 - Te);                          // Yoon 2008
-                    dEH2 += +knn * L2 * (Te - TH2);                         // corrected? 2016/04/19
-                    nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi)));   // almost no change in momentum for H2
+                knn = k * ne * nH2;
+                L2 = 4.0 * me * (2.0 * mi) / pow(me + (2.0 * mi), 2.0); // Langevin’s energy loss parameter
+                dEe += +knn * L2 * (TH2 - Te);                          // Yoon 2008
+                dEH2 += +knn * L2 * (Te - TH2);                         // corrected? 2016/04/19
+                nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi)));   // almost no change in momentum for H2
                     nue += +k * nH2;
                 }
                 //                cout << "  " << dEe << endl ;
 
                 // Reaction 2.2.1-2.2.4 (H2_exc)
-                if (bH2_exc) {
-                    if (Te > 0.1) {
-                        k = RR(REAC221a, 0.0, Te);
-                        dEe += -k * ne * nH2 * 0.5;
-                        nue += +k * nH2;
-                        nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi))); // almost no change in momentum for H2
-                        k = RR(REAC221b, 0.0, Te);
-                        dEe += -k * ne * nH2 * 1.0;
-                        nue += +k * nH2;
-                        nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi))); // almost no change in momentum for H2
-                        k = RR(REAC222, 0.0, Te);
-                        dEe += -k * ne * nH2 * 12.1;
-                        nue += +k * nH2;
-                        nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi))); // almost no change in momentum for H2
-                        k = RR(REAC223, 0.0, Te);
-                        dEe += -k * ne * nH2 * 12.4;
-                        nue += +k * nH2;
-                        nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi))); // almost no change in momentum for H2
-                        k = RR(REAC224, 0.0, Te);
-                        dEe += -k * ne * nH2 * 12.7; // Check with Dirk
-                        nue += +k * nH2;
-                        nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi))); // almost no change in momentum for H2
-                    }
+                if (bH2_exc && Te > 0.1) {
+                    k = RR(REAC221a, 0.0, Te);
+                    dEe += -k * ne * nH2 * 0.5;
+                    nue += +k * nH2;
+                    nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi))); // almost no change in momentum for H2
+                    k = RR(REAC221b, 0.0, Te);
+                    dEe += -k * ne * nH2 * 1.0;
+                    nue += +k * nH2;
+                    nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi))); // almost no change in momentum for H2
+                    k = RR(REAC222, 0.0, Te);
+                    dEe += -k * ne * nH2 * 12.1;
+                    nue += +k * nH2;
+                    nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi))); // almost no change in momentum for H2
+                    k = RR(REAC223, 0.0, Te);
+                    dEe += -k * ne * nH2 * 12.4;
+                    nue += +k * nH2;
+                    nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi))); // almost no change in momentum for H2
+                    k = RR(REAC224, 0.0, Te);
+                    dEe += -k * ne * nH2 * 12.7; // Check with Dirk
+                    nue += +k * nH2;
+                    nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi))); // almost no change in momentum for H2
                 }
                 // Reaction 2.2.5-2.2.8 (H2_dis)
                 if (bH2_dis) {
@@ -475,7 +462,7 @@ void collisions() {
             if (nHeI > 0.0) {
                 // Ionization HeI (2.3.9-2.3.12) (k_HeI_ion)
                 if (bHeI_ion) {
-                    k = RRHe(IHE1, ne, Te) * ndamp(nHeI); // cout << "   " << k ;
+                    k = RRHe(IHE1, 1.0e11, Te) * ndamp(nHeI); // cout << "   " << k ;
                     knn = k * ne * nHeI;
                     dnHeI += -knn;
                     dnHeII += +knn;
@@ -489,23 +476,23 @@ void collisions() {
                 }
                 // Ionization HeII (2.3.19) (k_HeII_ion)
                 if (bHeII_ion) {
-                    k = RRHe(IHE2, ne, Te) * ndamp(nHeII); // cout << "   " << k ;
+                    k = RRHe(IHE2, 1.0e11, Te) * ndamp(nHeII); // cout << "   " << k ;
                     knn = k * ne * nHeII;
                     // if (k<1.0e-20) {k=1.0e-20;}
-                    dnHeII += -knn;
-                    dnHeIII += +knn;
-                    dne += +knn;
+                dnHeII += -knn;
+                dnHeIII += +knn;
+                dne += +knn;
 
                     dEHeII += -knn * THeII;
                     dEHeIII += +knn * THeII; // cm^3/s*1/cm^3*1/cm^3*eV = eV/cm^3/s
 
                     nuHeII = nuHeII + k * ne;
                     nue = nue + k * nHeII;
-                    if (nue < 0.0) {
-                        cout << "nue 5 " << endl;
-                    }
                 }
-                // He cooling (ADAS or IAEA)
+                if (nue < 0.0) {
+                    cout << "nue 5 " << endl;
+                }
+                // He cooling (bHe_cooling)
                 if (bHe_cooling) {
                     double Tx, exp1, exp2, exp3;
                     if (bADAS) {
@@ -571,11 +558,10 @@ void collisions() {
                    // Energy loss on He++
 exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )*1.0e-33*1.0e6; //Wcm3 */
 
-                    }
                 }
                 // Recombination HeII (2.3.13) (k_HeII_rec)
                 if (bHeII_rec) {
-                    k = RRHe(RHE2, ne, Te) * ndamp(nHeII); //  *  pow(1.0+1.0e1/nHeII+1.0e1/ne,-0.66) ; // cout << "   " << k ;//25/04/2017
+                    k = RRHe(RHE2, 1.0e11, Te) * ndamp(nHeII); //  *  pow(1.0+1.0e1/nHeII+1.0e1/ne,-0.66) ; // cout << "   " << k ;//25/04/2017
                     knn = k * ne * nHeII;
                     dnHeI += +knn;  // cout << "   " << dnHeII ;
                     dnHeII += -knn; // cout << "   " << dnHeII ;
@@ -585,29 +571,29 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
                     dEHeII += -knn * THeII;
                     // dEe     +=    - knn*Te/3.0; // added 20/02/2014
                     dEe += -knn * Te * 0.667 * (3.0 / 2.0 + // 20220603 hydhel -. based on H+ reco
-                                                (log(k) - log(RRHe(RHE2, ne, 0.99 * Te) * ndamp(nHeII))) / (log(Te) - log(0.99 * Te)));
+                                                (log(k) - log(RRHe(RHE2, 1.0e11, 0.99 * Te) * ndamp(nHeII))) / (log(Te) - log(0.99 * Te)));
 
                     nuHeII = nuHeII + k * ne;
                     nue = nue + k * nHeII;
                 }
                 // Recombination HeIII (k_HeIII_rec)
                 if (bHeIII_rec) {
-                    k = RRHe(RHE3, ne, Te) * ndamp(nHeIII); //  *  pow(1.0+1.0e1/nHeIII+1.0e1/ne,-0.66) ; // cout << "   " << k << endl; //25/04/2017
+                    k = RRHe(RHE3, 1.0e11, Te) * ndamp(nHeIII); //  *  pow(1.0+1.0e1/nHeIII+1.0e1/ne,-0.66) ; // cout << "   " << k << endl; //25/04/2017
                     knn = k * ne * nHeIII;
                     dnHeII += +knn; // cout << "   " << dnHeII ;
-                    dnHeIII += -knn;
+                dnHeIII += -knn;
                     dne += -knn;
 
                     dEHeII += +knn * THeIII;
                     dEHeIII += -knn * THeIII;
                     // dEe     +=    - knn*Te/3.0; // added 20/02/2014
                     dEe += -knn * Te * 0.667 * (3.0 / 2.0 + // 20220603 hydhel -. based on H+ reco
-                                                (log(k) - log(RRHe(RHE3, ne, 0.99 * Te) * ndamp(nHeIII))) / (log(Te) - log(0.99 * Te)));
+                                                (log(k) - log(RRHe(RHE3, 1.0e11, 0.99 * Te) * ndamp(nHeIII))) / (log(Te) - log(0.99 * Te)));
                     nuHeIII = nuHeIII + k * ne;
                     nue = nue + k * nHeIII;
-                    if (nue < 0.0) {
-                        cout << "nue 6 " << endl;
-                    }
+                }
+                if (nue < 0.0) {
+                    cout << "nue 6 " << endl;
                 }
             }
         }
@@ -624,8 +610,8 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
                     k = 7.829e-9 * pow((THi + TH) / 2.0, 0.41) * ndamp(nHi); // ok 17/02/2010
                 else {
                     k = 0.0;
-                }
-                knn = k * nHi * nH;
+            }
+            knn = k * nHi * nH;
                 dEHi += +knn * (TH - THi);
                 dEH += +knn * (THi - TH); // ok 24/10/2009
 
@@ -905,24 +891,22 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             //     end
             // Reaction 5.2.3 (k_HeIIH2_cxdis)
             // if p(8)==0 // Include molecular H2
-            if (bion_HeIIH2_cxdis) {
-                k = RRion(REAC523, THeII, TH2) * ndamp(nHeII); //   *  pow(1.0+1.0e1/nHeII+1.0e1/nH2,-0.66) ;;
-                knn = k * nHeII * nH2;
-                dnHeII += -knn; // cout << "   " << dnHeII ; //<< endl;
-                dnH2 += -knn;
-                dnH += +knn;
-                dnHi += +knn;
-                dnHeI += +knn;
+            k = RRion(REAC523, THeII, TH2) * ndamp(nHeII); //   *  pow(1.0+1.0e1/nHeII+1.0e1/nH2,-0.66) ;;
+            knn = k * nHeII * nH2;
+            dnHeII += -knn; // cout << "   " << dnHeII ; //<< endl;
+            dnH2 += -knn;
+            dnH += +knn;
+            dnHi += +knn;
+            dnHeI += +knn;
 
-                dEHeII += -knn * THeII;
-                dEH2 += -knn * TH2;
-                dEH += +knn * 1.85;
-                dEHi += +knn * 1.85;
-                dEHeI += +knn * 3.1;
+            dEHeII += -knn * THeII;
+            dEH2 += -knn * TH2;
+            dEH += +knn * 1.85;
+            dEHi += +knn * 1.85;
+            dEHeI += +knn * 3.1;
 
-                nuHeII = nuHeII + k * nH2;
-                nuH2 = nuH2 + k * nHeII;
-            }
+            nuHeII = nuHeII + k * nH2;
+            nuH2 = nuH2 + k * nHeII;
             // Reaction 5.3.2 (k_HeIIHeI_ion)
             //     k=RRion('Reac532',THeII,THeI);
             //     dnHeII  = dnHeII  + k*nHeII*nHeI;
@@ -965,139 +949,110 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             }
             // H2i + H
             if (belas_H2iH) {
-                k = RRel(H2iH, TH2i, TH) * ndamp(nH2i);
-                L2 = 4.0 * mi * (2.0 * mi) / pow(mi + (2.0 * mi), 2.0); // Langevins energy loss parameter
-                knn = k * nH2i * nH;
-                dEH2i += -knn * L2 * (TH2i - TH);
-                dEH += +knn * L2 * (TH2i - TH);
-                nuH2i = nuH2i + k * nH;
-                nuH = nuH + k * nH2i;
-            }
+            k = RRel(H2iH, TH2i, TH) * ndamp(nH2i);
+            L2 = 4.0 * mi * (2.0 * mi) / pow(mi + (2.0 * mi), 2.0); // Langevin’s energy loss parameter
+            knn = k * nH2i * nH;
+            dEH2i += -knn * L2 * (TH2i - TH);
+            dEH += +knn * L2 * (TH2i - TH);
+            nuH2i = nuH2i + k * nH;
+            nuH = nuH + k * nH2i;
             // H3i + H
-            if (belas_H3iH) {
-                k = RRel(H3iH, TH3i, TH) * ndamp(nH3i);
-                L2 = 4.0 * mi * (3.0 * mi) / pow(mi + (3.0 * mi), 2.0); // Langevins energy loss parameter
-                knn = k * nH3i * nH;
-                dEH3i += -knn * L2 * (TH3i - TH);
-                dEH += +knn * L2 * (TH3i - TH);
-                nuH3i = nuH3i + k * nH;
-                nuH = nuH + k * nH3i;
-            }
+            k = RRel(H3iH, TH3i, TH) * ndamp(nH3i);
+            L2 = 4.0 * mi * (3.0 * mi) / pow(mi + (3.0 * mi), 2.0); // Langevin’s energy loss parameter
+            knn = k * nH3i * nH;
+            dEH3i += -knn * L2 * (TH3i - TH);
+            dEH += +knn * L2 * (TH3i - TH);
+            nuH3i = nuH3i + k * nH;
+            nuH = nuH + k * nH3i;
             // HeII + H
-            if (belas_HeIIH) {
-                k = RRel(HeIIH, THeII, TH) * ndamp(nHeII);
-                L2 = 4.0 * mi * (4.0 * mi) / pow(mi + (4.0 * mi), 2.0); // Langevins energy loss parameter
-                knn = k * nHeII * nH;
-                dEHeII += -knn * L2 * (THeII - TH);
-                dEH += +knn * L2 * (THeII - TH);
-                nuHeII = nuHeII + k * nH;
-                nuH = nuH + k * nHeII;
-            }
+            k = RRel(HeIIH, THeII, TH) * ndamp(nHeII);
+            L2 = 4.0 * mi * (4.0 * mi) / pow(mi + (4.0 * mi), 2.0); // Langevin’s energy loss parameter
+            knn = k * nHeII * nH;
+            dEHeII += -knn * L2 * (THeII - TH);
+            dEH += +knn * L2 * (THeII - TH);
+            nuHeII = nuHeII + k * nH;
+            nuH = nuH + k * nHeII;
             // Hi + H2
-            if (belas_HiH2) {
-                k = RRel(HiH2, THi, TH2) * ndamp(nHi);
-                L2 = 4.0 * mi * (2.0 * mi) / pow(mi + (2.0 * mi), 2.0); // Langevins energy loss parameter
-                knn = k * nHi * nH2;
-                dEHi += -knn * L2 * (THi - TH2);
-                dEH2 += +knn * L2 * (THi - TH2);
-                nuHi = nuHi + k * nH2;
-                nuH2 = nuH2 + k * nHi;
-            }
+            k = RRel(HiH2, THi, TH2) * ndamp(nHi);
+            L2 = 4.0 * mi * (2.0 * mi) / pow(mi + (2.0 * mi), 2.0); // Langevin’s energy loss parameter
+            knn = k * nHi * nH2;
+            dEHi += -knn * L2 * (THi - TH2);
+            dEH2 += +knn * L2 * (THi - TH2);
+            nuHi = nuHi + k * nH2;
+            nuH2 = nuH2 + k * nHi;
             // H2i + H2
-            if (belas_H2iH2) {
-                k = RRel(H2iH2, TH2i, TH2) * ndamp(nH2i);
-                L2 = 1.0; // Langevins energy loss parameter
-                knn = k * nH2i * nH2;
-                dEH2i += -knn * L2 * (TH2i - TH2);
-                dEH2 += +knn * L2 * (TH2i - TH2);
-                nuH2i = nuH2i + k * nH2;
-                nuH2 = nuH2 + k * nH2i;
-            }
+            k = RRel(H2iH2, TH2i, TH2) * ndamp(nH2i);
+            L2 = 1.0; // Langevin’s energy loss parameter
+            knn = k * nH2i * nH2;
+            dEH2i += -knn * L2 * (TH2i - TH2);
+            dEH2 += +knn * L2 * (TH2i - TH2);
+            nuH2i = nuH2i + k * nH2;
+            nuH2 = nuH2 + k * nH2i;
             // H3i + H2
-            if (belas_H3iH2) {
-                k = RRel(H3iH2, TH3i, TH2) * ndamp(nH3i);
-                L2 = 4.0 * (3.0 * mi) * (2.0 * mi) / pow((3.0 * mi) + (2.0 * mi), 2.0); // Langevins energy loss parameter
-                knn = k * nH3i * nH2;
-                dEH3i += -knn * L2 * (TH3i - TH2);
-                dEH2 += +knn * L2 * (TH3i - TH2);
-                nuH3i = nuH3i + k * nH2;
-                nuH2 = nuH2 + k * nH3i;
-            }
+            k = RRel(H3iH2, TH3i, TH2) * ndamp(nH3i);
+            L2 = 4.0 * (3.0 * mi) * (2.0 * mi) / pow((3.0 * mi) + (2.0 * mi), 2.0); // Langevin’s energy loss parameter
+            knn = k * nH3i * nH2;
+            dEH3i += -knn * L2 * (TH3i - TH2);
+            dEH2 += +knn * L2 * (TH3i - TH2);
+            nuH3i = nuH3i + k * nH2;
+            nuH2 = nuH2 + k * nH3i;
             // HeII + H2
-            if (belas_HeIIH2) {
-                k = RRel(HeIIH2, THeII, TH2) * ndamp(nHeII);
-                L2 = 4.0 * (4.0 * mi) * (2.0 * mi) / pow((4.0 * mi) + (2.0 * mi), 2.0); // Langevins energy loss parameter
-                knn = k * nHeII * nH2;
-                dEHeII += -knn * L2 * (THeII - TH2);
-                dEH2 += +knn * L2 * (THeII - TH2);
-                nuHeII = nuHeII + k * nH2;
-                nuH2 = nuH2 + k * nHeII;
-            }
-            // H + HeI
-            if (belas_HHeI) {
-                k = RRel(HHe, TH, THeI);
-                L2 = 4.0 * mi * (4.0 * mi) / pow(mi + (4.0 * mi), 2.0); // Langevins energy loss parameter
-                knn = k * nH * nHeI;
-                dEH += -knn * L2 * (TH - THeI);
-                dEHeI += +knn * L2 * (TH - THeI);
-                nuH = nuH + k * nHeI;
-                nuHeI = nuHeI + k * nH;
-            }
+            k = RRel(HeIIH2, THeII, TH2) * ndamp(nHeII);
+            L2 = 4.0 * (4.0 * mi) * (2.0 * mi) / pow((4.0 * mi) + (2.0 * mi), 2.0); // Langevin’s energy loss parameter
+            knn = k * nHeII * nH2;
+            dEHeII += -knn * L2 * (THeII - TH2);
+            dEH2 += +knn * L2 * (THeII - TH2);
+            nuHeII = nuHeII + k * nH2;
+            nuH2 = nuH2 + k * nHeII;
             // Hi + HeI
-            if (belas_HiHeI) {
-                k = RRel(HiHe, THi, THeI) * ndamp(nHi);
-                L2 = 4.0 * mi * (4.0 * mi) / pow(mi + (4.0 * mi), 2.0); // Langevins energy loss parameter
-                knn = k * nHi * nHeI;
-                dEHi += -knn * L2 * (THi - THeI);
-                dEHeI += +knn * L2 * (THi - THeI);
-                nuHi = nuHi + k * nHeI;
-                nuHeI = nuHeI + k * nHi;
-            }
+            k = RRel(HHe, TH, THeI);
+            L2 = 4.0 * mi * (4.0 * mi) / pow(mi + (4.0 * mi), 2.0); // Langevin’s energy loss parameter
+            knn = k * nH * nHeI;
+            dEH += -knn * L2 * (TH - THeI);
+            dEHeI += +knn * L2 * (TH - THeI);
+            nuH = nuH + k * nHeI;
+            nuHeI = nuHeI + k * nH;
+            // Hi + HeI
+            k = RRel(HiHe, THi, THeI) * ndamp(nHi);
+            L2 = 4.0 * mi * (4.0 * mi) / pow(mi + (4.0 * mi), 2.0); // Langevin’s energy loss parameter
+            knn = k * nHi * nHeI;
+            dEHi += -knn * L2 * (THi - THeI);
+            dEHeI += +knn * L2 * (THi - THeI);
+            nuHi = nuHi + k * nHeI;
+            nuHeI = nuHeI + k * nHi;
             // HeII + HeI
-            if (belas_HeIIHeI) {
-                k = RRel(HeIIHe, THeII, THeI) * ndamp(nHeII);
-                L2 = 1.0; // Langevins energy loss parameter
-                knn = k * nHeII * nHeI;
-                dEHeII += -knn * L2 * (THeII - THeI);
-                dEHeI += +knn * L2 * (THeII - THeI);
-                nuHeII = nuHeII + k * nHeI;
-                nuHeI = nuHeI + k * nHeII;
-            }
+            k = RRel(HeIIHe, THeII, THeI) * ndamp(nHeII);
+            L2 = 1.0; // Langevin’s energy loss parameter
+            knn = k * nHeII * nHeI;
+            dEHeII += -knn * L2 * (THeII - THeI);
+            dEHeI += +knn * L2 * (THeII - THeI);
+            nuHeII = nuHeII + k * nHeI;
+            nuHeI = nuHeI + k * nHeII;
             // H + H2
-            if (belas_HH2) {
-                k = RRel(HH2, TH, TH2);
-                L2 = 4.0 * mi * (2.0 * mi) / pow(mi + (2.0 * mi), 2.0); // Langevins energy loss parameter
-                knn = k * nH * nH2;
-                dEH += -knn * L2 * (TH - TH2);
-                dEH2 += +knn * L2 * (TH - TH2);
-                nuH = nuH + k * nH2;
-                nuH2 = nuH2 + k * nH;
-            }
+            k = RRel(HH2, TH, TH2);
+            L2 = 4.0 * mi * (2.0 * mi) / pow(mi + (2.0 * mi), 2.0); // Langevin’s energy loss parameter
+            knn = k * nH * nH2;
+            dEH += -knn * L2 * (TH - TH2);
+            dEH2 += +knn * L2 * (TH - TH2);
+            nuH = nuH + k * nH2;
+            nuH2 = nuH2 + k * nH;
             // HeI + H2 // not the correct reaction rate, but info is missing (not including this reaction gives strange temperature for HeI at start of calculation) 4/02/2015
-            if (belas_HeIH2) {
-                k = RRel(HH2, THeI, TH2);
-                L2 = 4.0 * (4.0 * mi) * (2.0 * mi) / pow((4.0 * mi) + (2.0 * mi), 2.0); // Langevins energy loss parameter
-                knn = k * nHeI * nH2;
-                dEHeI += -knn * L2 * (THeI - TH2);
-                dEH2 += +knn * L2 * (THeI - TH2);
-                nuHeI = nuHeI + k * nH2;
-                nuH2 = nuH2 + k * nHeI;
-            }
+            k = RRel(HH2, THeI, TH2);
+            L2 = 4.0 * (4.0 * mi) * (2.0 * mi) / pow((4.0 * mi) + (2.0 * mi), 2.0); // Langevin’s energy loss parameter
+            knn = k * nHeI * nH2;
+            dEHeI += -knn * L2 * (THeI - TH2);
+            dEH2 += +knn * L2 * (THeI - TH2);
+            nuHeI = nuHeI + k * nH2;
+            nuH2 = nuH2 + k * nHeI;
             // HeI + HeI // 6/6/2017
-            if (belas_HeIHeI) {
-                k = RRel(HeIHeI, THeI, THeI);
-                nuHeI = nuHeI + k * nHeI;
-            }
+            k = RRel(HeIHeI, THeI, THeI);
+            nuHeI = nuHeI + k * nHeI;
             // H2 + H2 // 6/6/2017
-            if (belas_H2H2) {
-                k = RRel(H2H2, TH2, TH2);
-                nuH2 = nuH2 + k * nH2;
-            }
+            k = RRel(H2H2, TH2, TH2);
+            nuH2 = nuH2 + k * nH2;
             // H + H // 6/6/2017
-            if (belas_HH) {
-                k = RRel(HH, TH, TH);
-                nuH = nuH + k * nH;
-            }
+            k = RRel(HH, TH, TH);
+            nuH = nuH + k * nH;
         }
         // END belas
 

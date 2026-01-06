@@ -16,6 +16,44 @@ import numpy as np
 M3_TO_CM3 = 1e-6
 
 
+def limit_loss_rate(rate: np.ndarray, n: np.ndarray, dt: float, accur: float) -> np.ndarray:
+    """
+    Limit loss rate so relative density change doesn't exceed accur.
+    
+    Ensures |rate * dt / n| <= accur.
+    
+    Parameters
+    ----------
+    rate : np.ndarray
+        Loss rate [m^-3/s], typically negative.
+    n : np.ndarray
+        Current density [m^-3].
+    dt : float
+        Time step [s].
+    accur : float
+        Maximum allowed relative change per timestep.
+        
+    Returns
+    -------
+    limited_rate : np.ndarray
+        Rate limited to satisfy |rate * dt / n| <= accur.
+    """
+    if dt is None or accur is None:
+        return rate
+    
+    limited = rate.copy()
+    n_safe = np.maximum(np.abs(n), 1e-30)
+    # Maximum allowed rate magnitude: |rate * dt / n| <= accur => |rate| <= accur * n / dt
+    max_rate = accur * n_safe / dt
+    # Limit where rate magnitude exceeds max_rate
+    exceed = np.abs(limited) > max_rate
+    if np.any(exceed):
+        # Scale down while preserving sign
+        limited[exceed] = np.sign(limited[exceed]) * max_rate[exceed]
+    
+    return limited
+
+
 def ndamp(n_cgs: np.ndarray, nevac: float = 1.0) -> np.ndarray:
     """
     Density damping factor from C++ Tomator1D.
@@ -57,7 +95,9 @@ def compute_limiter_losses(
     THeII: np.ndarray = None,
     nHeIII: np.ndarray = None,
     THeIII: np.ndarray = None,
-    Ta0: float = 0.026
+    Ta0: float = 0.026,
+    dt: float = None,
+    accur: float = None
 ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
     """
     Compute parallel transport losses to limiters in the SOL region.
@@ -68,6 +108,9 @@ def compute_limiter_losses(
     where cs = 9.79e5 * sqrt(Z/mu * (Te + Ti*ni/ne)) cm/s
     
     Lost ions recycle as neutrals at wall temperature Ta0.
+    
+    If dt and accur are provided, loss rates are limited so that relative 
+    density changes per timestep don't exceed accur.
     
     Parameters
     ----------
@@ -93,6 +136,10 @@ def compute_limiter_losses(
         He++ density [m^-3] and temperature [eV].
     Ta0 : float
         Wall/recycled neutral temperature [eV]. Default 0.026 eV (room temp).
+    dt : float, optional
+        Time step [s] for rate limiting. If None, no limiting applied.
+    accur : float, optional
+        Maximum allowed relative change per timestep. If None, no limiting applied.
         
     Returns
     -------
@@ -148,8 +195,11 @@ def compute_limiter_losses(
     loss_rate_Hi = nHi / tau_Hi
     loss_rate_Hi[~sol_mask] = 0.0
     
+    # Rate limiting: ensure |dn * dt / n| <= accur
+    loss_rate_Hi = limit_loss_rate(loss_rate_Hi, nHi, dt, accur)
+    
     dn['Hi'][sol_mask] -= loss_rate_Hi[sol_mask]
-    dE['Hi'][sol_mask] -= (1.5 * THi * nHi / (tau_Hi / gElim))[sol_mask]
+    dE['Hi'][sol_mask] -= (loss_rate_Hi * 1.5 * THi)[sol_mask]
     dn['e'][sol_mask] -= Z * loss_rate_Hi[sol_mask]
     dE['e'][sol_mask] -= (Z * loss_rate_Hi * 1.5 * Te)[sol_mask]
     
@@ -180,8 +230,11 @@ def compute_limiter_losses(
         loss_rate_H2i = nH2i / tau_H2i
         loss_rate_H2i[~sol_mask] = 0.0
         
+        # Rate limiting
+        loss_rate_H2i = limit_loss_rate(loss_rate_H2i, nH2i, dt, accur)
+        
         dn['H2i'][sol_mask] -= loss_rate_H2i[sol_mask]
-        dE['H2i'][sol_mask] -= (1.5 * TH2i * nH2i / (tau_H2i / gElim))[sol_mask]
+        dE['H2i'][sol_mask] -= (loss_rate_H2i * 1.5 * TH2i)[sol_mask]
         dn['e'][sol_mask] -= Z * loss_rate_H2i[sol_mask]
         dE['e'][sol_mask] -= (Z * loss_rate_H2i * 1.5 * Te)[sol_mask]
         
@@ -212,8 +265,11 @@ def compute_limiter_losses(
         loss_rate_H3i = nH3i / tau_H3i
         loss_rate_H3i[~sol_mask] = 0.0
         
+        # Rate limiting
+        loss_rate_H3i = limit_loss_rate(loss_rate_H3i, nH3i, dt, accur)
+        
         dn['H3i'][sol_mask] -= loss_rate_H3i[sol_mask]
-        dE['H3i'][sol_mask] -= (1.5 * TH3i * nH3i / (tau_H3i / gElim))[sol_mask]
+        dE['H3i'][sol_mask] -= (loss_rate_H3i * 1.5 * TH3i)[sol_mask]
         dn['e'][sol_mask] -= Z * loss_rate_H3i[sol_mask]
         dE['e'][sol_mask] -= (Z * loss_rate_H3i * 1.5 * Te)[sol_mask]
         
@@ -246,8 +302,11 @@ def compute_limiter_losses(
         loss_rate_HeII = nHeII / tau_HeII
         loss_rate_HeII[~sol_mask] = 0.0
         
+        # Rate limiting
+        loss_rate_HeII = limit_loss_rate(loss_rate_HeII, nHeII, dt, accur)
+        
         dn['HeII'][sol_mask] -= loss_rate_HeII[sol_mask]
-        dE['HeII'][sol_mask] -= (1.5 * THeII * nHeII / (tau_HeII / gElim))[sol_mask]
+        dE['HeII'][sol_mask] -= (loss_rate_HeII * 1.5 * THeII)[sol_mask]
         dn['e'][sol_mask] -= Z * loss_rate_HeII[sol_mask]
         dE['e'][sol_mask] -= (Z * loss_rate_HeII * 1.5 * Te)[sol_mask]
         
@@ -282,8 +341,11 @@ def compute_limiter_losses(
         loss_rate_HeIII = nHeIII / tau_HeIII
         loss_rate_HeIII[~sol_mask] = 0.0
         
+        # Rate limiting
+        loss_rate_HeIII = limit_loss_rate(loss_rate_HeIII, nHeIII, dt, accur)
+        
         dn['HeIII'][sol_mask] -= loss_rate_HeIII[sol_mask]
-        dE['HeIII'][sol_mask] -= (1.5 * THeIII * nHeIII / (tau_HeIII / gElim))[sol_mask]
+        dE['HeIII'][sol_mask] -= (loss_rate_HeIII * 1.5 * THeIII)[sol_mask]
         dn['e'][sol_mask] -= Z * loss_rate_HeIII[sol_mask]
         dE['e'][sol_mask] -= (Z * loss_rate_HeIII * 1.5 * Te)[sol_mask]
         

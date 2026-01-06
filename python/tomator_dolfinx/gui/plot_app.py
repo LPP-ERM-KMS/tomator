@@ -46,10 +46,81 @@ COLORS = [
 ]
 
 # Column name mappings (Python output uses different names than C++)
-# Python: 't', 'R'
-# C++: 'tmain', 'RadialPositions'
+# Python: 't', 'R', 'Te'
+# C++: 'tmain', 'RadialPositions', compute Te from Ee/ne
+# These are defaults, will be auto-detected from CSV
 TIME_COL = 't'
 RADIAL_COL = 'R'
+IS_CPP_FORMAT = False  # Will be set by detect_column_names
+
+
+def detect_column_names(dataframe):
+    """
+    Auto-detect column names for time and radial position.
+
+    Supports both Python format ('t', 'R', 'Te') and C++ format ('tmain', 'RadialPositions').
+    For C++ format, Te is computed from Ee/ne.
+    """
+    global TIME_COL, RADIAL_COL, IS_CPP_FORMAT
+
+    # Detect time column
+    if 'tmain' in dataframe.columns:
+        TIME_COL = 'tmain'
+        IS_CPP_FORMAT = True
+    elif 't' in dataframe.columns:
+        TIME_COL = 't'
+        IS_CPP_FORMAT = False
+    else:
+        raise ValueError("Could not find time column ('t' or 'tmain') in CSV")
+
+    # Detect radial column
+    if 'RadialPositions' in dataframe.columns:
+        RADIAL_COL = 'RadialPositions'
+    elif 'R' in dataframe.columns:
+        RADIAL_COL = 'R'
+    else:
+        raise ValueError("Could not find radial column ('R' or 'RadialPositions') in CSV")
+
+    print_blue(f"Detected format: {'C++' if IS_CPP_FORMAT else 'Python'}")
+    print_blue(f"Column names: TIME_COL='{TIME_COL}', RADIAL_COL='{RADIAL_COL}'")
+
+
+def add_computed_temperatures(dataframe):
+    """
+    Add computed temperature columns for C++ format data.
+
+    C++ outputs Ee (energy) but not Te (temperature).
+    Compute T = (2/3) * E / n for each species.
+    """
+    if not IS_CPP_FORMAT:
+        return dataframe
+
+    df_out = dataframe.copy()
+
+    # Compute Te from Ee and ne
+    if 'Ee' in df_out.columns and 'ne' in df_out.columns:
+        df_out['Te'] = (2.0 / 3.0) * df_out['Ee'] / df_out['ne'].replace(0, np.nan)
+        df_out['Te'] = df_out['Te'].fillna(0)
+
+    # Compute T for other species
+    species_pairs = [
+        ('EH', 'nH', 'TH'),
+        ('EHi', 'nHi', 'THi'),
+        ('EH2', 'nH2', 'TH2'),
+        ('EH2i', 'nH2i', 'TH2i'),
+        ('EH3i', 'nH3i', 'TH3i'),
+        ('EHeI', 'nHeI', 'THeI'),
+        ('EHeII', 'nHeII', 'THeII'),
+        ('EHeIII', 'nHeIII', 'THeIII'),
+    ]
+
+    for E_col, n_col, T_col in species_pairs:
+        if E_col in df_out.columns and n_col in df_out.columns:
+            df_out[T_col] = (2.0 / 3.0) * df_out[E_col] / df_out[n_col].replace(0, np.nan)
+            df_out[T_col] = df_out[T_col].fillna(0)
+
+    return df_out
+
 
 # =============================================================================
 # Global state
@@ -708,9 +779,10 @@ def update_data(
     # Read updated data
     try:
         df = pd.read_csv(DATA_FILE)
+        df = add_computed_temperatures(df)
     except (pd.errors.EmptyDataError, pd.errors.ParserError):
         return
-    
+
     if len(df) == 0:
         return
     
@@ -804,9 +876,16 @@ def modify_doc(doc):
             return
     
     print_blue(f"Loading data from: {DATA_FILE}")
-    
+
     # Load initial data
     df = pd.read_csv(DATA_FILE)
+
+    # Auto-detect column names (Python vs C++ format)
+    detect_column_names(df)
+
+    # Add computed temperatures for C++ format
+    df = add_computed_temperatures(df)
+
     radial_positions = df[RADIAL_COL].unique().tolist()
     timestamps = df[TIME_COL].unique().tolist()
     

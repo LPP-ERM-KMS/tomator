@@ -109,6 +109,87 @@ bool bcx = true;
 bool belas = true;
 bool bcoulomb = true;
 bool bimpur = false;
+
+// Individual reaction flags (for debugging/validation) - all true by default
+// bH section reactions
+bool bH_exc = true;       // Reaction 2.1.1-2.1.4b H excitation
+bool bH_ion = true;       // Reaction 2.1.5-2.1.7 H ionization
+bool bH_3body = true;     // 3-body recombination (e + e + H+ -> e + H)
+bool bH_rec = true;       // Reaction 2.1.8a H radiative recombination
+
+// bH2 section reactions
+bool bH2_elas = true;     // H2 elastic scattering
+bool bH2_exc = true;      // Reaction 2.2.1-2.2.4 H2 excitation
+bool bH2_dis = true;      // Reaction 2.2.5-2.2.8 H2 dissociation
+bool bH2_ion = true;      // Reaction 2.2.9 H2 ionization
+bool bH2i_rec = true;     // H2+ recombination
+bool bH2_dision = true;   // Reaction 2.2.10 H2 dissociative ionization
+bool bH2i_dis = true;     // Reaction 2.2.12 H2+ dissociation
+bool bH2i_disexc = true;  // Reaction 2.2.13 H2+ dissociative excitation
+bool bH2i_disrec = true;  // Reaction 2.2.14 H2+ dissociative recombination
+bool bH3i_disrec = true;  // Reaction 2.2.15 H3+ dissociative recombination
+bool bH3i_dis = true;     // Reaction 2.2.16 H3+ dissociation
+
+// bHe section reactions
+bool bHeI_ion = true;     // Reaction 2.3.9-2.3.12 HeI ionization
+bool bHeII_ion = true;    // Reaction 2.3.19 HeII ionization
+bool bHe_cooling = true;  // He cooling (ADAS or IAEA)
+bool bHeII_rec = true;    // Reaction 2.3.13 HeII recombination
+bool bHeIII_rec = true;   // HeIII recombination
+
+// bcx section reactions
+bool bcx_HiH = true;      // Reaction 3.1.8-3.1.11 H+ + H charge exchange
+bool bcx_HiH2 = true;     // Reaction 3.2.3 H+ + H2 charge exchange
+bool bcx_H2iH2 = true;    // Reaction 4.3.1 H2+ + H2 charge exchange
+bool bcx_HeIIH = true;    // He+ + H charge exchange
+bool bcx_HeIIHeI = true;  // Reaction 5.3.1 He+ + He charge exchange
+bool bcx_HeIIIH = true;   // He++ + H charge exchange
+bool bcx_HeIIIHeI = true; // Reaction 6.3.1 He++ + He charge exchange
+
+// bion section reactions
+bool bion_HiH_exca = true;    // Reaction 3.1.1 H+ + H excitation a
+bool bion_HiH_excb = true;    // Reaction 3.1.2 H+ + H excitation b
+bool bion_HiH2_exca = true;   // Reaction 3.2.1 H+ + H2 excitation a
+bool bion_HiH2_excb = true;   // Reaction 3.2.2 H+ + H2 excitation b
+bool bion_HiH_ion = true;     // Reaction 3.1.6 H+ + H ionization
+bool bion_HiHeI_ion = true;   // Reaction 3.3.2 H+ + He ionization
+bool bion_HiH2_325 = true;    // Reaction 3.2.5 H+ + H2
+bool bion_HiH2i_326 = true;   // Reaction 3.2.6 H+ + H2+
+bool bion_H2iH2_H3i = true;   // Reaction 4.3.3 H2+ + H2 -> H3+
+bool bion_HeIIH2_cxdis = true; // Reaction 5.2.3 He+ + H2 charge exchange dissociation
+
+// belas section reactions
+bool belas_HiH = true;      // Hi + H elastic
+bool belas_H2iH = true;     // H2i + H elastic
+bool belas_H3iH = true;     // H3i + H elastic
+bool belas_HeIIH = true;    // HeII + H elastic
+bool belas_HiH2 = true;     // Hi + H2 elastic
+bool belas_H2iH2 = true;    // H2i + H2 elastic
+bool belas_H3iH2 = true;    // H3i + H2 elastic
+bool belas_HeIIH2 = true;   // HeII + H2 elastic
+bool belas_HHeI = true;     // H + HeI elastic
+bool belas_HiHeI = true;    // Hi + HeI elastic
+bool belas_HeIIHeI = true;  // HeII + HeI elastic
+bool belas_HH2 = true;      // H + H2 elastic
+bool belas_HeIH2 = true;    // HeI + H2 elastic
+bool belas_HeIHeI = true;   // HeI + HeI elastic
+bool belas_H2H2 = true;     // H2 + H2 elastic
+bool belas_HH = true;       // H + H elastic
+
+// bcoulomb section reactions
+bool bcoulomb_ee = true;      // electron-electron
+bool bcoulomb_eHi = true;     // electron-Hi
+bool bcoulomb_eH2i = true;    // electron-H2i
+bool bcoulomb_eH3i = true;    // electron-H3i
+bool bcoulomb_eHeII = true;   // electron-HeII
+bool bcoulomb_eHeIII = true;  // electron-HeIII
+bool bcoulomb_HiH2i = true;   // Hi-H2i
+bool bcoulomb_HiH3i = true;   // Hi-H3i
+bool bcoulomb_HiHeII = true;  // Hi-HeII
+bool bcoulomb_H2iH3i = true;  // H2i-H3i
+bool bcoulomb_H2iHeII = true; // H2i-HeII
+bool bcoulomb_H3iHeII = true; // H3i-HeII
+
 bool btranspions = true;
 bool btranspneut = true;
 bool bedge = true;

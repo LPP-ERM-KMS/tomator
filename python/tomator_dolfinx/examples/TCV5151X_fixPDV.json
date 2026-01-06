@@ -124,7 +124,7 @@
         "nebackgroundr": {"value": 0.001, "unit": "-"},
         "Ta0": {"value": 0.02587, "unit": "eV"},
         "Te0": {"value": 3.0, "unit": "eV"},
-        "nevac": {"value": 1e0, "unit": "cm⁻³"},
+        "nevac": {"value": 1e3, "unit": "cm⁻³"},
         "nH0": {"value": 2e6, "unit": "cm⁻³"},
         "nHi0": {"value": 1e6, "unit": "cm⁻³"},
         "nH2i0": {"value": 1e6, "unit": "cm⁻³"},

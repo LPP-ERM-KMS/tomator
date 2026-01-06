@@ -124,7 +124,7 @@
         "nebackgroundr": {"value": 0.001, "unit": "-"},
         "Ta0": {"value": 0.02587, "unit": "eV"},
         "Te0": {"value": 3.0, "unit": "eV"},
-        "nevac": {"value": 1e7, "unit": "cm⁻³"},
+        "nevac": {"value": 1e3, "unit": "cm⁻³"},
         "nH0": {"value": 2e6, "unit": "cm⁻³"},
         "nHi0": {"value": 1e6, "unit": "cm⁻³"},
         "nH2i0": {"value": 1e6, "unit": "cm⁻³"},
@@ -155,9 +155,9 @@
     "time_step": {
         "t0": {"value": 0.0, "unit": "s"},
         "tmainend": {"value": 1.0, "unit": "s"},
-        "accur": {"value": 0.1, "unit": "-"},
+        "accur": {"value": 0.05, "unit": "-"},
         "dtmax": {"value": 1e-4, "unit": "s"},
-        "dtmin": {"value": 1e-5, "unit": "s"},
+        "dtmin": {"value": 1e-6, "unit": "s"},
         "dtinit": {"value": 1e-9, "unit": "s"},
         "maxtstepincrement": {"value": 1.5, "unit": "-"}
     },
@@ -176,6 +176,6 @@
         "Nloopsave": {"value": 5000, "unit": "-"},
         "bOutdt": {"value": true, "unit": "-"},
         "dtsave": {"value": 0.0005, "unit": "s"},
-        "profile": true
+        "profile": false
     }
 }

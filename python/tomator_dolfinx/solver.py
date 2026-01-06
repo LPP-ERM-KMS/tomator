@@ -1149,6 +1149,8 @@ class BDF2Solver:
         
         Equivalent to C++ limiters() function.
         Particles in SOL region (r < lHFS or r > lLFS) are lost to limiters.
+        
+        Loss rates are limited based on accur to prevent instabilities.
         """
         dn_lim, dE_lim = compute_limiter_losses(
             R_positions=self.radial_positions,
@@ -1167,7 +1169,9 @@ class BDF2Solver:
             THeII=self._get_species_T('HeII'),
             nHeIII=self._get_species_n('HeIII'),
             THeIII=self._get_species_T('HeIII'),
-            Ta0=self.params.get('Ta0', 0.026)
+            Ta0=self.params.get('Ta0', 0.026),
+            dt=self.dt,
+            accur=self.accuracy
         )
         self._merge_sources(dn_sources, dn_lim)
         self._merge_sources(dE_sources, dE_lim)
@@ -1271,7 +1275,9 @@ class BDF2Solver:
                 THeII=self._get_species_T('HeII'),
                 nHeIII=self._get_species_n('HeIII'),
                 THeIII=self._get_species_T('HeIII'),
-                Ta0=self.params.get('Ta0', 0.026)
+                Ta0=self.params.get('Ta0', 0.026),
+                dt=self.dt,
+                accur=self.accuracy
             )
             self._merge_sources(dn_sources, dn_lim)
             self._merge_sources(dE_sources, dE_lim)
@@ -1518,6 +1524,27 @@ class BDF2Solver:
         scale = np.where(ne_before > 1e-30, ne_after / ne_before, 1.0)
         self.state.electrons.E.x.array[:] *= scale
 
+    def _recompute_energy_from_temperature(self) -> None:
+        """
+        Recompute E = 1.5 * n * T for all species to ensure consistency.
+        
+        Called after temperature clamps to guarantee E and T are consistent.
+        This is the final step of post-solve corrections.
+        """
+        ENERGY_FACTOR = 1.5
+        
+        # All heavy species (ions and neutrals)
+        for species in self.state.all_species:
+            n_arr = species.n.x.array
+            T_arr = species.T  # T property computes E / (1.5 * n)
+            species.E.x.array[:] = ENERGY_FACTOR * n_arr * T_arr
+        
+        # Electrons
+        if self.state.electrons is not None:
+            n_arr = self.state.electrons.n.x.array
+            T_arr = self.state.electrons.T
+            self.state.electrons.E.x.array[:] = ENERGY_FACTOR * n_arr * T_arr
+
     # =========================================================================
     # Main time stepping method
     # =========================================================================
@@ -1693,26 +1720,9 @@ class BDF2Solver:
                 _dbg("After neutral solve:", {
                     'nH': self._get_species_n('H'),
                 })
-        
+                
         # ================================================================
-        # STEP 7: Apply density floors and temperature clamps
-        # CRITICAL for stability (matching C++)
-        # ================================================================
-        tic('floors_clamps')
-        self._apply_density_floors()
-        self._apply_temperature_clamps()
-        toc('floors_clamps')
-        
-        # Update electron density from quasi-neutrality
-        tic('electron_density')
-        self.state.compute_electron_density()
-        toc('electron_density')
-        
-        if debug:
-            _dbg("After QN ne update:", {'ne': self.state.electrons.n})
-        
-        # ================================================================
-        # STEP 8: Solve electron energy equation
+        # STEP 7: Solve electron energy equation
         # ================================================================
         tic('solve_electron_E')
         self._solve_electron_energy(dE_sources)
@@ -1722,23 +1732,41 @@ class BDF2Solver:
             _dbg("After energy solve:", {'Te': self.state.electrons.T})
         
         # ================================================================
-        # STEP 9: Limit solution change and adapt timestep
+        # STEP 8: Post-solve corrections (matching C++ order)
+        # Order: density floors → QN + Ee scaling → temperature clamps → E consistency
+        # ================================================================
+        tic('floors_clamps')
+        
+        # 1. Apply density floors to ions (preserves T by scaling E)
+        self._apply_density_floors()
+        
+        # 2. Recompute ne from quasi-neutrality and scale Ee to preserve Te
+        #    This matches C++: Er.Ee[im] = Er.Ee[im] * neh / nr.ne[im]
+        self._recompute_electron_density_preserve_temperature()
+        
+        # 3. Apply temperature clamps (adjusts E to enforce T bounds)
+        self._apply_temperature_clamps()
+        
+        # 4. Recompute E = 1.5 * n * T for all species to ensure consistency
+        self._recompute_energy_from_temperature()
+        
+        toc('floors_clamps')
+        
+        if debug:
+            _dbg("After post-solve corrections:", {'ne': self.state.electrons.n, 'Te': self.state.electrons.T})
+
+        # ================================================================
+        # STEP 9: Adapt timestep based on solution change
         # ================================================================
         tic('limit_adapt')
-        # Solver-level limiting disabled - reaction-level limiting in collisions.py handles this
-        # max_change_raw, max_change_limited = self._limit_solution_change()
-        max_change_raw = self._compute_max_change()
-        max_change_limited = max_change_raw
-        
-        # Recompute ne after ion limiting, preserve Te
-        self._recompute_electron_density_preserve_temperature()
+        max_change = self._compute_max_change()
 
-        if debug and max_change_limited >= self.accuracy:
-            print(f"  [LIMITED] max_change {max_change_raw:.3e} -> {max_change_limited:.3e}")
+        if debug:
+            print(f"  [TIMESTEP] max_change={max_change:.3e}, target={self.accuracy:.3e}")
         
-        # Adapt timestep based on raw change
+        # Adapt timestep based on change
         dt_taken = self.dt
-        self._adapt_timestep(max_change_raw)
+        self._adapt_timestep(max_change)
         
         # Store previous solutions for BDF2
         self.state.store_all_previous()
@@ -1761,17 +1789,16 @@ class BDF2Solver:
     
     def _apply_density_floors(self) -> None:
         """
-        Apply density floor clamping to all ion species.
+        Apply density floor clamping to all ion species while preserving temperature.
         
         This matches C++ Tomator1D timeStep.cpp:
         - nevac = 1.0 cm⁻³ = 1e6 m⁻³ is the floor for all ion densities
-        - When density is below floor, set temperature to vacuum temperature Ta0
+        - When density is below floor, scale E to preserve T: E *= nevac/n
+        
+        Neutrals are NOT floored (they can be very dilute in vacuum regions).
         """
         # nevac from C++: 1.0 cm⁻³ = 1e6 m⁻³ in SI units
         nevac_si = self.params.get('nevac', 1.0) * 1e6  # Convert cm⁻³ to m⁻³
-        
-        # Vacuum temperature (Ta0) for low-density regions
-        Ta0 = self.params.get('Ta0', 0.026)  # [eV]
         
         # Apply floors to all ion species
         ion_names = ['Hi', 'H2i', 'H3i', 'HeII', 'HeIII']
@@ -1788,29 +1815,12 @@ class BDF2Solver:
             below_floor = n_arr < nevac_si
             
             if np.any(below_floor):
-                # Set energy such that T = Ta0 at low-density points
-                # E = 1.5 * n * T, so E = 1.5 * nevac * Ta0
-                E_arr[below_floor] = 1.5 * nevac_si * Ta0
+                # Scale E to preserve T: E_new = E_old * (nevac / n_old)
+                # This matches C++: Er.EHi[im] = Er.EHi[im] * nevac / nr.nHi[im]
+                E_arr[below_floor] *= nevac_si / n_arr[below_floor]
                 
                 # Clamp density to floor
                 n_arr[below_floor] = nevac_si
-        
-        # Also apply floor to neutral species (optional, for stability)
-        neutral_names = ['H', 'H2', 'HeI']
-        for name in neutral_names:
-            if name not in self.state.species:
-                continue
-            species = self.state.species[name]
-            n_arr = species.n.x.array
-            E_arr = species.E.x.array
-            
-            # Use smaller floor for neutrals since they can be very dilute
-            # but still set temperature to Ta0 where density is very low
-            neutral_floor = 1e-10
-            below_floor = n_arr < neutral_floor
-            if np.any(below_floor):
-                E_arr[below_floor] = 1.5 * neutral_floor * Ta0
-                n_arr[below_floor] = neutral_floor
     
     def _apply_temperature_clamps(self) -> None:
         """
@@ -1820,13 +1830,13 @@ class BDF2Solver:
         The temperature T = E / (1.5 * n) can blow up if n is small.
         We enforce E <= 1.5 * n * T_max for all species.
         
-        Temperature limits (matching collisions.py):
+        Temperature limits (matching C++ Tomator1D):
         - Heavy particles (ions, neutrals): T_max = 1000 eV
-        - Electrons: T_max = 20000 eV
+        - Electrons: T_max = 1000 eV
         """
         T_MIN = 0.026  # Room temperature
         T_MAX_HEAVY = 1000.0  # Max for ions/neutrals
-        T_MAX_ELECTRON = 2e4  # Max for electrons
+        T_MAX_ELECTRON = 1000.0  # Max for electrons (matching C++)
         
         # Apply to all heavy species
         all_names = ['Hi', 'H2i', 'H3i', 'HeII', 'HeIII', 'H', 'H2', 'HeI']
