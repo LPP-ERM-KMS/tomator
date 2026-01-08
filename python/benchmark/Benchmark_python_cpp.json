@@ -8,8 +8,8 @@
         "R": 88.0,
         "a": 28.0,
         "b": 75.0,
-        "lHFS": 62.408,
-        "lLFS": 113.592,
+        "lHFS": 60,
+        "lLFS": 116,
         "nlimiters": 6,
         "Vpl": 56100.0
     },
@@ -119,9 +119,10 @@
         "btranspions": true,
         "btranspneut": true,
         "bedge": true,
-        "bpol": true,
-        "vdrift": true,
-        "bcoll": true
+        "bpol": false,
+        "vdrift": false,
+        "bcoll": true,
+        "bADAS": true
     },
     "initial_conditions": {
         "rmaxini": 91.85,
@@ -148,7 +149,10 @@
         "gEd": 1.6667,
         "gEv": 1.6667,
         "gEdn": 1.6667,
-        "gEe": 1.6667
+        "gEe": 1.6667,
+        "fixBC": true,
+        "fixBC_value": 0.02,
+        "bNeutrFluxEnergyBC": false
     },
     "simulation_grid": {
         "nmeshp": 161
@@ -160,8 +164,8 @@
         "t0": 0.0,
         "tmainend": 1.0,
         "accur": 0.05,
-        "dtmax": 1e-4,
-        "dtmin": 1e-5,
+        "dtmax": 1e-5,
+        "dtmin": 1e-9,
         "dtinit": 1e-9
     },
     "time_step_for_rf_coupling": {
@@ -192,6 +196,10 @@
         "dtsave": 0.0005
     },
     "solver_parameters": {
-        "solvertolerance": 1e-10
+        "solvertolerance": 1e-9,
+        "operator_splitting": false,
+        "max_newton_iter": 20,
+        "newton_tol": 1e-8,
+        "bRateLimiting": false
     }
 }

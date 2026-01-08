@@ -16,6 +16,21 @@ PYTHON_OUTPUT_DIR="$SCRIPT_DIR/python"
 # Conda environment
 CONDA_ENV="t1dl-env"
 
+# Find an available port (random in range 5100-5999)
+find_available_port() {
+    local port
+    for _ in {1..50}; do
+        port=$((5100 + RANDOM % 900))
+        # Check if port is available using /dev/tcp
+        if ! (echo >/dev/tcp/localhost/$port) 2>/dev/null; then
+            echo "$port"
+            return 0
+        fi
+    done
+    # Fallback: return a random port and hope for the best
+    echo "$((5100 + RANDOM % 900))"
+}
+
 # Find the latest Res_*.csv file in a directory (searches subdirectories too)
 find_latest_result() {
     local dir="$1"
@@ -62,7 +77,8 @@ case "$MODE" in
             echo "No C++ result files found in $CPP_OUTPUT_DIR"
             exit 1
         fi
-        launch_plotter "$CPP_FILE" "C++" 5006
+        PORT=$(find_available_port)
+        launch_plotter "$CPP_FILE" "C++" "$PORT"
         ;;
     
     python)
@@ -71,7 +87,8 @@ case "$MODE" in
             echo "No Python result files found in $PYTHON_OUTPUT_DIR"
             exit 1
         fi
-        launch_plotter "$PYTHON_FILE" "Python" 5006
+        PORT=$(find_available_port)
+        launch_plotter "$PYTHON_FILE" "Python" "$PORT"
         ;;
     
     both)
@@ -84,14 +101,15 @@ case "$MODE" in
         fi
         
         if [ -n "$CPP_FILE" ]; then
-            launch_plotter "$CPP_FILE" "C++" 5006
+            PORT=$(find_available_port)
+            launch_plotter "$CPP_FILE" "C++" "$PORT"
         else
             echo "No C++ result files found"
         fi
         
         if [ -n "$PYTHON_FILE" ]; then
-            # Use different port for second plotter
-            launch_plotter "$PYTHON_FILE" "Python" 5007
+            PORT=$(find_available_port)
+            launch_plotter "$PYTHON_FILE" "Python" "$PORT"
         else
             echo "No Python result files found"
         fi
@@ -99,9 +117,9 @@ case "$MODE" in
     
     *)
         echo "Usage: $0 [cpp|python|both]"
-        echo "  cpp    - Plot latest C++ result (port 5006)"
-        echo "  python - Plot latest Python result (port 5006)"
-        echo "  both   - Plot both results (ports 5006 & 5007)"
+        echo "  cpp    - Plot latest C++ result"
+        echo "  python - Plot latest Python result"
+        echo "  both   - Plot both results"
         exit 1
         ;;
 esac

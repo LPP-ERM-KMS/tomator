@@ -25,9 +25,9 @@ run_python() {
     # Create output directory
     mkdir -p "$PYTHON_OUTPUT_DIR"
     
-    # Run Python version
+    # Run Python version with unbuffered output (-u flag)
     cd "$TOMATOR_PYTHON_DIR"
-    python examples/run_from_json.py "$JSON_FILE" -o "$PYTHON_OUTPUT_DIR"
+    python -u examples/run_from_json.py "$JSON_FILE" -o "$PYTHON_OUTPUT_DIR" # --no-plot
     
     echo "Python output saved to: $PYTHON_OUTPUT_DIR"
 }
