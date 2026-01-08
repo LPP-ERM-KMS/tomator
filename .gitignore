@@ -3,6 +3,7 @@
 *.dat
 *.log
 *.mod
+Res*.csv
 src/build
 tests/*.txt
 
@@ -11,3 +12,9 @@ __pycache__/
 *.pyc
 *.pyo
 TomatorResults/
+# Test folders not to track
+other_tests/
+
+# Compiled test binaries
+test_collisions_cpp
+test_single_collision

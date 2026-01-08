@@ -28,25 +28,40 @@
 
 using namespace std;
 
-// Test conditions
-const double TEST_Te = 10.0;       // eV
-const double TEST_ne = 1e12;       // cm^-3 (C++ uses CGS internally)
-const double TEST_TH = 0.5;        // eV
-const double TEST_nH = 1e10;       // cm^-3
-const double TEST_THi = 8.0;       // eV
-const double TEST_nHi = 9e11;      // cm^-3
-const double TEST_TH2 = 0.3;       // eV
-const double TEST_nH2 = 5e9;       // cm^-3
-const double TEST_TH2i = 2.0;      // eV
-const double TEST_nH2i = 1e9;      // cm^-3
-const double TEST_TH3i = 1.5;      // eV
-const double TEST_nH3i = 1e8;      // cm^-3
-const double TEST_THeI = 0.5;      // eV
-const double TEST_nHeI = 1e10;     // cm^-3
-const double TEST_THeII = 5.0;     // eV
-const double TEST_nHeII = 5e9;     // cm^-3
-const double TEST_THeIII = 10.0;   // eV
-const double TEST_nHeIII = 1e8;    // cm^-3
+// Helper to read environment variable with default
+double getEnvDouble(const char* name, double defaultVal) {
+    const char* val = getenv(name);
+    if (val) return atof(val);
+    return defaultVal;
+}
+
+// Test conditions - read from environment variables if available
+// All densities in cm^-3 (C++ CGS), all temperatures in eV
+double TEST_Te, TEST_ne, TEST_TH, TEST_nH, TEST_THi, TEST_nHi;
+double TEST_TH2, TEST_nH2, TEST_TH2i, TEST_nH2i, TEST_TH3i, TEST_nH3i;
+double TEST_THeI, TEST_nHeI, TEST_THeII, TEST_nHeII, TEST_THeIII, TEST_nHeIII;
+
+void init_test_conditions() {
+    // Read from environment variables, with defaults matching original values
+    TEST_Te = getEnvDouble("TEST_Te", 10.0);
+    TEST_ne = getEnvDouble("TEST_ne", 1e12);
+    TEST_TH = getEnvDouble("TEST_TH", 0.5);
+    TEST_nH = getEnvDouble("TEST_nH", 1e10);
+    TEST_THi = getEnvDouble("TEST_THi", 8.0);
+    TEST_nHi = getEnvDouble("TEST_nHi", 9e11);
+    TEST_TH2 = getEnvDouble("TEST_TH2", 0.3);
+    TEST_nH2 = getEnvDouble("TEST_nH2", 5e9);
+    TEST_TH2i = getEnvDouble("TEST_TH2i", 2.0);
+    TEST_nH2i = getEnvDouble("TEST_nH2i", 1e9);
+    TEST_TH3i = getEnvDouble("TEST_TH3i", 1.5);
+    TEST_nH3i = getEnvDouble("TEST_nH3i", 1e8);
+    TEST_THeI = getEnvDouble("TEST_THeI", 0.5);
+    TEST_nHeI = getEnvDouble("TEST_nHeI", 1e10);
+    TEST_THeII = getEnvDouble("TEST_THeII", 5.0);
+    TEST_nHeII = getEnvDouble("TEST_nHeII", 5e9);
+    TEST_THeIII = getEnvDouble("TEST_THeIII", 10.0);
+    TEST_nHeIII = getEnvDouble("TEST_nHeIII", 1e8);
+}
 
 void set_all_flags_false() {
     // Main section flags - keep true so individual flags control reactions
@@ -56,7 +71,7 @@ void set_all_flags_false() {
     bcx = true;
     bion = true;
     belas = true;
-    bcoulomb = false;  // Disable for cleaner comparison
+    bcoulomb = false;  // Individual Coulomb flags will control this
     bADAS = true;      // Use ADAS tables to match Python default
     
     // Individual bH flags
@@ -125,7 +140,88 @@ void set_all_flags_false() {
     belas_HeIIH2 = false;
 }
 
+void set_all_flags_true() {
+    // Main section flags
+    bH = true;
+    bH2 = true;
+    bHe = true;
+    bcx = true;
+    bion = true;
+    belas = true;
+    bcoulomb = true;  // Include Coulomb in ALL_ENABLED test
+    bADAS = true;      // Use ADAS tables to match Python default
+    
+    // Individual bH flags
+    bH_exc = true;
+    bH_ion = true;
+    bH_3body = true;
+    bH_rec = true;
+    
+    // Individual bH2 flags
+    bH2_elas = true;
+    bH2_exc = true;
+    bH2_dis = true;
+    bH2_ion = true;
+    bH2i_rec = true;
+    bH2_dision = true;
+    bH2i_dis = true;
+    bH2i_disexc = true;
+    bH2i_disrec = true;
+    bH3i_disrec = true;
+    bH3i_dis = true;
+    
+    // Individual bHe flags
+    bHeI_ion = true;
+    bHeII_ion = true;
+    bHe_cooling = true;
+    bHeII_rec = true;
+    bHeIII_rec = true;
+    
+    // Individual bcx flags
+    bcx_HiH = true;
+    bcx_HiH2 = true;
+    bcx_H2iH2 = true;
+    bcx_HeIIH = true;
+    bcx_HeIIHeI = true;
+    bcx_HeIIIH = true;
+    bcx_HeIIIHeI = true;
+    
+    // Individual bion flags
+    bion_HiH_exca = true;
+    bion_HiH_excb = true;
+    bion_HiH_ion = true;
+    bion_HiH2_exca = true;
+    bion_HiH2_excb = true;
+    bion_HiH2_325 = true;
+    bion_HiH2i_326 = true;
+    bion_H2iH2_H3i = true;
+    bion_HiHeI_ion = true;
+    bion_HeIIH2_cxdis = true;
+    
+    // Individual belas flags
+    belas_HiH = true;
+    belas_HH = true;
+    belas_HH2 = true;
+    belas_HiH2 = true;
+    belas_H2iH = true;
+    belas_H2iH2 = true;
+    belas_H3iH = true;
+    belas_H3iH2 = true;
+    belas_H2H2 = true;
+    belas_HHeI = true;
+    belas_HeIIH = true;
+    belas_HiHeI = true;
+    belas_HeIIHeI = true;
+    belas_HeIHeI = true;
+    belas_HeIH2 = true;
+    belas_HeIIH2 = true;
+}
+
 bool set_flag_by_name(const string& flag_name) {
+    // Special case: enable all flags
+    if (flag_name == "ALL_ENABLED") { set_all_flags_true(); return true; }
+    // Special case: enable Coulomb collisions
+    if (flag_name == "COULOMB_ALL") { bcoulomb = true; return true; }
     // bH flags
     if (flag_name == "bH_exc") { bH_exc = true; return true; }
     if (flag_name == "bH_ion") { bH_ion = true; return true; }
@@ -255,11 +351,16 @@ void output_json() {
     cout << "  }," << endl;
     
     // nu (collision frequencies)
+    // Note: nuH, nuH2, nuHeI are stored in colrate (not accumulated to colrateRF)
+    // while ion nu values are accumulated to colrateRF
     cout << "  \"nu\": {" << endl;
     cout << "    \"e\": " << colrateRF.nue[0] << "," << endl;
+    cout << "    \"H\": " << colrate.nuH[0] << "," << endl;
     cout << "    \"Hi\": " << colrateRF.nuHi[0] << "," << endl;
+    cout << "    \"H2\": " << colrate.nuH2[0] << "," << endl;
     cout << "    \"H2i\": " << colrateRF.nuH2i[0] << "," << endl;
     cout << "    \"H3i\": " << colrateRF.nuH3i[0] << "," << endl;
+    cout << "    \"HeI\": " << colrate.nuHeI[0] << "," << endl;
     cout << "    \"HeII\": " << colrateRF.nuHeII[0] << "," << endl;
     cout << "    \"HeIII\": " << colrateRF.nuHeIII[0] << endl;
     cout << "  }" << endl;
@@ -275,6 +376,9 @@ int main(int argc, char* argv[]) {
     }
     
     string flag_name = argv[1];
+    
+    // Initialize test conditions from environment variables
+    init_test_conditions();
     
     // Initialize reaction rate data from hydhel.tex file
     // Try multiple possible paths
@@ -315,6 +419,13 @@ int main(int argc, char* argv[]) {
     
     // Setup test conditions
     setup_test_conditions();
+    
+    // Debug: print actual conditions being used
+    cerr << "DEBUG: Actual conditions:" << endl;
+    cerr << "  Te=" << Tr.Te[0] << ", ne=" << nr.ne[0] << endl;
+    cerr << "  THi=" << Tr.THi[0] << ", nHi=" << nr.nHi[0] << endl;
+    cerr << "  THeII=" << Tr.THeII[0] << ", nHeII=" << nr.nHeII[0] << endl;
+    cerr << "  THeIII=" << Tr.THeIII[0] << ", nHeIII=" << nr.nHeIII[0] << endl;
     
     // Run collisions
     collisions();

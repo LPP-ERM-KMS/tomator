@@ -38,6 +38,13 @@ T_MIN = 0.026  # Room temperature ~0.026 eV
 T_MAX_HEAVY = 1000.0  # Max for ions/neutrals (matching C++ RRH3)
 T_MAX_ELECTRON = 2e4  # Max for electrons (matching C++ RR)
 
+# Momentum transfer factor for e + H2 collisions (from C++ collisions.cpp)
+# sqrt((2*me)/(me + 2*mi)) where mi = mH (proton mass)
+# In atomic units: me = 1/1836.15, mi = 1, so mH2 = 2*mi
+# Factor = sqrt((2 * me) / (me + 2*mi)) ≈ sqrt(2/1836.15 / (1/1836.15 + 2)) ≈ 0.0233
+ME_OVER_MP = 1.0 / 1836.15  # me/mp ratio
+NU_FACTOR_EH2 = np.sqrt((2 * ME_OVER_MP) / (ME_OVER_MP + 2.0))  # ~0.0233
+
 
 def ndamp(n_cgs: np.ndarray, nevac: float = 1.0) -> np.ndarray:
     """
@@ -78,47 +85,6 @@ def safe_rate(k, *densities):
         # Replace inf/nan with max value
         result = np.where(np.isfinite(result), result, np.sign(result) * MAX_RATE)
         return np.clip(result, -MAX_RATE, MAX_RATE)
-
-
-def limit_rate(rate: np.ndarray, densities: list, dt: float, accur: float) -> np.ndarray:
-    """
-    Limit reaction rate so relative density changes don't exceed accur.
-    
-    For each species density provided (should exclude electrons), the rate
-    is limited such that |rate * dt / n| <= accur. This applies to both
-    consumed and produced species.
-    
-    Parameters
-    ----------
-    rate : np.ndarray
-        Reaction rate [m^-3/s].
-    densities : list of np.ndarray
-        Densities of all non-electron species involved in the reaction [m^-3].
-    dt : float
-        Time step [s].
-    accur : float
-        Maximum allowed relative change per timestep.
-        
-    Returns
-    -------
-    limited_rate : np.ndarray
-        Rate limited to satisfy |rate * dt / n| <= accur for all species.
-    """
-    if dt is None or accur is None or len(densities) == 0:
-        return rate
-    
-    limited = rate.copy()
-    for n in densities:
-        # Maximum allowed rate: |rate * dt / n| <= accur => rate <= accur * n / dt
-        n_safe = np.maximum(np.abs(n), 1e-30)
-        max_rate = accur * n_safe / dt
-        # Limit where rate exceeds max_rate
-        exceed = np.abs(limited) > max_rate
-        if np.any(exceed):
-            # Scale down while preserving sign
-            limited[exceed] = np.sign(limited[exceed]) * max_rate[exceed]
-    
-    return limited
 
 
 class SourceTerms:
@@ -184,8 +150,6 @@ def compute_collision_sources(
     include_elastic: bool = True,
     include_coulomb: bool = True,
     match_cpp_reactions: bool = False,
-    dt: float = None,
-    accur: float = None,
     # Individual reaction flags (matching C++ collisions.cpp)
     # bH section
     bH_exc: bool = True,       # H excitation
@@ -414,7 +378,6 @@ def compute_collision_sources(
         if bH_ion:
             k_ion = rates.H_ionization(Te) * ndamp(nH_cgs) * CM3_TO_M3
             rate_ion = safe_rate(k_ion, ne, nH)
-            rate_ion = limit_rate(rate_ion, [nH, nHi], dt, accur)  # Limit by H (consumed) and Hi (produced)
             
             dn['H'] -= rate_ion
             dn['Hi'] += rate_ion
@@ -423,16 +386,15 @@ def compute_collision_sources(
             dE['H'] -= rate_ion * TH
             dE['Hi'] += rate_ion * TH
             dE['e'] -= rate_ion * 13.6  # Ionization energy loss
-            # Collision frequency
+            # Collision frequency - C++ includes nu for H (line 205 collisions.cpp)
             nu['e'] += k_ion * nH
-            # nu['H'] += k_ion * ne  # Ionization is a sink, not diffusion (H is destroyed)
+            nu['H'] += k_ion * ne
         
         # 3. Three-body recombination: e + e + H+ -> e + H
         if bH_3body:
             # Note: 3-body rate is cm⁶/s, need CM3_TO_M3² = 1e-12
             k_3body = rates.H_3body_recombination(Te, rates.H_ionization(Te)) * ndamp(nHi_cgs) * CM3_TO_M3 * CM3_TO_M3
             rate_3body = safe_rate(k_3body, ne, ne, nHi)
-            rate_3body = limit_rate(rate_3body, [nHi, nH], dt, accur)  # Limit by Hi (consumed) and H (produced)
             
             dn['Hi'] -= rate_3body
             dn['H'] += rate_3body
@@ -449,7 +411,6 @@ def compute_collision_sources(
         if bH_rec:
             k_rad = rates.H_radiative_recombination(Te) * ndamp(nHi_cgs) * CM3_TO_M3
             rate_rad = safe_rate(k_rad, ne, nHi)
-            rate_rad = limit_rate(rate_rad, [nHi, nH], dt, accur)  # Limit by Hi (consumed) and H (produced)
             
             dn['Hi'] -= rate_rad
             dn['e'] -= rate_rad
@@ -465,9 +426,8 @@ def compute_collision_sources(
             k_099_safe = np.maximum(k_rad_099, 1e-50)
             dln_k_dln_Te = (np.log(k_safe) - np.log(k_099_safe)) / (np.log(Te) - np.log(Te * 0.99))
             dE['e'] -= rate_rad * Te * 0.667 * (1.5 + dln_k_dln_Te)
-            # Collision frequency
+            # Collision frequency - C++ only has nu['e'] for bH_rec (line 245 collisions.cpp)
             nu['e'] += k_rad * nHi
-            nu['Hi'] += k_rad * ne
     
     # -------------------------------------------------------------------
     # Molecular Hydrogen Reactions (bH2)
@@ -490,7 +450,7 @@ def compute_collision_sources(
         
         # Energy thresholds from collisions.cpp
         E_H2_diss = 4.52       # H2 dissociation energy [eV]
-        E_H2_ion = 15.43       # H2 ionization energy [eV]
+        E_H2_ion = 15.4        # H2 ionization energy [eV] (matching C++ collisions.cpp)
         E_H2i_diss_rec = 10.5  # H2+ dissociative recombination energy release [eV]
         
         # ----- e + H2 elastic collision (energy exchange) -----
@@ -503,9 +463,10 @@ def compute_collision_sources(
             rate_eH2_elas = safe_rate(k_eH2_elas, ne, nH2)
             dE['e'] += rate_eH2_elas * L_eH2 * (TH2 - Te)
             dE['H2'] += rate_eH2_elas * L_eH2 * (Te - TH2)
-            # Collision frequencies
+            # Collision frequencies - C++ includes momentum transfer factor for H2
+            # nuH2 += k * ne * sqrt((2 * me) / (me + 2*mi))  (line 265 collisions.cpp)
             nu['e'] += k_eH2_elas * nH2
-            # nu['H2'] += k_eH2_elas * ne  # e- elastic: negligible momentum transfer (m_e/m_H2 ~ 1/3672)
+            nu['H2'] += k_eH2_elas * ne * NU_FACTOR_EH2
         
         # ----- Reaction 2.2.1-2.2.4: H2 excitation -----
         if bH2_exc:
@@ -516,9 +477,9 @@ def compute_collision_sources(
             rate_H2_exc_a = safe_rate(k_H2_exc_a, ne, nH2)
             rate_H2_exc_a = np.where(mask_exc, rate_H2_exc_a, 0.0)
             dE['e'] -= rate_H2_exc_a * 0.5
-            # nu for vibrational excitation
+            # nu for vibrational excitation - C++ uses momentum transfer factor for H2
             nu['e'] += np.where(mask_exc, k_H2_exc_a * nH2, 0.0)
-            # nu['H2'] += np.where(mask_exc, k_H2_exc_a * ne, 0.0)  # Excitation by e- doesn't affect H2 diffusion
+            nu['H2'] += np.where(mask_exc, k_H2_exc_a * ne * NU_FACTOR_EH2, 0.0)
             
             # ----- Reaction 2.2.1b: e + H2(v=0) -> e + H2(v=2) vibrational excitation -----
             # Energy loss: 1.0 eV (no density change)
@@ -527,7 +488,7 @@ def compute_collision_sources(
             rate_H2_exc_b = np.where(mask_exc, rate_H2_exc_b, 0.0)
             dE['e'] -= rate_H2_exc_b * 1.0
             nu['e'] += np.where(mask_exc, k_H2_exc_b * nH2, 0.0)
-            # nu['H2'] += np.where(mask_exc, k_H2_exc_b * ne, 0.0)  # Excitation by e- doesn't affect H2 diffusion
+            nu['H2'] += np.where(mask_exc, k_H2_exc_b * ne * NU_FACTOR_EH2, 0.0)
             
             # ----- Reaction 2.2.2: e + H2(X) -> e + H2(B) electronic excitation -----
             # Energy loss: 12.1 eV (no density change)
@@ -535,7 +496,7 @@ def compute_collision_sources(
             rate_H2_exc_B = safe_rate(k_H2_exc_B, ne, nH2)
             dE['e'] -= rate_H2_exc_B * 12.1
             nu['e'] += k_H2_exc_B * nH2
-            # nu['H2'] += k_H2_exc_B * ne  # Excitation by e- doesn't affect H2 diffusion
+            nu['H2'] += k_H2_exc_B * ne * NU_FACTOR_EH2
             
             # ----- Reaction 2.2.3: e + H2(X) -> e + H2(C) electronic excitation -----
             # Energy loss: 12.4 eV (no density change)
@@ -543,7 +504,7 @@ def compute_collision_sources(
             rate_H2_exc_C = safe_rate(k_H2_exc_C, ne, nH2)
             dE['e'] -= rate_H2_exc_C * 12.4
             nu['e'] += k_H2_exc_C * nH2
-            # nu['H2'] += k_H2_exc_C * ne  # Excitation by e- doesn't affect H2 diffusion
+            nu['H2'] += k_H2_exc_C * ne * NU_FACTOR_EH2
             
             # ----- Reaction 2.2.4: e + H2(X) -> e + H2(E,F) electronic excitation -----
             # Energy loss: 12.7 eV (no density change)
@@ -551,14 +512,13 @@ def compute_collision_sources(
             rate_H2_exc_EF = safe_rate(k_H2_exc_EF, ne, nH2)
             dE['e'] -= rate_H2_exc_EF * 12.7
             nu['e'] += k_H2_exc_EF * nH2
-            # nu['H2'] += k_H2_exc_EF * ne  # Excitation by e- doesn't affect H2 diffusion
+            nu['H2'] += k_H2_exc_EF * ne * NU_FACTOR_EH2
         
         # ----- Reaction 2.2.5-2.2.8: e + H2 -> e + H + H (dissociation) -----
         if bH2_dis:
             # Note: This is the actual dissociation using RRH2(DISS,...) 2D table
             k_H2_diss = rates.H2_dissociation(Te, ne_cgs) * ndamp(nH2_cgs) * CM3_TO_M3
             rate_H2_diss = safe_rate(k_H2_diss, ne, nH2)
-            rate_H2_diss = limit_rate(rate_H2_diss, [nH2, nH], dt, accur)
             
             dn['H2'] -= rate_H2_diss
             dn['H'] += 2.0 * rate_H2_diss  # Creates 2 H atoms
@@ -567,15 +527,14 @@ def compute_collision_sources(
             dE['e'] -= rate_H2_diss * 10.5
             dE['H2'] -= rate_H2_diss * TH2
             dE['H'] += rate_H2_diss * (TH2 + 6.0)  # TH2 + 2*3.0 eV kinetic energy
-            # Collision frequencies
+            # Collision frequencies - C++ uses k * ne for dissociation (no momentum factor)
             nu['e'] += k_H2_diss * nH2
-            # nu['H2'] += k_H2_diss * ne  # Dissociation is a sink, not diffusion (H2 is destroyed)
+            nu['H2'] += k_H2_diss * ne
         
         # ----- Reaction 2.2.9: e + H2 -> 2e + H2+ (ionization) -----
         if bH2_ion:
             k_H2_ion = rates.H2_ionization(Te, ne_cgs) * ndamp(nH2_cgs) * CM3_TO_M3
             rate_H2_ion = safe_rate(k_H2_ion, ne, nH2)
-            rate_H2_ion = limit_rate(rate_H2_ion, [nH2, nH2i], dt, accur)
             
             dn['H2'] -= rate_H2_ion
             dn['H2i'] += rate_H2_ion
@@ -584,16 +543,15 @@ def compute_collision_sources(
             dE['H2'] -= rate_H2_ion * TH2
             dE['H2i'] += rate_H2_ion * TH2
             dE['e'] -= rate_H2_ion * E_H2_ion  # Electron energy loss
-            # Collision frequencies
+            # Collision frequencies - C++ uses k * ne for ionization (no momentum factor)
             nu['e'] += k_H2_ion * nH2
-            # nu['H2'] += k_H2_ion * ne  # Ionization is a sink, not diffusion (H2 is destroyed)
+            nu['H2'] += k_H2_ion * ne
         
         # ----- RECO: e + H2+ -> H2 (recombination to ground state H2) -----
         if bH2i_rec:
             # From C++ collisions.cpp lines 306-317: uses RRH2(RECO) and produces H2
             k_H2i_rec = rates.H2i_recombination(Te) * ndamp(nH2i_cgs) * CM3_TO_M3
             rate_H2i_rec = safe_rate(k_H2i_rec, ne, nH2i)
-            rate_H2i_rec = limit_rate(rate_H2i_rec, [nH2i, nH2], dt, accur)
             
             dn['H2i'] -= rate_H2i_rec
             dn['e'] -= rate_H2i_rec
@@ -612,7 +570,6 @@ def compute_collision_sources(
             # From C++ collisions.cpp lines 373-387: uses RR(REAC2214) and produces 2H atoms
             k_H2i_diss_rec = rates.H2i_dissociative_recombination(Te) * ndamp(nH2i_cgs) * CM3_TO_M3
             rate_H2i_diss_rec = safe_rate(k_H2i_diss_rec, ne, nH2i)
-            rate_H2i_diss_rec = limit_rate(rate_H2i_diss_rec, [nH2i, nH], dt, accur)
             
             dn['H2i'] -= rate_H2i_diss_rec
             dn['e'] -= rate_H2i_diss_rec
@@ -638,7 +595,6 @@ def compute_collision_sources(
             # Energy: dEe -= 18.0, dEH2 -= TH2, dEHi += TH2/2 + 0.1, dEH += TH2/2 + 0.1
             k_H2_diss_ion = rates.H2i_dissociative_ionization(Te) * ndamp(nH2_cgs) * CM3_TO_M3
             rate_H2_diss_ion = safe_rate(k_H2_diss_ion, ne, nH2)
-            rate_H2_diss_ion = limit_rate(rate_H2_diss_ion, [nH2, nHi, nH], dt, accur)
             
             dn['H2'] -= rate_H2_diss_ion
             dn['e'] += rate_H2_diss_ion  # Net +1 electron
@@ -649,16 +605,15 @@ def compute_collision_sources(
             dE['Hi'] += rate_H2_diss_ion * (TH2 / 2.0 + 0.1)
             dE['H'] += rate_H2_diss_ion * (TH2 / 2.0 + 0.1)
             dE['e'] -= rate_H2_diss_ion * 18.0  # Energy cost from C++
-            # Collision frequencies
+            # Collision frequencies - C++ uses k * ne for dissociative ionization
             nu['e'] += k_H2_diss_ion * nH2
-            # nu['H2'] += k_H2_diss_ion * ne  # Dissociative ionization is a sink, not diffusion (H2 is destroyed)
+            nu['H2'] += k_H2_diss_ion * ne
         
         # ----- Reaction 2.2.15a+b: e + H3+ -> H2 + H and e + H3+ -> H + H + H -----
         if bH3i_disrec:
             # From C++ collisions.cpp lines 404-416: uses REAC2215 for both H3+ recombination channels
             k_H3i_rec_H2H = rates.H3i_recombination_3H(Te) * ndamp(nH3i_cgs) * CM3_TO_M3  # Same rate as 3H channel
             rate_H3i_rec_H2H = safe_rate(k_H3i_rec_H2H, ne, nH3i)
-            rate_H3i_rec_H2H = limit_rate(rate_H3i_rec_H2H, [nH3i, nH2, nH], dt, accur)
             
             dn['H3i'] -= rate_H3i_rec_H2H
             dn['e'] -= rate_H3i_rec_H2H
@@ -684,7 +639,6 @@ def compute_collision_sources(
             # From C++ collisions.cpp lines 389-401
             k_H3i_rec_3H = rates.H3i_recombination_3H(Te) * ndamp(nH3i_cgs) * CM3_TO_M3
             rate_H3i_rec_3H = safe_rate(k_H3i_rec_3H, ne, nH3i)
-            rate_H3i_rec_3H = limit_rate(rate_H3i_rec_3H, [nH3i, nH], dt, accur)
             
             dn['H3i'] -= rate_H3i_rec_3H
             dn['e'] -= rate_H3i_rec_3H
@@ -704,7 +658,6 @@ def compute_collision_sources(
             # From collisions.cpp: dEe -= 10.5, dEHi += (TH2i/2 + 4.3), dEH += (TH2i/2 + 4.3)
             k_H2i_diss = rates.H2i_dissociation(Te) * ndamp(nH2i_cgs) * CM3_TO_M3
             rate_H2i_diss = safe_rate(k_H2i_diss, ne, nH2i)
-            rate_H2i_diss = limit_rate(rate_H2i_diss, [nH2i, nHi, nH], dt, accur)
             
             dn['H2i'] -= rate_H2i_diss
             dn['Hi'] += rate_H2i_diss
@@ -723,7 +676,6 @@ def compute_collision_sources(
             # From collisions.cpp: dEe -= 17.5, dEHi += (TH2i/2 + 1.5), dEH += (TH2i/2 + 1.5)
             k_H2i_diss_exc = rates.H2i_dissociation_excitation(Te) * ndamp(nH2i_cgs) * CM3_TO_M3
             rate_H2i_diss_exc = safe_rate(k_H2i_diss_exc, ne, nH2i)
-            rate_H2i_diss_exc = limit_rate(rate_H2i_diss_exc, [nH2i, nHi, nH], dt, accur)
             
             dn['H2i'] -= rate_H2i_diss_exc
             dn['Hi'] += rate_H2i_diss_exc
@@ -742,7 +694,6 @@ def compute_collision_sources(
             # From collisions.cpp: dEe -= 14.0, dEHi += (TH3i/3 + 4.33), dEH += 2*(TH3i/3 + 4.33)
             k_H3i_diss = rates.H3i_dissociation(Te) * ndamp(nH3i_cgs) * CM3_TO_M3
             rate_H3i_diss = safe_rate(k_H3i_diss, ne, nH3i)
-            rate_H3i_diss = limit_rate(rate_H3i_diss, [nH3i, nHi, nH], dt, accur)
             
             dn['H3i'] -= rate_H3i_diss
             dn['Hi'] += rate_H3i_diss
@@ -760,7 +711,6 @@ def compute_collision_sources(
         if bcx_HiH2:
             k_Hi_H2_cx = rates.Hi_H2_charge_exchange(THi, TH2) * ndamp(nHi_cgs) * CM3_TO_M3
             rate_Hi_H2_cx = safe_rate(k_Hi_H2_cx, nHi, nH2)
-            rate_Hi_H2_cx = limit_rate(rate_Hi_H2_cx, [nHi, nH2, nH2i, nH], dt, accur)
             
             dn['Hi'] -= rate_Hi_H2_cx
             dn['H2'] -= rate_Hi_H2_cx
@@ -780,7 +730,6 @@ def compute_collision_sources(
         if not match_cpp_reactions:
             k_Hi_H2_diss = rates.Hi_H2_dissociation(THi, TH2) * ndamp(nH2_cgs) * CM3_TO_M3
             rate_Hi_H2_diss = safe_rate(k_Hi_H2_diss, nHi, nH2)
-            rate_Hi_H2_diss = limit_rate(rate_Hi_H2_diss, [nH2, nH], dt, accur)
             
             dn['H2'] -= rate_Hi_H2_diss
             dn['H'] += 2.0 * rate_Hi_H2_diss
@@ -792,31 +741,11 @@ def compute_collision_sources(
             nu['Hi'] += k_Hi_H2_diss * nH2
             nu['H2'] += k_Hi_H2_diss * nHi
         
-        # ----- Reaction 4.2.5: H2+ + H2 -> H3+ + H -----
-        if bion_H2iH2_H3i:
-            k_H2i_H2_H3i = rates.H2i_H2_to_H3i(TH2i, TH2) * ndamp(nH2i_cgs) * CM3_TO_M3
-            rate_H2i_H2_H3i = safe_rate(k_H2i_H2_H3i, nH2i, nH2)
-            rate_H2i_H2_H3i = limit_rate(rate_H2i_H2_H3i, [nH2i, nH2, nH3i, nH], dt, accur)
-            
-            dn['H2i'] -= rate_H2i_H2_H3i
-            dn['H2'] -= rate_H2i_H2_H3i
-            dn['H3i'] += rate_H2i_H2_H3i
-            dn['H'] += rate_H2i_H2_H3i
-            
-            dE['H2i'] -= rate_H2i_H2_H3i * TH2i
-            dE['H2'] -= rate_H2i_H2_H3i * TH2
-            dE['H3i'] += rate_H2i_H2_H3i * ((TH2i + TH2) / 2.0 + 0.585)  # C++ line 796
-            dE['H'] += rate_H2i_H2_H3i * ((TH2i + TH2) / 2.0 + 0.585)    # C++ line 797
-            # Collision frequencies
-            nu['H2i'] += k_H2i_H2_H3i * nH2
-            nu['H2'] += k_H2i_H2_H3i * nH2i
-        
         # ----- Reaction 4.1.9: H2 + H -> H + H + H (molecular dissociation by H impact) -----
         # NOTE: This reaction is NOT in C++ Tomator1D - skip if match_cpp_reactions=True
         if not match_cpp_reactions:
             k_H2_H_diss = rates.H2_H_dissociation(TH2, TH) * ndamp(nH2_cgs) * CM3_TO_M3
             rate_H2_H_diss = safe_rate(k_H2_H_diss, nH2, nH)
-            rate_H2_H_diss = limit_rate(rate_H2_H_diss, [nH2, nH], dt, accur)
             
             dn['H2'] -= rate_H2_H_diss
             dn['H'] += 2.0 * rate_H2_H_diss  # Net +2 H atoms (H2->2H, H->H)
@@ -845,7 +774,6 @@ def compute_collision_sources(
             # Pass ne_cgs for 2D ADAS interpolation
             k_HeI_ion = rates.HeI_ionization(Te, ne_cgs) * ndamp(nHeI_cgs) * CM3_TO_M3
             rate_HeI_ion = safe_rate(k_HeI_ion, ne, nHeI)
-            rate_HeI_ion = limit_rate(rate_HeI_ion, [nHeI, nHeII], dt, accur)
             
             dn['HeI'] -= rate_HeI_ion
             dn['HeII'] += rate_HeI_ion
@@ -853,15 +781,14 @@ def compute_collision_sources(
             
             dE['HeI'] -= rate_HeI_ion * THeI
             dE['HeII'] += rate_HeI_ion * THeI
-            # Collision frequencies
+            # Collision frequencies - C++ has nu for HeI (line 485 collisions.cpp)
             nu['e'] += k_HeI_ion * nHeI
-            # nu['HeI'] += k_HeI_ion * ne  # Ionization is a sink, not diffusion (HeI is destroyed)
+            nu['HeI'] += k_HeI_ion * ne
         
         # HeII ionization: e + He+ -> e + He++ + e
         if bHeII_ion:
             k_HeII_ion = rates.HeII_ionization(Te, ne_cgs) * ndamp(nHeII_cgs) * CM3_TO_M3
             rate_HeII_ion = safe_rate(k_HeII_ion, ne, nHeII)
-            rate_HeII_ion = limit_rate(rate_HeII_ion, [nHeII, nHeIII], dt, accur)
             
             dn['HeII'] -= rate_HeII_ion
             dn['HeIII'] += rate_HeII_ion
@@ -892,7 +819,6 @@ def compute_collision_sources(
         if bHeII_rec:
             k_HeII_rec = rates.HeII_recombination(Te, ne_cgs) * ndamp(nHeII_cgs) * CM3_TO_M3
             rate_HeII_rec = safe_rate(k_HeII_rec, ne, nHeII)
-            rate_HeII_rec = limit_rate(rate_HeII_rec, [nHeII, nHeI], dt, accur)
             
             dn['HeI'] += rate_HeII_rec
             dn['HeII'] -= rate_HeII_rec
@@ -915,7 +841,6 @@ def compute_collision_sources(
         if bHeIII_rec:
             k_HeIII_rec = rates.HeIII_recombination(Te, ne_cgs) * ndamp(nHeIII_cgs) * CM3_TO_M3
             rate_HeIII_rec = safe_rate(k_HeIII_rec, ne, nHeIII)
-            rate_HeIII_rec = limit_rate(rate_HeIII_rec, [nHeIII, nHeII], dt, accur)
             
             dn['HeII'] += rate_HeIII_rec
             dn['HeIII'] -= rate_HeIII_rec
@@ -969,7 +894,6 @@ def compute_collision_sources(
             if bcx_HeIIH:
                 k_HeIIH_cx = rates.HeIIH_charge_exchange(THeII, TH) * ndamp(nHeII) * CM3_TO_M3
                 rate_HeIIH_cx = safe_rate(k_HeIIH_cx, nHeII, nH)
-                rate_HeIIH_cx = limit_rate(rate_HeIIH_cx, [nHeII, nHeI, nH, nHi], dt, accur)
                 
                 dn['HeII'] -= rate_HeIIH_cx
                 dn['HeI'] += rate_HeIIH_cx
@@ -999,7 +923,6 @@ def compute_collision_sources(
             if bcx_HeIIIH:
                 k_HeIIIH_cx = rates.HeIIIH_charge_exchange(THeIII, TH) * ndamp(nHeIII) * CM3_TO_M3
                 rate_HeIIIH_cx = safe_rate(k_HeIIIH_cx, nHeIII, nH)
-                rate_HeIIIH_cx = limit_rate(rate_HeIIIH_cx, [nHeIII, nHeII, nH, nHi], dt, accur)
                 
                 dn['HeIII'] -= rate_HeIIIH_cx
                 dn['HeII'] += rate_HeIIIH_cx
@@ -1018,7 +941,6 @@ def compute_collision_sources(
             if bcx_HeIIIHeI:
                 k_HeIIIHeI_cxa = rates.HeIIIHeI_cx_double(THeIII, THeI) * ndamp(nHeIII) * CM3_TO_M3
                 rate_HeIIIHeI_cxa = safe_rate(k_HeIIIHeI_cxa, nHeIII, nHeI)
-                rate_HeIIIHeI_cxa = limit_rate(rate_HeIIIHeI_cxa, [nHeIII, nHeI, nHeII], dt, accur)
                 
                 dn['HeIII'] -= rate_HeIIIHeI_cxa
                 dn['HeII'] += 2.0 * rate_HeIIIHeI_cxa  # Creates 2 He+ ions
@@ -1071,7 +993,6 @@ def compute_collision_sources(
         if bion_HiH_ion:
             k_HiH_ion = rates.HiH_ionization(THi, TH) * ndamp(nH_cgs) * CM3_TO_M3
             rate_HiH_ion = safe_rate(k_HiH_ion, nHi, nH)
-            rate_HiH_ion = limit_rate(rate_HiH_ion, [nH, nHi], dt, accur)
             
             dn['H'] -= rate_HiH_ion
             dn['Hi'] += rate_HiH_ion  # Net: creates one new H+
@@ -1109,34 +1030,35 @@ def compute_collision_sources(
             
             # H+ + H2 -> H+ + H2+ + e ionization (REAC325, 15.4 eV)
             if bion_HiH2_325:
-                k_HiH2_ion = rates.HiH2_ionization(THi, TH2) * ndamp(nH2_cgs) * CM3_TO_M3
+                k_HiH2_ion = rates.HiH2_ionization(THi, TH2) * ndamp(nHi_cgs) * CM3_TO_M3
                 rate_HiH2_ion = safe_rate(k_HiH2_ion, nHi, nH2)
-                rate_HiH2_ion = limit_rate(rate_HiH2_ion, [nH2, nH2i], dt, accur)
                 
                 dn['H2'] -= rate_HiH2_ion
                 dn['H2i'] += rate_HiH2_ion
                 dn['e'] += rate_HiH2_ion
                 
+                dE['Hi'] -= rate_HiH2_ion * 15.4  # Ionization energy from projectile
                 dE['H2'] -= rate_HiH2_ion * TH2
                 dE['H2i'] += rate_HiH2_ion * TH2
-                dE['e'] += rate_HiH2_ion * 0.1
                 # Collision frequencies
                 nu['Hi'] += k_HiH2_ion * nH2
                 nu['H2'] += k_HiH2_ion * nHi
             
             if nH2i is not None:
-                # H+ + H2+ -> H + H + H+ dissociation (REAC326, 10.5 eV)
+                # H+ + H2+ -> H+ + H + H+ dissociation (REAC326, 10.5 eV)
+                # Products: original H+ (spectator) + H (from H2+) + H+ (from H2+)
                 if bion_HiH2i_326:
-                    k_HiH2i_diss = rates.HiH2i_dissociation(THi, TH2i) * ndamp(nH2i_cgs) * CM3_TO_M3
+                    k_HiH2i_diss = rates.HiH2i_dissociation(THi, TH2i) * ndamp(nHi_cgs) * ndamp(nH2i_cgs) * CM3_TO_M3
                     rate_HiH2i_diss = safe_rate(k_HiH2i_diss, nHi, nH2i)
-                    rate_HiH2i_diss = limit_rate(rate_HiH2i_diss, [nH2i, nH], dt, accur)
                     
                     dn['H2i'] -= rate_HiH2i_diss
-                    dn['H'] += 2.0 * rate_HiH2i_diss  # Creates 2 H atoms
-                    # H+ is catalyst, no net change
+                    dn['H'] += rate_HiH2i_diss      # One H from H2+ dissociation
+                    dn['Hi'] += rate_HiH2i_diss     # One H+ from H2+ dissociation
                     
+                    dE['Hi'] -= rate_HiH2i_diss * 10.5          # Dissociation energy from projectile
+                    dE['Hi'] += rate_HiH2i_diss * (TH2i / 2.0 + 4.5)  # Energy to product H+
                     dE['H2i'] -= rate_HiH2i_diss * TH2i
-                    dE['H'] += rate_HiH2i_diss * TH2i  # Energy to H atoms
+                    dE['H'] += rate_HiH2i_diss * (TH2i / 2.0 + 4.5)   # Energy to product H
                     # Collision frequencies
                     nu['Hi'] += k_HiH2i_diss * nH2i
                     nu['H2i'] += k_HiH2i_diss * nHi
@@ -1145,7 +1067,6 @@ def compute_collision_sources(
                 if bion_H2iH2_H3i:
                     k_H2iH2_H3i = rates.H2iH2_to_H3i(TH2i, TH2) * ndamp(nH2i_cgs) * CM3_TO_M3
                     rate_H2iH2_H3i = safe_rate(k_H2iH2_H3i, nH2i, nH2)
-                    rate_H2iH2_H3i = limit_rate(rate_H2iH2_H3i, [nH2i, nH2, nH3i, nH], dt, accur)
                     
                     dn['H2i'] -= rate_H2iH2_H3i
                     dn['H2'] -= rate_H2iH2_H3i
@@ -1154,8 +1075,8 @@ def compute_collision_sources(
                     
                     dE['H2i'] -= rate_H2iH2_H3i * TH2i
                     dE['H2'] -= rate_H2iH2_H3i * TH2
-                    dE['H3i'] += rate_H2iH2_H3i * (TH2i + TH2) * 0.75  # 3/4 to H3+
-                    dE['H'] += rate_H2iH2_H3i * (TH2i + TH2) * 0.25   # 1/4 to H
+                    dE['H3i'] += rate_H2iH2_H3i * ((TH2i + TH2) / 2.0 + 0.585)  # C++ REAC433
+                    dE['H'] += rate_H2iH2_H3i * ((TH2i + TH2) / 2.0 + 0.585)    # C++ REAC433
                     # Collision frequencies
                     nu['H2i'] += k_H2iH2_H3i * nH2
                     nu['H2'] += k_H2iH2_H3i * nH2i
@@ -1167,9 +1088,8 @@ def compute_collision_sources(
             
             # H+ + He -> H+ + He+ + e ionization (REAC332, 24.58 eV)
             if bion_HiHeI_ion:
-                k_HiHeI_ion = rates.HiHeI_ionization(THi, THeI) * ndamp(nHeI_cgs) * CM3_TO_M3
+                k_HiHeI_ion = rates.HiHeI_ionization(THi, THeI) * ndamp(nHi_cgs) * CM3_TO_M3
                 rate_HiHeI_ion = safe_rate(k_HiHeI_ion, nHi, nHeI)
-                rate_HiHeI_ion = limit_rate(rate_HiHeI_ion, [nHeI, nHeII], dt, accur)
                 
                 dn['HeI'] -= rate_HiHeI_ion
                 dn['HeII'] += rate_HiHeI_ion
@@ -1177,7 +1097,7 @@ def compute_collision_sources(
                 
                 dE['HeI'] -= rate_HiHeI_ion * THeI
                 dE['HeII'] += rate_HiHeI_ion * THeI
-                dE['e'] += rate_HiHeI_ion * 0.1
+                dE['Hi'] -= rate_HiHeI_ion * 24.58  # Ionization energy from H+ projectile
                 # Collision frequencies
                 nu['Hi'] += k_HiHeI_ion * nHeI
                 nu['HeI'] += k_HiHeI_ion * nHi
@@ -1186,7 +1106,6 @@ def compute_collision_sources(
             if include_H2 and nH2 is not None and nHeII is not None and bion_HeIIH2_cxdis:
                 k_HeIIH2_cxdis = rates.HeIIH2_cx_dissociation(THeII, TH2) * ndamp(nHeII_cgs) * CM3_TO_M3
                 rate_HeIIH2_cxdis = safe_rate(k_HeIIH2_cxdis, nHeII, nH2)
-                rate_HeIIH2_cxdis = limit_rate(rate_HeIIH2_cxdis, [nHeII, nHeI, nH2, nH, nHi], dt, accur)
                 
                 dn['HeII'] -= rate_HeIIH2_cxdis
                 dn['HeI'] += rate_HeIIH2_cxdis
@@ -1196,10 +1115,10 @@ def compute_collision_sources(
                 # Note: No electron change - charge is conserved (He+ + H2 -> He + H + H+)
                 
                 dE['HeII'] -= rate_HeIIH2_cxdis * THeII
-                dE['HeI'] += rate_HeIIH2_cxdis * THeII
                 dE['H2'] -= rate_HeIIH2_cxdis * TH2
-                dE['H'] += rate_HeIIH2_cxdis * TH2 * 0.5
-                dE['Hi'] += rate_HeIIH2_cxdis * TH2 * 0.5
+                dE['H'] += rate_HeIIH2_cxdis * 1.85    # C++ fixed value
+                dE['Hi'] += rate_HeIIH2_cxdis * 1.85   # C++ fixed value
+                dE['HeI'] += rate_HeIIH2_cxdis * 3.1   # C++ fixed value
                 # Collision frequencies
                 nu['HeII'] += k_HeIIH2_cxdis * nH2
                 nu['H2'] += k_HeIIH2_cxdis * nHeII
@@ -1439,10 +1358,12 @@ def compute_collision_sources(
                 nu['e'] += nu_eH2i
                 nu['H2i'] += nu_eH2i
                 
-                # H+ - H2+ Coulomb collisions
+                # H+ - H2+ Coulomb collisions (only if both species present)
                 nu_HiH2i = np.zeros_like(ne)
-                nu_HiH2i[mask] = coulomb_rates.nu_ii(nHi_cgs[mask], THi[mask], 1.0, 1.0,
-                                                     nH2i_cgs[mask], TH2i[mask], 1.0, 2.0)
+                mask_HiH2i = mask & (nHi_cgs * nH2i_cgs > 0)
+                if np.any(mask_HiH2i):
+                    nu_HiH2i[mask_HiH2i] = coulomb_rates.nu_ii(nHi_cgs[mask_HiH2i], THi[mask_HiH2i], 1.0, 1.0,
+                                                               nH2i_cgs[mask_HiH2i], TH2i[mask_HiH2i], 1.0, 2.0)
                 Q_HiH2i = (THi - TH2i) * nu_HiH2i * nHi_cgs
                 Q_HiH2i *= RATE_CGS_TO_SI
                 dE['Hi'] -= Q_HiH2i
@@ -1465,10 +1386,12 @@ def compute_collision_sources(
                 nu['e'] += nu_eH3i
                 nu['H3i'] += nu_eH3i
                 
-                # H+ - H3+ Coulomb collisions
+                # H+ - H3+ Coulomb collisions (only if both species present)
                 nu_HiH3i = np.zeros_like(ne)
-                nu_HiH3i[mask] = coulomb_rates.nu_ii(nHi_cgs[mask], THi[mask], 1.0, 1.0,
-                                                     nH3i_cgs[mask], TH3i[mask], 1.0, 3.0)
+                mask_HiH3i = mask & (nHi_cgs * nH3i_cgs > 0)
+                if np.any(mask_HiH3i):
+                    nu_HiH3i[mask_HiH3i] = coulomb_rates.nu_ii(nHi_cgs[mask_HiH3i], THi[mask_HiH3i], 1.0, 1.0,
+                                                               nH3i_cgs[mask_HiH3i], TH3i[mask_HiH3i], 1.0, 3.0)
                 Q_HiH3i = (THi - TH3i) * nu_HiH3i * nHi_cgs
                 Q_HiH3i *= RATE_CGS_TO_SI
                 dE['Hi'] -= Q_HiH3i
@@ -1477,10 +1400,12 @@ def compute_collision_sources(
                 nu['H3i'] += nu_HiH3i
                 
                 if nH2i is not None:
-                    # H2+ - H3+ Coulomb collisions
+                    # H2+ - H3+ Coulomb collisions (only if both species present)
                     nu_H2iH3i = np.zeros_like(ne)
-                    nu_H2iH3i[mask] = coulomb_rates.nu_ii(nH2i_cgs[mask], TH2i[mask], 1.0, 2.0,
-                                                          nH3i_cgs[mask], TH3i[mask], 1.0, 3.0)
+                    mask_H2iH3i = mask & (nH2i_cgs * nH3i_cgs > 0)
+                    if np.any(mask_H2iH3i):
+                        nu_H2iH3i[mask_H2iH3i] = coulomb_rates.nu_ii(nH2i_cgs[mask_H2iH3i], TH2i[mask_H2iH3i], 1.0, 2.0,
+                                                                     nH3i_cgs[mask_H2iH3i], TH3i[mask_H2iH3i], 1.0, 3.0)
                     Q_H2iH3i = (TH2i - TH3i) * nu_H2iH3i * nH2i_cgs
                     Q_H2iH3i *= RATE_CGS_TO_SI
                     dE['H2i'] -= Q_H2iH3i
@@ -1504,10 +1429,12 @@ def compute_collision_sources(
                 nu['e'] += nu_eHeII
                 nu['HeII'] += nu_eHeII
                 
-                # H+ - He+ Coulomb collisions
+                # H+ - He+ Coulomb collisions (only if both species present)
                 nu_HiHeII = np.zeros_like(ne)
-                nu_HiHeII[mask] = coulomb_rates.nu_ii(nHi_cgs[mask], THi[mask], 1.0, 1.0,
-                                                      nHeII_cgs[mask], THeII[mask], 1.0, 4.0)
+                mask_HiHeII = mask & (nHi_cgs * nHeII_cgs > 0)
+                if np.any(mask_HiHeII):
+                    nu_HiHeII[mask_HiHeII] = coulomb_rates.nu_ii(nHi_cgs[mask_HiHeII], THi[mask_HiHeII], 1.0, 1.0,
+                                                                 nHeII_cgs[mask_HiHeII], THeII[mask_HiHeII], 1.0, 4.0)
                 Q_HiHeII = (THi - THeII) * nu_HiHeII * nHi_cgs
                 Q_HiHeII *= RATE_CGS_TO_SI
                 dE['Hi'] -= Q_HiHeII
@@ -1516,10 +1443,12 @@ def compute_collision_sources(
                 nu['HeII'] += nu_HiHeII
                 
                 if nH2i is not None:
-                    # H2+ - He+ Coulomb collisions
+                    # H2+ - He+ Coulomb collisions (only if both species present)
                     nu_H2iHeII = np.zeros_like(ne)
-                    nu_H2iHeII[mask] = coulomb_rates.nu_ii(nH2i_cgs[mask], TH2i[mask], 1.0, 2.0,
-                                                           nHeII_cgs[mask], THeII[mask], 1.0, 4.0)
+                    mask_H2iHeII = mask & (nH2i_cgs * nHeII_cgs > 0)
+                    if np.any(mask_H2iHeII):
+                        nu_H2iHeII[mask_H2iHeII] = coulomb_rates.nu_ii(nH2i_cgs[mask_H2iHeII], TH2i[mask_H2iHeII], 1.0, 2.0,
+                                                                       nHeII_cgs[mask_H2iHeII], THeII[mask_H2iHeII], 1.0, 4.0)
                     Q_H2iHeII = (TH2i - THeII) * nu_H2iHeII * nH2i_cgs
                     Q_H2iHeII *= RATE_CGS_TO_SI
                     dE['H2i'] -= Q_H2iHeII
@@ -1528,10 +1457,12 @@ def compute_collision_sources(
                     nu['HeII'] += nu_H2iHeII
                 
                 if nH3i is not None:
-                    # H3+ - He+ Coulomb collisions
+                    # H3+ - He+ Coulomb collisions (only if both species present)
                     nu_H3iHeII = np.zeros_like(ne)
-                    nu_H3iHeII[mask] = coulomb_rates.nu_ii(nH3i_cgs[mask], TH3i[mask], 1.0, 3.0,
-                                                           nHeII_cgs[mask], THeII[mask], 1.0, 4.0)
+                    mask_H3iHeII = mask & (nH3i_cgs * nHeII_cgs > 0)
+                    if np.any(mask_H3iHeII):
+                        nu_H3iHeII[mask_H3iHeII] = coulomb_rates.nu_ii(nH3i_cgs[mask_H3iHeII], TH3i[mask_H3iHeII], 1.0, 3.0,
+                                                                       nHeII_cgs[mask_H3iHeII], THeII[mask_H3iHeII], 1.0, 4.0)
                     Q_H3iHeII = (TH3i - THeII) * nu_H3iHeII * nH3i_cgs
                     Q_H3iHeII *= RATE_CGS_TO_SI
                     dE['H3i'] -= Q_H3iHeII
@@ -1554,10 +1485,12 @@ def compute_collision_sources(
                 nu['e'] += nu_eHeIII
                 nu['HeIII'] += nu_eHeIII
                 
-                # H+ - He++ Coulomb collisions
+                # H+ - He++ Coulomb collisions (only if both species present)
                 nu_HiHeIII = np.zeros_like(ne)
-                nu_HiHeIII[mask] = coulomb_rates.nu_ii(nHi_cgs[mask], THi[mask], 1.0, 1.0,
-                                                       nHeIII_cgs[mask], THeIII[mask], 2.0, 4.0)
+                mask_HiHeIII = mask & (nHi_cgs * nHeIII_cgs > 0)
+                if np.any(mask_HiHeIII):
+                    nu_HiHeIII[mask_HiHeIII] = coulomb_rates.nu_ii(nHi_cgs[mask_HiHeIII], THi[mask_HiHeIII], 1.0, 1.0,
+                                                                   nHeIII_cgs[mask_HiHeIII], THeIII[mask_HiHeIII], 2.0, 4.0)
                 Q_HiHeIII = (THi - THeIII) * nu_HiHeIII * nHi_cgs
                 Q_HiHeIII *= RATE_CGS_TO_SI
                 dE['Hi'] -= Q_HiHeIII
@@ -1566,10 +1499,12 @@ def compute_collision_sources(
                 nu['HeIII'] += nu_HiHeIII
                 
                 if nH2i is not None:
-                    # H2+ - He++ Coulomb collisions
+                    # H2+ - He++ Coulomb collisions (only if both species present)
                     nu_H2iHeIII = np.zeros_like(ne)
-                    nu_H2iHeIII[mask] = coulomb_rates.nu_ii(nH2i_cgs[mask], TH2i[mask], 1.0, 2.0,
-                                                            nHeIII_cgs[mask], THeIII[mask], 2.0, 4.0)
+                    mask_H2iHeIII = mask & (nH2i_cgs * nHeIII_cgs > 0)
+                    if np.any(mask_H2iHeIII):
+                        nu_H2iHeIII[mask_H2iHeIII] = coulomb_rates.nu_ii(nH2i_cgs[mask_H2iHeIII], TH2i[mask_H2iHeIII], 1.0, 2.0,
+                                                                         nHeIII_cgs[mask_H2iHeIII], THeIII[mask_H2iHeIII], 2.0, 4.0)
                     Q_H2iHeIII = (TH2i - THeIII) * nu_H2iHeIII * nH2i_cgs
                     Q_H2iHeIII *= RATE_CGS_TO_SI
                     dE['H2i'] -= Q_H2iHeIII
@@ -1578,10 +1513,12 @@ def compute_collision_sources(
                     nu['HeIII'] += nu_H2iHeIII
                 
                 if nH3i is not None:
-                    # H3+ - He++ Coulomb collisions
+                    # H3+ - He++ Coulomb collisions (only if both species present)
                     nu_H3iHeIII = np.zeros_like(ne)
-                    nu_H3iHeIII[mask] = coulomb_rates.nu_ii(nH3i_cgs[mask], TH3i[mask], 1.0, 3.0,
-                                                            nHeIII_cgs[mask], THeIII[mask], 2.0, 4.0)
+                    mask_H3iHeIII = mask & (nH3i_cgs * nHeIII_cgs > 0)
+                    if np.any(mask_H3iHeIII):
+                        nu_H3iHeIII[mask_H3iHeIII] = coulomb_rates.nu_ii(nH3i_cgs[mask_H3iHeIII], TH3i[mask_H3iHeIII], 1.0, 3.0,
+                                                                         nHeIII_cgs[mask_H3iHeIII], THeIII[mask_H3iHeIII], 2.0, 4.0)
                     Q_H3iHeIII = (TH3i - THeIII) * nu_H3iHeIII * nH3i_cgs
                     Q_H3iHeIII *= RATE_CGS_TO_SI
                     dE['H3i'] -= Q_H3iHeIII
@@ -1590,10 +1527,12 @@ def compute_collision_sources(
                     nu['HeIII'] += nu_H3iHeIII
                 
                 if nHeII is not None:
-                    # He+ - He++ Coulomb collisions
+                    # He+ - He++ Coulomb collisions (only if both species present)
                     nu_HeIIHeIII = np.zeros_like(ne)
-                    nu_HeIIHeIII[mask] = coulomb_rates.nu_ii(nHeII_cgs[mask], THeII[mask], 1.0, 4.0,
-                                                             nHeIII_cgs[mask], THeIII[mask], 2.0, 4.0)
+                    mask_HeIIHeIII = mask & (nHeII_cgs * nHeIII_cgs > 0)
+                    if np.any(mask_HeIIHeIII):
+                        nu_HeIIHeIII[mask_HeIIHeIII] = coulomb_rates.nu_ii(nHeII_cgs[mask_HeIIHeIII], THeII[mask_HeIIHeIII], 1.0, 4.0,
+                                                                           nHeIII_cgs[mask_HeIIHeIII], THeIII[mask_HeIIHeIII], 2.0, 4.0)
                     Q_HeIIHeIII = (THeII - THeIII) * nu_HeIIHeIII * nHeII_cgs
                     Q_HeIIHeIII *= RATE_CGS_TO_SI
                     dE['HeII'] -= Q_HeIIHeIII
@@ -1604,7 +1543,7 @@ def compute_collision_sources(
     return dn, dE, nu
 
 
-def compute_sources_from_state(state, params: dict, dt=None, accur=None) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+def compute_sources_from_state(state, params: dict) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray], Dict[str, np.ndarray]]:
     """
     Compute collision sources from a PlasmaState object.
     
@@ -1614,10 +1553,6 @@ def compute_sources_from_state(state, params: dict, dt=None, accur=None) -> Tupl
         Current plasma state.
     params : dict
         Simulation parameters with physics flags.
-    dt : float, optional
-        Time step for rate limiting.
-    accur : float, optional
-        Accuracy parameter for rate limiting (max relative change per step).
         
     Returns
     -------
@@ -1679,7 +1614,5 @@ def compute_sources_from_state(state, params: dict, dt=None, accur=None) -> Tupl
         include_ion=include_ion,
         include_cx=include_cx,
         include_elastic=include_elastic,
-        include_coulomb=include_coulomb,
-        dt=dt,
-        accur=accur
+        include_coulomb=include_coulomb
     )

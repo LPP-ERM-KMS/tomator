@@ -206,12 +206,11 @@ MkHeII_cool_ADAS = np.array([1.057806689207504e-19, 1.109186764983655e-19, 1.158
     4.064949819055127e-13, 4.072248670092556e-13, 3.990528169230037e-13, 3.896830021251033e-13])
 
 
-# Create interpolators (using log for ne since it spans many decades)
+# Create interpolators (using linear ne to match C++ interpolate2D behavior)
 def _create_interpolator_2d(data: np.ndarray):
-    """Create 2D interpolator for (log10(ne), Te) -> rate."""
-    log_ne = np.log10(Mne)
+    """Create 2D interpolator for (Te, ne) -> rate using linear interpolation."""
     return RegularGridInterpolator(
-        (MTe, log_ne), data,
+        (MTe, Mne), data,
         method='linear', bounds_error=False, fill_value=None
     )
 
@@ -248,7 +247,7 @@ def HeI_ionization_ADAS(Te: np.ndarray, ne: np.ndarray) -> np.ndarray:
     mask = Te > 1.0
     
     if np.any(mask):
-        points = np.column_stack([Te_clamped[mask], np.log10(ne_clamped[mask])])
+        points = np.column_stack([Te_clamped[mask], ne_clamped[mask]])
         k[mask] = _interp_HeI_ion(points)
     
     return _apply_min_rate(k)
@@ -279,7 +278,7 @@ def HeII_ionization_ADAS(Te: np.ndarray, ne: np.ndarray) -> np.ndarray:
     mask = Te > 1.0
     
     if np.any(mask):
-        points = np.column_stack([Te_clamped[mask], np.log10(ne_clamped[mask])])
+        points = np.column_stack([Te_clamped[mask], ne_clamped[mask]])
         k[mask] = _interp_HeII_ion(points)
     
     return _apply_min_rate(k)
@@ -305,7 +304,7 @@ def HeII_recombination_ADAS(Te: np.ndarray, ne: np.ndarray) -> np.ndarray:
     Te_clamped = _clamp_Te(Te)
     ne_clamped = _clamp_ne(ne)
     
-    points = np.column_stack([Te_clamped, np.log10(ne_clamped)])
+    points = np.column_stack([Te_clamped, ne_clamped])
     k = _interp_HeII_rec(points)
     
     return _apply_min_rate(k)
@@ -331,7 +330,7 @@ def HeIII_recombination_ADAS(Te: np.ndarray, ne: np.ndarray) -> np.ndarray:
     Te_clamped = _clamp_Te(Te)
     ne_clamped = _clamp_ne(ne)
     
-    points = np.column_stack([Te_clamped, np.log10(ne_clamped)])
+    points = np.column_stack([Te_clamped, ne_clamped])
     k = _interp_HeIII_rec(points)
     
     return _apply_min_rate(k)
