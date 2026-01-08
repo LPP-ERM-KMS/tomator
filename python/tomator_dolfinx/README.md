@@ -21,7 +21,7 @@ where:
 2. **Collision Rates** — Compute ionization, recombination, charge exchange rates (ADAS data)
 3. **Transport Coefficients** — Calculate D (Bohm/gyro-geometric) and V for each species
 4. **Parallel Losses** — Compute limiter and Bpol losses (particle sinks at boundaries)
-5. **RF Power** — Add electron heating from IC/EC waves
+5. **RF Power** — Add electron and ion heating from IC/EC waves
 6. **Transport Solve** — Advance densities via FEM weak form
 7. **Reaction Solve** — Apply atomic/molecular reactions (see solver modes below)
 8. **Energy Solve** — Advance electron energy equation
@@ -42,10 +42,10 @@ $$n^{k+1} = n^k + \Delta t \left[ \nabla \cdot (D \nabla n - V n) + S^k \right]$
 ### 2. Operator Splitting Mode (`operator_splitting: true`, default)
 Transport and reactions are solved **separately**:
 
-1. **Transport step**: Solve diffusion/advection with parallel losses only
-2. **Reaction step**: Solve reaction ODE system **implicitly** at each mesh point using Newton iteration
+1. **Transport step**: Solve diffusion/advection for ions, neutrals, and electron energy with parallel losses only
+2. **Reaction step**: Solve reaction ODE system **implicitly** at each mesh point for all densities + electron energy
 
-$$\frac{dn}{dt} = S_{\text{reactions}}(n, T) \quad \text{(implicit solve)}$$
+$$\frac{dn}{dt} = S_{\text{reactions}}(n, T) \quad \text{(implicit Newton solve)}$$
 
 - More robust for stiff reaction systems
 - Better conservation properties

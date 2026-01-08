@@ -1836,8 +1836,17 @@ class BDF2Solver:
                     'nH': self._get_species_n('H'),
                 })
             
+            # Electron energy transport (parallel losses only, no reaction sources)
+            tic('solve_electron_E')
+            self._solve_electron_energy_transport_only(dE_parallel)
+            toc('solve_electron_E')
+            
+            if debug:
+                _dbg("After electron energy transport:", {'Te': self.state.electrons.T})
+            
             # ================================================================
             # STEP 7: REACTION STEP (implicit ODE at each mesh point)
+            # All densities + electron energy updated with reaction sources
             # ================================================================
             tic('reactions_implicit')
             # Newton solver parameters: max_newton_iter (default 20), newton_tol (default 1e-6)
@@ -1853,6 +1862,7 @@ class BDF2Solver:
                 _dbg("After implicit reactions:", {
                     'nHi': self._get_species_n('Hi'),
                     'nH': self._get_species_n('H'),
+                    'Te': self.state.electrons.T,
                 })
         else:
             # Original explicit treatment (all sources already combined in Step 4)
@@ -1875,15 +1885,15 @@ class BDF2Solver:
                     'nH': self._get_species_n('H'),
                 })
                 
-        # ================================================================
-        # STEP 8: Solve electron energy equation
-        # ================================================================
-        tic('solve_electron_E')
-        self._solve_electron_energy(dE_sources)
-        toc('solve_electron_E')
-        
-        if debug:
-            _dbg("After energy solve:", {'Te': self.state.electrons.T})
+            # ================================================================
+            # STEP 7: Solve electron energy equation (explicit mode only)
+            # ================================================================
+            tic('solve_electron_E')
+            self._solve_electron_energy(dE_sources)
+            toc('solve_electron_E')
+            
+            if debug:
+                _dbg("After energy solve:", {'Te': self.state.electrons.T})
         
         # ================================================================
         # STEP 8: Post-solve corrections (matching C++ order)
@@ -2281,6 +2291,52 @@ class BDF2Solver:
         
         # Get energy transport scaling factors (from C++ transport.cpp)
         # C = Ts - coef1 * gEd * Ds * tstep + coef1 * gEv * Vs * tstep
+        gEd = self.params.get('gEd', 5/3)
+        gEv = self.params.get('gEv', 5/3)
+        
+        # Create scaled transport coefficients for energy
+        D_energy = Function(self.state.V)
+        V_energy = Function(self.state.V)
+        D_energy.x.array[:] = gEd * D.x.array[:]
+        V_energy.x.array[:] = gEv * V.x.array[:]
+        
+        # Solve with Robin BC
+        self.transport_eq.solve(
+            D_energy, V_energy, electrons.E, electrons.E_prev, electrons.E_prev2,
+            self.source, bcs=[], use_robin_bc=True
+        )
+    
+    def _solve_electron_energy_transport_only(self, dE_parallel: dict) -> None:
+        """
+        Solve electron energy transport with parallel losses only (no reaction sources).
+        
+        Used in operator splitting mode where reaction sources are handled
+        by the implicit reaction solver.
+        """
+        electrons = self.state.electrons
+        
+        if not electrons.solve_energy:
+            return
+        
+        # Get electron transport coefficients
+        if 'e' in self.transport.coefficients:
+            coeff = self.transport.get('e')
+            D = coeff.D
+            V = coeff.V
+        else:
+            # Use ion transport as proxy
+            D = Function(self.state.V)
+            D.x.array[:] = 1.0
+            V = Function(self.state.V)
+            V.x.array[:] = 0.0
+        
+        # Set source term (parallel losses only, no reaction sources)
+        if 'e' in dE_parallel:
+            self.source.x.array[:] = dE_parallel['e']
+        else:
+            self.source.x.array[:] = 0.0
+        
+        # Get energy transport scaling factors (from C++ transport.cpp)
         gEd = self.params.get('gEd', 5/3)
         gEv = self.params.get('gEv', 5/3)
         
