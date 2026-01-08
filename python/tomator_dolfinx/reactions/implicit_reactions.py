@@ -27,7 +27,7 @@ def solve_reactions_vectorized(
     state,
     dt: float,
     params: dict,
-    max_newton_iter: int = 5,
+    max_newton_iter: int = 20,
     newton_tol: float = 1e-6
 ) -> None:
     """

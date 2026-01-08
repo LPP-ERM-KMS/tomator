@@ -2682,22 +2682,26 @@ def nu_ei(ne: np.ndarray, Te: np.ndarray, ni: np.ndarray, Ti: np.ndarray,
     nu : np.ndarray
         Collision frequency [1/s].
     """
-    Te_safe = np.maximum(Te, 0.01)
-    Ti_safe = np.maximum(Ti, 0.01)
+    # Add 0.01 eV offset to match C++ behavior exactly:
+    # C++ does: TTe = 1.602e-12 * Te + 1.602e-12 * 0.01
+    Te_safe = Te + 0.01
+    Ti_safe = Ti + 0.01
     
     # Convert temperatures to erg
     TTe = _EV_TO_ERG * Te_safe
     TTi = _EV_TO_ERG * Ti_safe
     
-    # Masses in g
-    me = _ME_CGS * 1000.0  # me in milligrams for consistent units
-    mi = mu * _MI_CGS * 1000.0
+    # Masses in grams (CGS units)
+    # Note: _ME_CGS and _MI_CGS are already in grams, no multiplication needed
+    # C++ does mme = 1000.0 * me because me is in kg (SI), converting to grams (CGS)
+    me_g = _ME_CGS  # Already in grams: 9.109e-28 g
+    mi_g = mu * _MI_CGS  # Already in grams: mu * 1.673e-24 g
     
     lam = coulomb_log_ei(ne, Te, Z)
     
     # Collision frequency formula (Z^2 factor for higher charges)
-    thermal_term = np.power(TTe / me + TTi / mi, 1.5)
-    nu = ni * _Q_CGS**4 * Z**2 * 8.0 * np.sqrt(2.0 * np.pi) * lam / (3.0 * me * mi * thermal_term)
+    thermal_term = np.power(TTe / me_g + TTi / mi_g, 1.5)
+    nu = ni * _Q_CGS**4 * Z**2 * 8.0 * np.sqrt(2.0 * np.pi) * lam / (3.0 * me_g * mi_g * thermal_term)
     
     return np.maximum(nu, 0.0)
 
@@ -2758,16 +2762,18 @@ def nu_ii(n1: np.ndarray, T1: np.ndarray, Z1: float, mu1: float,
     nu : np.ndarray
         Collision frequency [1/s].
     """
-    T1_safe = np.maximum(T1, 0.01)
-    T2_safe = np.maximum(T2, 0.01)
+    # Add 0.01 eV offset to match C++ behavior exactly
+    T1_safe = T1 + 0.01
+    T2_safe = T2 + 0.01
     
     # Convert temperatures to erg
     TT1 = _EV_TO_ERG * T1_safe
     TT2 = _EV_TO_ERG * T2_safe
     
-    # Masses in g
-    m1 = mu1 * _MI_CGS * 1000.0
-    m2 = mu2 * _MI_CGS * 1000.0
+    # Masses in grams (CGS units)
+    # Note: _MI_CGS is already in grams, no multiplication needed
+    m1 = mu1 * _MI_CGS  # Already in grams: mu1 * 1.673e-24 g
+    m2 = mu2 * _MI_CGS  # Already in grams: mu2 * 1.673e-24 g
     
     lam = coulomb_log_ii(n1, T1, Z1, mu1, n2, T2, Z2, mu2)
     
