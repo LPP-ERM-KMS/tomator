@@ -3,6 +3,7 @@
 *.dat
 *.log
 *.mod
+*.bak
 Res*.csv
 src/build
 tests/*.txt
@@ -15,6 +16,7 @@ TomatorResults/
 # Test folders not to track
 other_tests/
 
-# Compiled test binaries
+# Compiled binaries
 test_collisions_cpp
 test_single_collision
+Tomator1D
