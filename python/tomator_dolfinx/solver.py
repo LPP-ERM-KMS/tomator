@@ -44,7 +44,8 @@ class TransportEquation:
         V: FunctionSpace,
         bc_handler: BoundaryConditions,
         decay_length_hfs: float = 0.01,
-        decay_length_lfs: float = 0.01
+        decay_length_lfs: float = 0.01,
+        solver_tolerance: float = 1e-10
     ):
         """
         Initialize transport equation solver.
@@ -59,10 +60,13 @@ class TransportEquation:
             Decay length at HFS boundary [m].
         decay_length_lfs : float
             Decay length at LFS boundary [m].
+        solver_tolerance : float
+            Linear solver tolerance for PETSc KSP.
         """
         self.V = V
         self.mesh = V.mesh
         self.bc_handler = bc_handler
+        self.solver_tolerance = solver_tolerance
         
         # Create Robin BC handler
         self.robin_bc = DecayLengthBC(decay_length_hfs, decay_length_lfs, bc_handler)
@@ -136,7 +140,9 @@ class TransportEquation:
         dx = ufl.dx
         
         # === Build bilinear form (LHS) ===
-        # Time derivative: r * (1/dt) * n * v (NOT scaled by c1!)
+        # Time derivative: r * (1/dt) * n * v
+        # NOTE: Following C++ Tomator formulation where mass term is NOT scaled by c1
+        # C++: A = Ts - coef1 * Ds * tstep (mass Ts has no c1, spatial has c1)
         a_time = r * n / dt * v * dx
         
         # Diffusion: c1 * r * D * ∇n · ∇v
@@ -175,6 +181,7 @@ class TransportEquation:
         self._ksp = PETSc.KSP().create(self.mesh.comm)
         self._ksp.setType(PETSc.KSP.Type.PREONLY)
         self._ksp.getPC().setType(PETSc.PC.Type.LU)
+        self._ksp.setTolerances(rtol=self.solver_tolerance, atol=self.solver_tolerance, max_it=1000)
         self._ksp.setFromOptions()
     
     def assemble_forms(
@@ -398,25 +405,34 @@ class TransportEquation:
         step_count : int
             Current step number (0-indexed). C++ uses Nit (1-indexed iteration counter).
         """
-        # C++ uses Nit which starts at 1, so step_count < 10 corresponds to Nit <= 10
-        if step_count < 10:
-            # Fixed BDF2 coefficients for startup stability (matching C++ Nit <= 10)
-            self.c1.value = 2.0 / 3.0
-            self.c2.value = 4.0 / 3.0
-            self.c3.value = 1.0 / 3.0
-        elif dt_old > 0:
-            # Variable BDF2 coefficients for adaptive time stepping
-            w = dt_new / dt_old
-            self.c1.value = (1 + w) / (1 + 2*w)
-            self.c2.value = (1 + w)**2 / (1 + 2*w)
-            self.c3.value = w**2 / (1 + 2*w)
-        else:
-            # Fallback to fixed BDF2 if dt_old is invalid
-            self.c1.value = 2.0 / 3.0
-            self.c2.value = 4.0 / 3.0
-            self.c3.value = 1.0 / 3.0
-        
+        # TESTING: Always use fixed BDF2 coefficients to check if variable
+        # coefficients cause timestep-dependent steady state
+        # TODO: Remove this after testing - restore variable coefficient logic
+        self.c1.value = 2.0 / 3.0
+        self.c2.value = 4.0 / 3.0
+        self.c3.value = 1.0 / 3.0
         self.dt.value = dt_new
+        
+        # Original variable coefficient logic (commented out for testing):
+        # # C++ uses Nit which starts at 1, so step_count < 10 corresponds to Nit <= 10
+        # if step_count < 10:
+        #     # Fixed BDF2 coefficients for startup stability (matching C++ Nit <= 10)
+        #     self.c1.value = 2.0 / 3.0
+        #     self.c2.value = 4.0 / 3.0
+        #     self.c3.value = 1.0 / 3.0
+        # elif dt_old > 0:
+        #     # Variable BDF2 coefficients for adaptive time stepping
+        #     w = dt_new / dt_old
+        #     self.c1.value = (1 + w) / (1 + 2*w)
+        #     self.c2.value = (1 + w)**2 / (1 + 2*w)
+        #     self.c3.value = w**2 / (1 + 2*w)
+        # else:
+        #     # Fallback to fixed BDF2 if dt_old is invalid
+        #     self.c1.value = 2.0 / 3.0
+        #     self.c2.value = 4.0 / 3.0
+        #     self.c3.value = 1.0 / 3.0
+        # 
+        # self.dt.value = dt_new
 
 
 class BDF2Solver:
@@ -484,9 +500,16 @@ class BDF2Solver:
         lambda_hfs = params.get('decay_length_hfs', 0.01)
         lambda_lfs = params.get('decay_length_lfs', 0.01)
         
+        # Linear solver tolerance
+        solver_tolerance = params.get('solvertolerance', 1e-10)
+        
+        # Newton solver parameters for implicit reactions
+        self.max_newton_iter = params.get('max_newton_iter', 20)
+        self.newton_tol = params.get('newton_tol', 1e-6)
+        
         # Create transport equation solver
         self.transport_eq = TransportEquation(
-            state.V, bc_handler, lambda_hfs, lambda_lfs
+            state.V, bc_handler, lambda_hfs, lambda_lfs, solver_tolerance
         )
         
         # Source term function
@@ -1140,7 +1163,7 @@ class BDF2Solver:
             self._add_limiter_losses(dn_sources, dE_sources)
         
         # Vertical diffusion losses (requires Bt, Bv, b, R)
-        if all(self.params.get(k) is not None for k in ['Bt', 'Bv', 'b', 'R']):
+        if self.params.get('bpol', True) and all(self.params.get(k) is not None for k in ['Bt', 'Bv', 'b', 'R']):
             self._add_bpol_losses(dn_sources, dE_sources)
 
     def _add_limiter_losses(self, dn_sources: dict, dE_sources: dict) -> None:
@@ -1150,7 +1173,7 @@ class BDF2Solver:
         Equivalent to C++ limiters() function.
         Particles in SOL region (r < lHFS or r > lLFS) are lost to limiters.
         
-        Loss rates are limited based on accur to prevent instabilities.
+        Note: Rate limiting is now applied centrally in step() after all parallel losses computed.
         """
         dn_lim, dE_lim = compute_limiter_losses(
             R_positions=self.radial_positions,
@@ -1169,9 +1192,7 @@ class BDF2Solver:
             THeII=self._get_species_T('HeII'),
             nHeIII=self._get_species_n('HeIII'),
             THeIII=self._get_species_T('HeIII'),
-            Ta0=self.params.get('Ta0', 0.026),
-            dt=self.dt,
-            accur=self.accuracy
+            Ta0=self.params.get('Ta0', 0.026)
         )
         self._merge_sources(dn_sources, dn_lim)
         self._merge_sources(dE_sources, dE_lim)
@@ -1258,6 +1279,7 @@ class BDF2Solver:
         lHFS = self.params.get('lHFS')
         lLFS = self.params.get('lLFS')
         if lHFS is not None and lLFS is not None:
+            # Rate limiting is now applied centrally in step() after all parallel losses computed
             dn_lim, dE_lim = compute_limiter_losses(
                 R_positions=self.radial_positions,
                 lHFS=self.params['lHFS'],
@@ -1275,9 +1297,7 @@ class BDF2Solver:
                 THeII=self._get_species_T('HeII'),
                 nHeIII=self._get_species_n('HeIII'),
                 THeIII=self._get_species_T('HeIII'),
-                Ta0=self.params.get('Ta0', 0.026),
-                dt=self.dt,
-                accur=self.accuracy
+                Ta0=self.params.get('Ta0', 0.026)
             )
             self._merge_sources(dn_sources, dn_lim)
             self._merge_sources(dE_sources, dE_lim)
@@ -1335,10 +1355,11 @@ class BDF2Solver:
             self._merge_sources(dn_sources, dn_bpol)
             self._merge_sources(dE_sources, dE_bpol)
         
-        # Apply energy factor: E = 3/2 * n * T
-        ENERGY_FACTOR = 1.5
-        for species_name in dE_sources:
-            dE_sources[species_name] *= ENERGY_FACTOR
+        # NOTE: Do NOT apply ENERGY_FACTOR here!
+        # In C++ Tomator1D.cpp, ENERGY_FACTOR is applied ONLY to collision sources
+        # (lines 169-177), BEFORE limiters() and bpol_function() are called.
+        # Parallel losses are already in the correct units from compute_limiter_losses
+        # and compute_bpol_losses (they use E = 1.5*n*T directly, matching C++).
 
     def _solve_ions_transport_only(self, dn_sources: dict, dE_sources: dict) -> None:
         """
@@ -1473,6 +1494,107 @@ class BDF2Solver:
                     D_energy, V_energy, species.E, species.E_prev, species.E_prev2,
                     self.source, bcs=[], use_robin_bc=use_robin
                 )
+
+    # =========================================================================
+    # Rate limiting for total source terms
+    # =========================================================================
+
+    def _apply_rate_limiting(self, dn_sources: dict, dE_sources: dict) -> None:
+        """
+        Apply rate limiting to the total collision source terms.
+        
+        This limits the total dn/dt and dE/dt for each species so that relative
+        density changes don't exceed self.accuracy per timestep. This is applied
+        to the TOTAL source terms (sum of all reactions) rather than per-reaction.
+        
+        The limiting ensures: |dn * dt / n| <= accuracy for all species.
+        
+        Parameters
+        ----------
+        dn_sources : dict
+            Density source terms [m^-3/s], modified in place.
+        dE_sources : dict
+            Energy source terms [eV·m^-3/s], modified in place.
+        """
+        dt = self.dt
+        accur = self.accuracy
+        
+        if dt is None or accur is None:
+            return
+        
+        # For each species, limit the total source term
+        for name in dn_sources:
+            # Get current density for this species
+            if name == 'e':
+                n = self.state.electrons.n.x.array
+            elif name in self.state.species:
+                n = self.state.species[name].n.x.array
+            else:
+                continue  # Species not present in state
+            
+            dn = dn_sources[name]
+            
+            # Maximum allowed change: |dn * dt / n| <= accur => |dn| <= accur * n / dt
+            n_safe = np.maximum(np.abs(n), 1e-30)  # Avoid division by zero
+            max_dn = accur * n_safe / dt
+            
+            # Find where limiting is needed
+            exceed = np.abs(dn) > max_dn
+            if np.any(exceed):
+                # Calculate scale factor for each point
+                scale = np.ones_like(dn)
+                scale[exceed] = max_dn[exceed] / np.abs(dn[exceed])
+                
+                # Apply same scale to both density and energy sources
+                dn_sources[name] = dn * scale
+                if name in dE_sources:
+                    dE_sources[name] = dE_sources[name] * scale
+
+    def _apply_energy_rate_limiting(self, dE_sources: dict) -> None:
+        """
+        Apply rate limiting to energy source terms based on dE/E.
+        
+        This limits the dE/dt for each species so that relative energy
+        changes don't exceed self.accuracy per timestep.
+        
+        The limiting ensures: |dE * dt / E| <= accuracy for all species.
+        
+        Parameters
+        ----------
+        dE_sources : dict
+            Energy source terms [eV·m^-3/s], modified in place.
+        """
+        dt = self.dt
+        accur = self.accuracy
+        
+        if dt is None or accur is None:
+            return
+        
+        # For each species, limit the energy source term
+        for name in list(dE_sources.keys()):
+            # Get current energy for this species
+            if name == 'e':
+                E = self.state.electrons.E.x.array
+            elif name in self.state.species:
+                E = self.state.species[name].E.x.array
+            else:
+                continue  # Species not present in state
+            
+            dE = dE_sources[name]
+            
+            # Maximum allowed change: |dE * dt / E| <= accur => |dE| <= accur * E / dt
+            E_safe = np.maximum(np.abs(E), 1e-30)  # Avoid division by zero
+            max_dE = accur * E_safe / dt
+            
+            # Find where limiting is needed
+            exceed = np.abs(dE) > max_dE
+            if np.any(exceed):
+                # Calculate scale factor for each point
+                scale = np.ones_like(dE)
+                scale[exceed] = max_dE[exceed] / np.abs(dE[exceed])
+                
+                # Apply scale to energy source
+                dE_sources[name] = dE * scale
 
     # =========================================================================
     # RF power deposition
@@ -1623,8 +1745,13 @@ class BDF2Solver:
         # ================================================================
         tic('collisions')
         dn_sources, dE_sources, nu_collision = compute_sources_from_state(
-            self.state, self.params, dt=self.dt, accur=self.accuracy
+            self.state, self.params
         )
+        
+        # Apply rate limiting to TOTAL source terms if enabled
+        use_rate_limiting = self.params.get('bRateLimiting', True)
+        if use_rate_limiting:
+            self._apply_rate_limiting(dn_sources, dE_sources)
         toc('collisions')
         
         # Store nu for transport coefficient and loss calculations
@@ -1646,24 +1773,47 @@ class BDF2Solver:
         
         # ================================================================
         # STEP 4: Compute parallel loss sources (limiter + bpol)
+        # Always compute parallel losses first, then apply rate limiting
+        # For operator splitting: keep parallel losses separate
+        # For explicit: merge parallel losses with reaction sources
         # ================================================================
         tic('parallel_losses')
+        # Always compute parallel losses first
         dn_parallel = {}
         dE_parallel = {}
         self._compute_parallel_losses(dn_parallel, dE_parallel)
+        
+        # Apply rate limiting to parallel losses (scaling dE with same factor as dn)
+        if use_rate_limiting:
+            self._apply_rate_limiting(dn_parallel, dE_parallel)
+        
+        # For explicit mode, merge parallel losses with reaction sources
+        if not use_operator_splitting:
+            self._merge_sources(dn_sources, dn_parallel)
+            self._merge_sources(dE_sources, dE_parallel)
         toc('parallel_losses')
         
         # ================================================================
         # STEP 5: Add RF power deposition to electron energy
         # ================================================================
         tic('rf_power')
-        self._add_rf_power(dE_sources)
+        dn_RF = {}
+        dE_RF = {}
+        self._add_rf_power(dE_RF)
+        
+        # Apply rate limiting to RF power: limit dE/E to max accuracy
+        if True: # use_rate_limiting:
+            self._apply_energy_rate_limiting(dE_RF)
+        
+        # Merge RF sources into main sources
+        self._merge_sources(dn_sources, dn_RF)
+        self._merge_sources(dE_sources, dE_RF)
         toc('rf_power')
         
         # ================================================================
-        # STEP 6: TRANSPORT STEP (PDE with parallel losses only)
-        # For operator splitting: transport has no reaction sources
-        # Parallel losses are included as explicit sources in transport
+        # STEP 6: TRANSPORT STEP
+        # Operator splitting: transport with parallel losses only (no reactions)
+        # Explicit: transport with all sources (reactions + parallel losses)
         # ================================================================
         if use_operator_splitting:
             # Transport with parallel losses only (no reaction sources)
@@ -1690,7 +1840,13 @@ class BDF2Solver:
             # STEP 7: REACTION STEP (implicit ODE at each mesh point)
             # ================================================================
             tic('reactions_implicit')
-            solve_reactions_vectorized(self.state, self.dt, self.params)
+            # Newton solver parameters: max_newton_iter (default 20), newton_tol (default 1e-6)
+            # Can be configured via params['max_newton_iter'] and params['newton_tol']
+            solve_reactions_vectorized(
+                self.state, self.dt, self.params, 
+                max_newton_iter=self.max_newton_iter,
+                newton_tol=self.newton_tol
+            )
             toc('reactions_implicit')
             
             if debug:
@@ -1699,9 +1855,7 @@ class BDF2Solver:
                     'nH': self._get_species_n('H'),
                 })
         else:
-            # Original explicit treatment (all sources combined)
-            self._add_parallel_losses(dn_sources, dE_sources)
-            
+            # Original explicit treatment (all sources already combined in Step 4)
             tic('solve_ions')
             self._solve_ions(dn_sources, dE_sources)
             toc('solve_ions')
@@ -1722,7 +1876,7 @@ class BDF2Solver:
                 })
                 
         # ================================================================
-        # STEP 7: Solve electron energy equation
+        # STEP 8: Solve electron energy equation
         # ================================================================
         tic('solve_electron_E')
         self._solve_electron_energy(dE_sources)
@@ -1747,8 +1901,9 @@ class BDF2Solver:
         # 3. Apply temperature clamps (adjusts E to enforce T bounds)
         self._apply_temperature_clamps()
         
-        # 4. Recompute E = 1.5 * n * T for all species to ensure consistency
-        self._recompute_energy_from_temperature()
+        # NOTE: Do NOT call _recompute_energy_from_temperature() here!
+        # The temperature clamps already set E correctly. Recomputing E from T
+        # would be a circular no-op that doesn't enforce the clamps properly.
         
         toc('floors_clamps')
         
@@ -2084,10 +2239,20 @@ class BDF2Solver:
                 # Apply flux-based energy BC for Dirichlet density species (H2, HeI)
                 # - Inward flux: incoming at Ta0, reflected at REH * T_interior
                 # - Outward flux: particles leave with their local temperature
-                if has_dirichlet:
+                # Can be disabled with bNeutrFluxEnergyBC=False for testing
+                use_flux_energy_bc = self.params.get('bNeutrFluxEnergyBC', True)
+                if has_dirichlet and use_flux_energy_bc:
                     self._apply_energy_bc_with_flux(
                         species.E, species.n, D, n_bc, Ta0, REH
                     )
+                elif has_dirichlet and not use_flux_energy_bc:
+                    # Simple fixed-temperature BC: E = 1.5 * n * Ta0 at boundaries
+                    coords = self.state.V.tabulate_dof_coordinates()[:, 0]
+                    sorted_idx = np.argsort(coords)
+                    idx_hfs = sorted_idx[0]
+                    idx_lfs = sorted_idx[-1]
+                    species.E.x.array[idx_hfs] = 1.5 * n_bc * Ta0
+                    species.E.x.array[idx_lfs] = 1.5 * n_bc * Ta0
     
     def _solve_electron_energy(self, dE_sources: dict) -> None:
         """Solve electron energy equation."""

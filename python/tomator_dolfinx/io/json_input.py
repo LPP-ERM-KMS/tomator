@@ -184,6 +184,7 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['bimpur'] = dict_get(phys, 'bimpur', False)
         params['btranspions'] = dict_get(phys, 'btranspions', True)
         params['btranspneut'] = dict_get(phys, 'btranspneut', True)
+        params['bpol'] = dict_get(phys, 'bpol', True)
     
     # Diffusion parameters
     if 'diffusion' in raw:
@@ -375,7 +376,12 @@ def load_input_file(filename: str) -> Dict[str, Any]:
             params['fixBC_value'] = edge['fixBC'].get('value', 2.0) / 100.0  # Convert cm to m
         else:
             params['fixBC'] = dict_get(edge, 'fixBC', False)
-            params['fixBC_value'] = 0.02  # Default 2 cm in m
+            params['fixBC_value'] = dict_get(edge, 'fixBC_value', 0.02)  # Default 2 cm in m
+        
+        # Neutral flux-dependent energy BC option
+        # If true, use flux-direction dependent energy BC for neutrals (H2, HeI)
+        # If false, use simple fixed-temperature BC
+        params['bNeutrFluxEnergyBC'] = dict_get(edge, 'bNeutrFluxEnergyBC', True)
     
     # Decay lengths - initial values only, updated dynamically based on actual D
     params['decay_length_hfs'] = 0.01  # [m] - will be recomputed from physics
@@ -413,7 +419,15 @@ def load_input_file(filename: str) -> Dict[str, Any]:
     if 'output_parameters' in raw:
         out = raw['output_parameters']
         params['Nlog'] = dict_get(out, 'Nlog', 100)
-        params['dtsave'] = dict_get(out, 'dtsave', 1e-4)
+        params['dtsave'] = dict_get(out, 'dtsave', 1e-4)    
+    # Solver parameters
+    if 'solver_parameters' in raw:
+        solver = raw['solver_parameters']
+        params['solvertolerance'] = dict_get(solver, 'solvertolerance', 1e-10)
+        params['max_newton_iter'] = dict_get(solver, 'max_newton_iter', 20)
+        params['newton_tol'] = dict_get(solver, 'newton_tol', 1e-6)
+        params['operator_splitting'] = dict_get(solver, 'operator_splitting', False)
+        params['bRateLimiting'] = dict_get(solver, 'bRateLimiting', True)        
         params['output_interval'] = dict_get(out, 'dtsave', 1e-4)
         # Profiling flag (can be plain bool or {"value": bool})
         if 'profile' in out:

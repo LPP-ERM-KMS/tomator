@@ -95,9 +95,7 @@ def compute_limiter_losses(
     THeII: np.ndarray = None,
     nHeIII: np.ndarray = None,
     THeIII: np.ndarray = None,
-    Ta0: float = 0.026,
-    dt: float = None,
-    accur: float = None
+    Ta0: float = 0.026
 ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
     """
     Compute parallel transport losses to limiters in the SOL region.
@@ -109,8 +107,8 @@ def compute_limiter_losses(
     
     Lost ions recycle as neutrals at wall temperature Ta0.
     
-    If dt and accur are provided, loss rates are limited so that relative 
-    density changes per timestep don't exceed accur.
+    Note: Rate limiting is now applied centrally in the solver after all
+    parallel losses are computed.
     
     Parameters
     ----------
@@ -136,10 +134,6 @@ def compute_limiter_losses(
         He++ density [m^-3] and temperature [eV].
     Ta0 : float
         Wall/recycled neutral temperature [eV]. Default 0.026 eV (room temp).
-    dt : float, optional
-        Time step [s] for rate limiting. If None, no limiting applied.
-    accur : float, optional
-        Maximum allowed relative change per timestep. If None, no limiting applied.
         
     Returns
     -------
@@ -195,9 +189,6 @@ def compute_limiter_losses(
     loss_rate_Hi = nHi / tau_Hi
     loss_rate_Hi[~sol_mask] = 0.0
     
-    # Rate limiting: ensure |dn * dt / n| <= accur
-    loss_rate_Hi = limit_loss_rate(loss_rate_Hi, nHi, dt, accur)
-    
     dn['Hi'][sol_mask] -= loss_rate_Hi[sol_mask]
     dE['Hi'][sol_mask] -= (loss_rate_Hi * 1.5 * THi)[sol_mask]
     dn['e'][sol_mask] -= Z * loss_rate_Hi[sol_mask]
@@ -230,9 +221,6 @@ def compute_limiter_losses(
         loss_rate_H2i = nH2i / tau_H2i
         loss_rate_H2i[~sol_mask] = 0.0
         
-        # Rate limiting
-        loss_rate_H2i = limit_loss_rate(loss_rate_H2i, nH2i, dt, accur)
-        
         dn['H2i'][sol_mask] -= loss_rate_H2i[sol_mask]
         dE['H2i'][sol_mask] -= (loss_rate_H2i * 1.5 * TH2i)[sol_mask]
         dn['e'][sol_mask] -= Z * loss_rate_H2i[sol_mask]
@@ -264,9 +252,6 @@ def compute_limiter_losses(
         
         loss_rate_H3i = nH3i / tau_H3i
         loss_rate_H3i[~sol_mask] = 0.0
-        
-        # Rate limiting
-        loss_rate_H3i = limit_loss_rate(loss_rate_H3i, nH3i, dt, accur)
         
         dn['H3i'][sol_mask] -= loss_rate_H3i[sol_mask]
         dE['H3i'][sol_mask] -= (loss_rate_H3i * 1.5 * TH3i)[sol_mask]
@@ -301,9 +286,6 @@ def compute_limiter_losses(
         
         loss_rate_HeII = nHeII / tau_HeII
         loss_rate_HeII[~sol_mask] = 0.0
-        
-        # Rate limiting
-        loss_rate_HeII = limit_loss_rate(loss_rate_HeII, nHeII, dt, accur)
         
         dn['HeII'][sol_mask] -= loss_rate_HeII[sol_mask]
         dE['HeII'][sol_mask] -= (loss_rate_HeII * 1.5 * THeII)[sol_mask]
@@ -340,9 +322,6 @@ def compute_limiter_losses(
         
         loss_rate_HeIII = nHeIII / tau_HeIII
         loss_rate_HeIII[~sol_mask] = 0.0
-        
-        # Rate limiting
-        loss_rate_HeIII = limit_loss_rate(loss_rate_HeIII, nHeIII, dt, accur)
         
         dn['HeIII'][sol_mask] -= loss_rate_HeIII[sol_mask]
         dE['HeIII'][sol_mask] -= (loss_rate_HeIII * 1.5 * THeIII)[sol_mask]
@@ -461,7 +440,8 @@ def compute_bpol_losses(
     dE['Hi'] = np.zeros(n_points)
     
     # Minimum collision frequency to prevent numerical issues
-    nu_min = 5e3  # [s^-1]
+    # C++ uses max(nu, 1e4) in transport.cpp line 72
+    nu_min = 1e4  # [s^-1]
     
     # Br is in Tesla, formulas use Gauss (1 T = 1e4 Gauss)
     # In C++: gr = ... / Br[im] / 1e4, equivalent to dividing by B in Gauss
@@ -477,9 +457,9 @@ def compute_bpol_losses(
         Dv = D_ion * 1e4  # [cm²/s]
     elif diffusion_model.lower() == 'gyrogeom':
         # Compute weighted mean free path, gyroradius, and collision frequency
-        # mfp = n * 9.79e5 * sqrt((Te + Ti*ni/ne) / mu) / max(nu, 5e3) [cm]
+        # mfp = n * 9.79e5 * sqrt((Te + Ti*ni/ne) / mu) / max(nu, 1e4) [cm]
         # gr = n * 1.02e2 / Z * sqrt(mu * Ti) / Br / 1e4 [cm]
-        # nu_weighted = n * max(nu, 5e3)
+        # nu_weighted = n * max(nu, 1e4)
         
         ne_safe = np.maximum(ne_cgs, 1e-10)
         
