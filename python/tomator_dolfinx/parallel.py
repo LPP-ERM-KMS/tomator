@@ -44,7 +44,9 @@ def compute_limiter_losses(
     R_positions: np.ndarray,
     lHFS: float,
     lLFS: float,
-    nlimiters: float,
+    D_perp: np.ndarray,
+    lambda_n: float,
+    lambda_E: float,
     ne: np.ndarray,
     Te: np.ndarray,
     nHi: np.ndarray,
@@ -60,14 +62,16 @@ def compute_limiter_losses(
     Ta0: float = 0.026
 ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
     """
-    Compute parallel transport losses to limiters in the SOL region.
+    Compute parallel transport losses to limiters using diffusion-based formula.
     
-    In the SOL (R < lHFS or R > lLFS), ions are lost along field lines to 
-    limiters with characteristic time:
-        tau = 0.66 * 2*pi*R / nlimiters / (cs * ndamp(ne) * ndamp(ni))
-    where cs = 9.79e5 * sqrt(Z/mu * (Te + Ti*ni/ne)) cm/s
+    In the SOL (R < lHFS or R > lLFS), ions are lost along field lines with
+    characteristic time based on perpendicular diffusion:
     
-    Lost ions recycle as neutrals at wall temperature Ta0.
+        D_⊥ / λ² = 1 / τ_∥   =>   τ = λ² / D_⊥
+    
+    Separate decay lengths are used for density and energy:
+        τ_n = λ_n² / D_⊥  (density loss time)
+        τ_E = λ_E² / D_⊥  (energy loss time)
     
     Parameters
     ----------
@@ -77,8 +81,12 @@ def compute_limiter_losses(
         HFS limiter position [m].
     lLFS : float
         LFS limiter position [m].
-    nlimiters : float
-        Number of poloidal limiters.
+    D_perp : np.ndarray
+        Perpendicular diffusion coefficient [m²/s].
+    lambda_n : float
+        Density decay length [m].
+    lambda_E : float
+        Energy decay length [m].
     ne, Te : np.ndarray
         Electron density [m^-3] and temperature [eV].
     nHi, THi : np.ndarray
@@ -115,54 +123,36 @@ def compute_limiter_losses(
     if not np.any(sol_mask):
         return dn, dE
     
-    # Convert to CGS for rate calculation
-    ne_cgs = ne * M3_TO_CM3
-    nHi_cgs = nHi * M3_TO_CM3
+    # Compute loss times from diffusion: τ = λ² / D_⊥
+    D_safe = np.maximum(D_perp, 1e-10)  # Prevent division by zero
+    tau_n = lambda_n**2 / D_safe  # Density loss time [s]
+    tau_E = lambda_E**2 / D_safe  # Energy loss time [s]
     
-    # R positions in cm for tau calculation
-    R_cm = R_positions * 100.0
-    
-    # Energy coefficient for limiters (gElim = 1.0 in C++)
-    gElim = 1.0
+    # Ensure minimum loss time
+    tau_n = np.maximum(tau_n, 1e-10)
+    tau_E = np.maximum(tau_E, 1e-10)
     
     # Initialize sources
     dn['e'] = np.zeros_like(ne)
     dE['e'] = np.zeros_like(ne)
     dn['Hi'] = np.zeros_like(ne)
     dE['Hi'] = np.zeros_like(ne)
-    dn['H2'] = np.zeros_like(ne)
-    dE['H2'] = np.zeros_like(ne)
     
     # --- H+ losses ---
     Z = 1.0
-    mu = 1.0
-    # Sound speed: cs = 9.79e5 * sqrt(Z/mu * (Te + Ti*ni/ne)) [cm/s]
-    T_eff = Te + THi * nHi / np.maximum(ne, 1e-10)
-    cs = 9.79e5 * np.sqrt(Z / mu * np.maximum(T_eff, 0.01))
+    loss_rate_n_Hi = np.zeros_like(ne)
+    loss_rate_E_Hi = np.zeros_like(ne)
+    loss_rate_n_Hi[sol_mask] = nHi[sol_mask] / tau_n[sol_mask]
+    loss_rate_E_Hi[sol_mask] = (nHi * 1.5 * THi)[sol_mask] / tau_E[sol_mask]
     
-    # Parallel loss time: tau = 0.66 * 2*pi*R / nlimiters / (cs * ndamp(ne) * ndamp(ni))
-    tau_Hi = np.ones_like(ne) * 1e30  # Large value (no loss) by default
-    damp_factor = cs * ndamp(ne_cgs) * ndamp(nHi_cgs)
-    valid = (damp_factor > 0) & sol_mask
-    tau_Hi[valid] = 0.66 * 2.0 * np.pi * R_cm[valid] / nlimiters / damp_factor[valid]
-    tau_Hi = np.maximum(tau_Hi, 1e-10)  # Prevent division by zero
-    
-    # Apply losses only in SOL
-    loss_rate_Hi = nHi / tau_Hi
-    loss_rate_Hi[~sol_mask] = 0.0
-    
-    dn['Hi'][sol_mask] -= loss_rate_Hi[sol_mask]
-    dE['Hi'][sol_mask] -= (loss_rate_Hi * 1.5 * THi)[sol_mask]
-    dn['e'][sol_mask] -= Z * loss_rate_Hi[sol_mask]
-    dE['e'][sol_mask] -= (Z * loss_rate_Hi * 1.5 * Te)[sol_mask]
-    
-    # # Recycle H+ -> 0.5 H2 at wall temperature
-    # dn['H2'][sol_mask] += 0.5 * loss_rate_Hi[sol_mask]
-    # dE['H2'][sol_mask] += 0.5 * loss_rate_Hi[sol_mask] * 1.5 * Ta0
+    dn['Hi'] -= loss_rate_n_Hi
+    dE['Hi'] -= loss_rate_E_Hi
+    dn['e'] -= Z * loss_rate_n_Hi
+    dE['e'] -= Z * (ne * 1.5 * Te / tau_E)
+    dE['e'][~sol_mask] = 0.0
     
     # --- H2+ losses ---
     if nH2i is not None:
-        nH2i_cgs = nH2i * M3_TO_CM3
         if TH2i is None:
             TH2i = Te.copy()
         
@@ -170,31 +160,18 @@ def compute_limiter_losses(
         dE['H2i'] = np.zeros_like(ne)
         
         Z = 1.0
-        mu = 2.0
-        T_eff = Te + TH2i * nH2i / np.maximum(ne, 1e-10)
-        cs = 9.79e5 * np.sqrt(Z / mu * np.maximum(T_eff, 0.01))
+        loss_rate_n_H2i = np.zeros_like(ne)
+        loss_rate_E_H2i = np.zeros_like(ne)
+        loss_rate_n_H2i[sol_mask] = nH2i[sol_mask] / tau_n[sol_mask]
+        loss_rate_E_H2i[sol_mask] = (nH2i * 1.5 * TH2i)[sol_mask] / tau_E[sol_mask]
         
-        tau_H2i = np.ones_like(ne) * 1e30
-        damp_factor = cs * ndamp(ne_cgs) * ndamp(nH2i_cgs)
-        valid = (damp_factor > 0) & sol_mask
-        tau_H2i[valid] = 0.66 * 2.0 * np.pi * R_cm[valid] / nlimiters / damp_factor[valid]
-        tau_H2i = np.maximum(tau_H2i, 1e-10)
-        
-        loss_rate_H2i = nH2i / tau_H2i
-        loss_rate_H2i[~sol_mask] = 0.0
-        
-        dn['H2i'][sol_mask] -= loss_rate_H2i[sol_mask]
-        dE['H2i'][sol_mask] -= (loss_rate_H2i * 1.5 * TH2i)[sol_mask]
-        dn['e'][sol_mask] -= Z * loss_rate_H2i[sol_mask]
-        dE['e'][sol_mask] -= (Z * loss_rate_H2i * 1.5 * Te)[sol_mask]
-        
-        # # Recycle H2+ -> H2 at wall temperature
-        # dn['H2'][sol_mask] += loss_rate_H2i[sol_mask]
-        # dE['H2'][sol_mask] += loss_rate_H2i[sol_mask] * 1.5 * Ta0
+        dn['H2i'] -= loss_rate_n_H2i
+        dE['H2i'] -= loss_rate_E_H2i
+        dn['e'] -= Z * loss_rate_n_H2i
+        # Electron energy loss already accounted for in H+ section
     
     # --- H3+ losses ---
     if nH3i is not None:
-        nH3i_cgs = nH3i * M3_TO_CM3
         if TH3i is None:
             TH3i = Te.copy()
         
@@ -202,100 +179,309 @@ def compute_limiter_losses(
         dE['H3i'] = np.zeros_like(ne)
         
         Z = 1.0
-        mu = 3.0
-        T_eff = Te + TH3i * nH3i / np.maximum(ne, 1e-10)
-        cs = 9.79e5 * np.sqrt(Z / mu * np.maximum(T_eff, 0.01))
+        loss_rate_n_H3i = np.zeros_like(ne)
+        loss_rate_E_H3i = np.zeros_like(ne)
+        loss_rate_n_H3i[sol_mask] = nH3i[sol_mask] / tau_n[sol_mask]
+        loss_rate_E_H3i[sol_mask] = (nH3i * 1.5 * TH3i)[sol_mask] / tau_E[sol_mask]
         
-        tau_H3i = np.ones_like(ne) * 1e30
-        damp_factor = cs * ndamp(ne_cgs) * ndamp(nH3i_cgs)
-        valid = (damp_factor > 0) & sol_mask
-        tau_H3i[valid] = 0.66 * 2.0 * np.pi * R_cm[valid] / nlimiters / damp_factor[valid]
-        tau_H3i = np.maximum(tau_H3i, 1e-10)
-        
-        loss_rate_H3i = nH3i / tau_H3i
-        loss_rate_H3i[~sol_mask] = 0.0
-        
-        dn['H3i'][sol_mask] -= loss_rate_H3i[sol_mask]
-        dE['H3i'][sol_mask] -= (loss_rate_H3i * 1.5 * TH3i)[sol_mask]
-        dn['e'][sol_mask] -= Z * loss_rate_H3i[sol_mask]
-        dE['e'][sol_mask] -= (Z * loss_rate_H3i * 1.5 * Te)[sol_mask]
-        
-        # # Recycle H3+ -> 1.5 H2 at wall temperature
-        # dn['H2'][sol_mask] += 1.5 * loss_rate_H3i[sol_mask]
-        # dE['H2'][sol_mask] += 1.5 * loss_rate_H3i[sol_mask] * 1.5 * Ta0
+        dn['H3i'] -= loss_rate_n_H3i
+        dE['H3i'] -= loss_rate_E_H3i
+        dn['e'] -= Z * loss_rate_n_H3i
     
     # --- He+ (HeII) losses ---
     if nHeII is not None:
-        nHeII_cgs = nHeII * M3_TO_CM3
         if THeII is None:
             THeII = Te.copy()
         
         dn['HeII'] = np.zeros_like(ne)
         dE['HeII'] = np.zeros_like(ne)
-        dn['HeI'] = np.zeros_like(ne)
-        dE['HeI'] = np.zeros_like(ne)
         
         Z = 1.0
-        mu = 4.0
-        T_eff = Te + THeII * nHeII / np.maximum(ne, 1e-10)
-        cs = 9.79e5 * np.sqrt(Z / mu * np.maximum(T_eff, 0.01))
+        loss_rate_n_HeII = np.zeros_like(ne)
+        loss_rate_E_HeII = np.zeros_like(ne)
+        loss_rate_n_HeII[sol_mask] = nHeII[sol_mask] / tau_n[sol_mask]
+        loss_rate_E_HeII[sol_mask] = (nHeII * 1.5 * THeII)[sol_mask] / tau_E[sol_mask]
         
-        tau_HeII = np.ones_like(ne) * 1e30
-        damp_factor = cs * ndamp(ne_cgs) * ndamp(nHeII_cgs)
-        valid = (damp_factor > 0) & sol_mask
-        tau_HeII[valid] = 0.66 * 2.0 * np.pi * R_cm[valid] / nlimiters / damp_factor[valid]
-        tau_HeII = np.maximum(tau_HeII, 1e-10)
-        
-        loss_rate_HeII = nHeII / tau_HeII
-        loss_rate_HeII[~sol_mask] = 0.0
-        
-        dn['HeII'][sol_mask] -= loss_rate_HeII[sol_mask]
-        dE['HeII'][sol_mask] -= (loss_rate_HeII * 1.5 * THeII)[sol_mask]
-        dn['e'][sol_mask] -= Z * loss_rate_HeII[sol_mask]
-        dE['e'][sol_mask] -= (Z * loss_rate_HeII * 1.5 * Te)[sol_mask]
-        
-        # # Recycle He+ -> HeI at wall temperature
-        # dn['HeI'][sol_mask] += loss_rate_HeII[sol_mask]
-        # dE['HeI'][sol_mask] += loss_rate_HeII[sol_mask] * 1.5 * Ta0
+        dn['HeII'] -= loss_rate_n_HeII
+        dE['HeII'] -= loss_rate_E_HeII
+        dn['e'] -= Z * loss_rate_n_HeII
     
     # --- He++ (HeIII) losses ---
     if nHeIII is not None:
-        nHeIII_cgs = nHeIII * M3_TO_CM3
         if THeIII is None:
             THeIII = Te.copy()
         
-        if 'HeIII' not in dn:
-            dn['HeIII'] = np.zeros_like(ne)
-            dE['HeIII'] = np.zeros_like(ne)
-        if 'HeI' not in dn:
-            dn['HeI'] = np.zeros_like(ne)
-            dE['HeI'] = np.zeros_like(ne)
+        dn['HeIII'] = np.zeros_like(ne)
+        dE['HeIII'] = np.zeros_like(ne)
         
         Z = 2.0
-        mu = 4.0
-        T_eff = Te + THeIII * nHeIII / np.maximum(ne, 1e-10)
-        cs = 9.79e5 * np.sqrt(Z / mu * np.maximum(T_eff, 0.01))
+        loss_rate_n_HeIII = np.zeros_like(ne)
+        loss_rate_E_HeIII = np.zeros_like(ne)
+        loss_rate_n_HeIII[sol_mask] = nHeIII[sol_mask] / tau_n[sol_mask]
+        loss_rate_E_HeIII[sol_mask] = (nHeIII * 1.5 * THeIII)[sol_mask] / tau_E[sol_mask]
         
-        tau_HeIII = np.ones_like(ne) * 1e30
-        damp_factor = cs * ndamp(ne_cgs) * ndamp(nHeIII_cgs)
-        valid = (damp_factor > 0) & sol_mask
-        tau_HeIII[valid] = 0.66 * 2.0 * np.pi * R_cm[valid] / nlimiters / damp_factor[valid]
-        tau_HeIII = np.maximum(tau_HeIII, 1e-10)
-        
-        loss_rate_HeIII = nHeIII / tau_HeIII
-        loss_rate_HeIII[~sol_mask] = 0.0
-        
-        dn['HeIII'][sol_mask] -= loss_rate_HeIII[sol_mask]
-        dE['HeIII'][sol_mask] -= (loss_rate_HeIII * 1.5 * THeIII)[sol_mask]
-        dn['e'][sol_mask] -= Z * loss_rate_HeIII[sol_mask]
-        dE['e'][sol_mask] -= (Z * loss_rate_HeIII * 1.5 * Te)[sol_mask]
-        
-        # # Recycle He++ -> HeI at wall temperature
-        # dn['HeI'][sol_mask] += loss_rate_HeIII[sol_mask]
-        # dE['HeI'][sol_mask] += loss_rate_HeIII[sol_mask] * 1.5 * Ta0
+        dn['HeIII'] -= loss_rate_n_HeIII
+        dE['HeIII'] -= loss_rate_E_HeIII
+        dn['e'] -= Z * loss_rate_n_HeIII
     
     return dn, dE
 
+
+# def compute_limiter_losses(
+#     R_positions: np.ndarray,
+#     lHFS: float,
+#     lLFS: float,
+#     nlimiters: float,
+#     ne: np.ndarray,
+#     Te: np.ndarray,
+#     nHi: np.ndarray,
+#     THi: np.ndarray,
+#     nH2i: np.ndarray = None,
+#     TH2i: np.ndarray = None,
+#     nH3i: np.ndarray = None,
+#     TH3i: np.ndarray = None,
+#     nHeII: np.ndarray = None,
+#     THeII: np.ndarray = None,
+#     nHeIII: np.ndarray = None,
+#     THeIII: np.ndarray = None,
+#     Ta0: float = 0.026
+# ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+#     """
+#     Compute parallel transport losses to limiters in the SOL region.
+    
+#     In the SOL (R < lHFS or R > lLFS), ions are lost along field lines to 
+#     limiters with characteristic time:
+#         tau = 0.66 * 2*pi*R / nlimiters / (cs * ndamp(ne) * ndamp(ni))
+#     where cs = 9.79e5 * sqrt(Z/mu * (Te + Ti*ni/ne)) cm/s
+    
+#     Lost ions recycle as neutrals at wall temperature Ta0.
+    
+#     Parameters
+#     ----------
+#     R_positions : np.ndarray
+#         Radial positions [m].
+#     lHFS : float
+#         HFS limiter position [m].
+#     lLFS : float
+#         LFS limiter position [m].
+#     nlimiters : float
+#         Number of poloidal limiters.
+#     ne, Te : np.ndarray
+#         Electron density [m^-3] and temperature [eV].
+#     nHi, THi : np.ndarray
+#         H+ density [m^-3] and temperature [eV].
+#     nH2i, TH2i : np.ndarray, optional
+#         H2+ density [m^-3] and temperature [eV].
+#     nH3i, TH3i : np.ndarray, optional
+#         H3+ density [m^-3] and temperature [eV].
+#     nHeII, THeII : np.ndarray, optional
+#         He+ density [m^-3] and temperature [eV].
+#     nHeIII, THeIII : np.ndarray, optional
+#         He++ density [m^-3] and temperature [eV].
+#     Ta0 : float
+#         Wall/recycled neutral temperature [eV]. Default 0.026 eV (room temp).
+        
+#     Returns
+#     -------
+#     dn : Dict[str, np.ndarray]
+#         Density source terms [m^-3/s].
+#     dE : Dict[str, np.ndarray]
+#         Energy source terms [eV·m^-3/s].
+#     """
+#     # Initialize output dictionaries
+#     dn = {}
+#     dE = {}
+    
+#     # Find SOL mask: points outside the confined region
+#     # Exclude boundary points (first and last) since they already have decay length BCs
+#     sol_mask = (R_positions < lHFS) | (R_positions > lLFS)
+#     sol_mask[0] = False   # HFS boundary - handled by decay length BC
+#     sol_mask[-1] = False  # LFS boundary - handled by decay length BC
+    
+#     # If no points in SOL, return empty sources
+#     if not np.any(sol_mask):
+#         return dn, dE
+    
+#     # Convert to CGS for rate calculation
+#     ne_cgs = ne * M3_TO_CM3
+#     nHi_cgs = nHi * M3_TO_CM3
+    
+#     # R positions in cm for tau calculation
+#     R_cm = R_positions * 100.0
+    
+#     # Energy coefficient for limiters (gElim = 1.0 in C++)
+#     gElim = 1.0
+    
+#     # Initialize sources
+#     dn['e'] = np.zeros_like(ne)
+#     dE['e'] = np.zeros_like(ne)
+#     dn['Hi'] = np.zeros_like(ne)
+#     dE['Hi'] = np.zeros_like(ne)
+#     dn['H2'] = np.zeros_like(ne)
+#     dE['H2'] = np.zeros_like(ne)
+    
+#     # --- H+ losses ---
+#     Z = 1.0
+#     mu = 1.0
+#     # Sound speed: cs = 9.79e5 * sqrt(Z/mu * (Te + Ti*ni/ne)) [cm/s]
+#     T_eff = Te + THi * nHi / np.maximum(ne, 1e-10)
+#     cs = 9.79e5 * np.sqrt(Z / mu * np.maximum(T_eff, 0.01))
+    
+#     # Parallel loss time: tau = 0.66 * 2*pi*R / nlimiters / (cs * ndamp(ne) * ndamp(ni))
+#     tau_Hi = np.ones_like(ne) * 1e30  # Large value (no loss) by default
+#     damp_factor = cs * ndamp(ne_cgs) * ndamp(nHi_cgs)
+#     valid = (damp_factor > 0) & sol_mask
+#     tau_Hi[valid] = 0.66 * 2.0 * np.pi * R_cm[valid] / nlimiters / damp_factor[valid]
+#     tau_Hi = np.maximum(tau_Hi, 1e-10)  # Prevent division by zero
+    
+#     # Apply losses only in SOL
+#     loss_rate_Hi = nHi / tau_Hi
+#     loss_rate_Hi[~sol_mask] = 0.0
+    
+#     dn['Hi'][sol_mask] -= loss_rate_Hi[sol_mask]
+#     dE['Hi'][sol_mask] -= (loss_rate_Hi * 1.5 * THi)[sol_mask]
+#     dn['e'][sol_mask] -= Z * loss_rate_Hi[sol_mask]
+#     dE['e'][sol_mask] -= (Z * loss_rate_Hi * 1.5 * Te)[sol_mask]
+    
+#     # # Recycle H+ -> 0.5 H2 at wall temperature
+#     # dn['H2'][sol_mask] += 0.5 * loss_rate_Hi[sol_mask]
+#     # dE['H2'][sol_mask] += 0.5 * loss_rate_Hi[sol_mask] * 1.5 * Ta0
+    
+#     # --- H2+ losses ---
+#     if nH2i is not None:
+#         nH2i_cgs = nH2i * M3_TO_CM3
+#         if TH2i is None:
+#             TH2i = Te.copy()
+        
+#         dn['H2i'] = np.zeros_like(ne)
+#         dE['H2i'] = np.zeros_like(ne)
+        
+#         Z = 1.0
+#         mu = 2.0
+#         T_eff = Te + TH2i * nH2i / np.maximum(ne, 1e-10)
+#         cs = 9.79e5 * np.sqrt(Z / mu * np.maximum(T_eff, 0.01))
+        
+#         tau_H2i = np.ones_like(ne) * 1e30
+#         damp_factor = cs * ndamp(ne_cgs) * ndamp(nH2i_cgs)
+#         valid = (damp_factor > 0) & sol_mask
+#         tau_H2i[valid] = 0.66 * 2.0 * np.pi * R_cm[valid] / nlimiters / damp_factor[valid]
+#         tau_H2i = np.maximum(tau_H2i, 1e-10)
+        
+#         loss_rate_H2i = nH2i / tau_H2i
+#         loss_rate_H2i[~sol_mask] = 0.0
+        
+#         dn['H2i'][sol_mask] -= loss_rate_H2i[sol_mask]
+#         dE['H2i'][sol_mask] -= (loss_rate_H2i * 1.5 * TH2i)[sol_mask]
+#         dn['e'][sol_mask] -= Z * loss_rate_H2i[sol_mask]
+#         dE['e'][sol_mask] -= (Z * loss_rate_H2i * 1.5 * Te)[sol_mask]
+        
+#         # # Recycle H2+ -> H2 at wall temperature
+#         # dn['H2'][sol_mask] += loss_rate_H2i[sol_mask]
+#         # dE['H2'][sol_mask] += loss_rate_H2i[sol_mask] * 1.5 * Ta0
+    
+#     # --- H3+ losses ---
+#     if nH3i is not None:
+#         nH3i_cgs = nH3i * M3_TO_CM3
+#         if TH3i is None:
+#             TH3i = Te.copy()
+        
+#         dn['H3i'] = np.zeros_like(ne)
+#         dE['H3i'] = np.zeros_like(ne)
+        
+#         Z = 1.0
+#         mu = 3.0
+#         T_eff = Te + TH3i * nH3i / np.maximum(ne, 1e-10)
+#         cs = 9.79e5 * np.sqrt(Z / mu * np.maximum(T_eff, 0.01))
+        
+#         tau_H3i = np.ones_like(ne) * 1e30
+#         damp_factor = cs * ndamp(ne_cgs) * ndamp(nH3i_cgs)
+#         valid = (damp_factor > 0) & sol_mask
+#         tau_H3i[valid] = 0.66 * 2.0 * np.pi * R_cm[valid] / nlimiters / damp_factor[valid]
+#         tau_H3i = np.maximum(tau_H3i, 1e-10)
+        
+#         loss_rate_H3i = nH3i / tau_H3i
+#         loss_rate_H3i[~sol_mask] = 0.0
+        
+#         dn['H3i'][sol_mask] -= loss_rate_H3i[sol_mask]
+#         dE['H3i'][sol_mask] -= (loss_rate_H3i * 1.5 * TH3i)[sol_mask]
+#         dn['e'][sol_mask] -= Z * loss_rate_H3i[sol_mask]
+#         dE['e'][sol_mask] -= (Z * loss_rate_H3i * 1.5 * Te)[sol_mask]
+        
+#         # # Recycle H3+ -> 1.5 H2 at wall temperature
+#         # dn['H2'][sol_mask] += 1.5 * loss_rate_H3i[sol_mask]
+#         # dE['H2'][sol_mask] += 1.5 * loss_rate_H3i[sol_mask] * 1.5 * Ta0
+    
+#     # --- He+ (HeII) losses ---
+#     if nHeII is not None:
+#         nHeII_cgs = nHeII * M3_TO_CM3
+#         if THeII is None:
+#             THeII = Te.copy()
+        
+#         dn['HeII'] = np.zeros_like(ne)
+#         dE['HeII'] = np.zeros_like(ne)
+#         dn['HeI'] = np.zeros_like(ne)
+#         dE['HeI'] = np.zeros_like(ne)
+        
+#         Z = 1.0
+#         mu = 4.0
+#         T_eff = Te + THeII * nHeII / np.maximum(ne, 1e-10)
+#         cs = 9.79e5 * np.sqrt(Z / mu * np.maximum(T_eff, 0.01))
+        
+#         tau_HeII = np.ones_like(ne) * 1e30
+#         damp_factor = cs * ndamp(ne_cgs) * ndamp(nHeII_cgs)
+#         valid = (damp_factor > 0) & sol_mask
+#         tau_HeII[valid] = 0.66 * 2.0 * np.pi * R_cm[valid] / nlimiters / damp_factor[valid]
+#         tau_HeII = np.maximum(tau_HeII, 1e-10)
+        
+#         loss_rate_HeII = nHeII / tau_HeII
+#         loss_rate_HeII[~sol_mask] = 0.0
+        
+#         dn['HeII'][sol_mask] -= loss_rate_HeII[sol_mask]
+#         dE['HeII'][sol_mask] -= (loss_rate_HeII * 1.5 * THeII)[sol_mask]
+#         dn['e'][sol_mask] -= Z * loss_rate_HeII[sol_mask]
+#         dE['e'][sol_mask] -= (Z * loss_rate_HeII * 1.5 * Te)[sol_mask]
+        
+#         # # Recycle He+ -> HeI at wall temperature
+#         # dn['HeI'][sol_mask] += loss_rate_HeII[sol_mask]
+#         # dE['HeI'][sol_mask] += loss_rate_HeII[sol_mask] * 1.5 * Ta0
+    
+#     # --- He++ (HeIII) losses ---
+#     if nHeIII is not None:
+#         nHeIII_cgs = nHeIII * M3_TO_CM3
+#         if THeIII is None:
+#             THeIII = Te.copy()
+        
+#         if 'HeIII' not in dn:
+#             dn['HeIII'] = np.zeros_like(ne)
+#             dE['HeIII'] = np.zeros_like(ne)
+#         if 'HeI' not in dn:
+#             dn['HeI'] = np.zeros_like(ne)
+#             dE['HeI'] = np.zeros_like(ne)
+        
+#         Z = 2.0
+#         mu = 4.0
+#         T_eff = Te + THeIII * nHeIII / np.maximum(ne, 1e-10)
+#         cs = 9.79e5 * np.sqrt(Z / mu * np.maximum(T_eff, 0.01))
+        
+#         tau_HeIII = np.ones_like(ne) * 1e30
+#         damp_factor = cs * ndamp(ne_cgs) * ndamp(nHeIII_cgs)
+#         valid = (damp_factor > 0) & sol_mask
+#         tau_HeIII[valid] = 0.66 * 2.0 * np.pi * R_cm[valid] / nlimiters / damp_factor[valid]
+#         tau_HeIII = np.maximum(tau_HeIII, 1e-10)
+        
+#         loss_rate_HeIII = nHeIII / tau_HeIII
+#         loss_rate_HeIII[~sol_mask] = 0.0
+        
+#         dn['HeIII'][sol_mask] -= loss_rate_HeIII[sol_mask]
+#         dE['HeIII'][sol_mask] -= (loss_rate_HeIII * 1.5 * THeIII)[sol_mask]
+#         dn['e'][sol_mask] -= Z * loss_rate_HeIII[sol_mask]
+#         dE['e'][sol_mask] -= (Z * loss_rate_HeIII * 1.5 * Te)[sol_mask]
+        
+#         # # Recycle He++ -> HeI at wall temperature
+#         # dn['HeI'][sol_mask] += loss_rate_HeIII[sol_mask]
+#         # dE['HeI'][sol_mask] += loss_rate_HeIII[sol_mask] * 1.5 * Ta0
+    
+#     return dn, dE
 
 def compute_bpol_losses(
     Br: np.ndarray,

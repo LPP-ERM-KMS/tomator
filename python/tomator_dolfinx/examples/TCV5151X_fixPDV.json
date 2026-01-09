@@ -137,7 +137,7 @@
         "gEv": {"value": 1.6667, "unit": "-"},
         "gEdn": {"value": 1.6667, "unit": "-"},
         "gEe": {"value": 1.6667, "unit": "-"},
-        "fixBC": {"bool": true, "lambda_n": 2, "unit": "cm", "lambda_E": 1, "unit": "cm"}
+        "bc_ion_decay_length": {"lambda_n": 2, "lambda_E": 1, "unit": "cm"}
     },
     "simulation_grid": {
         "nmeshp": {"value": 161, "unit": "-"}

@@ -18,7 +18,7 @@ from dolfinx.fem import Function, FunctionSpace, Constant
 from dolfinx.fem.petsc import assemble_matrix, assemble_vector, apply_lifting, set_bc
 
 from .species import Species, PlasmaState
-from .boundary import BoundaryConditions, DecayLengthBC, compute_neutral_decay_length, compute_ion_decay_length
+from .boundary import BoundaryConditions, DecayLengthBC, compute_neutral_decay_length
 from .transport import (TransportCoefficients, TransportManager, 
                         compute_neutral_diffusion_from_state, compute_neutral_diffusion,
                         compute_gyrogeom_diffusion_from_state, DiffusionModel)
@@ -613,55 +613,9 @@ class BDF2Solver:
                 T_lfs = self.params.get('Ta0', 0.026)
         
         if is_ion:
-            # Check if fixed BC is enabled for ions (C++ fixBCs)
-            fixBC = self.params.get('fixBC', False)
-            
-            if fixBC:
-                # Use fixed decay length for density from JSON (C++ lam_dec_length_ions)
-                lambda_hfs = self.params.get('fixBC_lambda_n', 0.02)  # Default 2 cm
-                lambda_lfs = self.params.get('fixBC_lambda_n', 0.02)
-            else:
-                # Ion decay length: connection length physics
-                nlimiters = self.params.get('nlimiters', 1)
-                nevac = self.params.get('nevac', 1.0) * 1e6  # Convert cm^-3 to m^-3
-                
-                # Get electron temperature and density from electrons species
-                Te_arr = self.state.electrons.T  # T property returns array [eV]
-                ne_arr = self.state.electrons.n.x.array  # n is a fem.Function
-                Te_hfs = max(Te_arr[idx_hfs], 0.01)
-                Te_lfs = max(Te_arr[idx_lfs], 0.01)
-                ne_hfs = max(ne_arr[idx_hfs], 1e10)
-                ne_lfs = max(ne_arr[idx_lfs], 1e10)
-                
-                # Charge state (Z=1 for H+, H2+, H3+, HeII; Z=2 for HeIII)
-                name = species.name
-                Z = 2.0 if name == 'HeIII' else 1.0
-                
-                lambda_hfs = compute_ion_decay_length(
-                    D=D_arr[idx_hfs],
-                    Te=Te_hfs,
-                    Ti=T_hfs,
-                    a_R=r_hfs,
-                    nlimiters=nlimiters,
-                    Z=Z,
-                    mu=m_amu,
-                    ne=ne_hfs,
-                    ni=max(n_arr[idx_hfs], 1e10),
-                    nevac=nevac
-                )
-                
-                lambda_lfs = compute_ion_decay_length(
-                    D=D_arr[idx_lfs],
-                    Te=Te_lfs,
-                    Ti=T_lfs,
-                    a_R=r_lfs,
-                    nlimiters=nlimiters,
-                    Z=Z,
-                    mu=m_amu,
-                    ne=ne_lfs,
-                    ni=max(n_arr[idx_lfs], 1e10),
-                    nevac=nevac
-                )
+            # Use fixed decay length for density from JSON (C++ lam_dec_length_ions)
+            lambda_hfs = self.params.get('bc_ion_lambda_n', 0.02)  # Default 2 cm
+            lambda_lfs = self.params.get('bc_ion_lambda_n', 0.02)
         else:
             # Neutral H decay length: thermal velocity formula
             RH = self.params.get('RH', 0.5)
@@ -755,66 +709,10 @@ class BDF2Solver:
                 T_lfs = self.params.get('Ta0', 0.026)
         
         if is_ion:
-            # Check if fixed BC is enabled for ions (C++ fixBCs)
-            fixBC = self.params.get('fixBC', False)
-            
-            if fixBC:
-                # Use fixed decay length for energy from JSON (C++ lam_dec_length_energy)
-                # In C++, energy uses a DIFFERENT decay length (1 cm) than density (2 cm)
-                lambda_E_hfs = self.params.get('fixBC_lambda_E', 0.01)  # Default 1 cm
-                lambda_E_lfs = self.params.get('fixBC_lambda_E', 0.01)
-            else:
-                # Ion energy decay length: uses connection length formula with gEe/gEd scaling
-                # C++: bEion = bEion / (lambda / sqrt(gEe) * sqrt(gEd))
-                # So λ_E = λ_n * sqrt(gEe/gEd)
-                nlimiters = self.params.get('nlimiters', 1)
-                nevac = self.params.get('nevac', 1.0) * 1e6
-                
-                # Get electron temperature and density from electrons species
-                Te_arr = self.state.electrons.T  # T property returns array [eV]
-                ne_arr = self.state.electrons.n.x.array  # n is a fem.Function
-                Te_hfs = max(Te_arr[idx_hfs], 0.01)
-                Te_lfs = max(Te_arr[idx_lfs], 0.01)
-                ne_hfs = max(ne_arr[idx_hfs], 1e10)
-                ne_lfs = max(ne_arr[idx_lfs], 1e10)
-                
-                name = species.name
-                Z = 2.0 if name == 'HeIII' else 1.0
-                
-                # Compute density decay length first
-                lambda_n_hfs = compute_ion_decay_length(
-                    D=D_arr[idx_hfs],
-                    Te=Te_hfs,
-                    Ti=T_hfs,
-                    a_R=r_hfs,
-                    nlimiters=nlimiters,
-                    Z=Z,
-                    mu=m_amu,
-                    ne=ne_hfs,
-                    ni=max(n_arr[idx_hfs], 1e10),
-                    nevac=nevac
-                )
-                
-                lambda_n_lfs = compute_ion_decay_length(
-                    D=D_arr[idx_lfs],
-                    Te=Te_lfs,
-                    Ti=T_lfs,
-                    a_R=r_lfs,
-                    nlimiters=nlimiters,
-                    Z=Z,
-                    mu=m_amu,
-                    ne=ne_lfs,
-                    ni=max(n_arr[idx_lfs], 1e10),
-                    nevac=nevac
-                )
-                
-                # Apply gEd/gEe scaling for energy: λ_E = λ_n * sqrt(gEd/gEe)
-                # C++ formula: bEion / (lambda / sqrt(gEe) * sqrt(gEd))
-                #            = bEion / (lambda * sqrt(gEd/gEe))
-                # So effective λ_E = λ_n * sqrt(gEd/gEe)
-                scale = np.sqrt(gEd / gEe) if gEe > 0 else 1.0
-                lambda_E_hfs = lambda_n_hfs * scale
-                lambda_E_lfs = lambda_n_lfs * scale
+            # Use fixed decay length for energy from JSON (C++ lam_dec_length_energy)
+            # In C++, energy uses a DIFFERENT decay length (1 cm) than density (2 cm)
+            lambda_E_hfs = self.params.get('bc_ion_lambda_E', 0.01)  # Default 1 cm
+            lambda_E_lfs = self.params.get('bc_ion_lambda_E', 0.01)
             
             # Update Robin BC with energy decay lengths directly
             self.transport_eq.robin_bc.update_decay_lengths(lambda_E_hfs, lambda_E_lfs)
@@ -1175,14 +1073,24 @@ class BDF2Solver:
         
         Equivalent to C++ limiters() function.
         Particles in SOL region (r < lHFS or r > lLFS) are lost to limiters.
+        Uses diffusion-based formula: τ = λ² / D_⊥
         
         Note: Rate limiting is now applied centrally in step() after all parallel losses computed.
         """
+        # Get perpendicular diffusion coefficient (use Hi as representative)
+        if 'Hi' in self.transport.coefficients:
+            D_perp = self.transport.get('Hi').D.x.array.copy()
+        else:
+            # Fallback to a reasonable default
+            D_perp = np.ones_like(self.state.electrons.n.x.array) * 1.0  # 1 m²/s
+        
         dn_lim, dE_lim = compute_limiter_losses(
             R_positions=self.radial_positions,
             lHFS=self.params['lHFS'],
             lLFS=self.params['lLFS'],
-            nlimiters=self.params.get('nlimiters', 6),
+            D_perp=D_perp,
+            lambda_n=self.params.get('bc_ion_lambda_n', 0.02),  # default 2 cm
+            lambda_E=self.params.get('bc_ion_lambda_E', 0.01),  # default 1 cm
             ne=self.state.electrons.n.x.array,
             Te=self.state.electrons.T,
             nHi=self._get_species_n('Hi'),
@@ -1282,12 +1190,21 @@ class BDF2Solver:
         lHFS = self.params.get('lHFS')
         lLFS = self.params.get('lLFS')
         if lHFS is not None and lLFS is not None:
+            # Get perpendicular diffusion coefficient (use Hi as representative)
+            if 'Hi' in self.transport.coefficients:
+                D_perp = self.transport.get('Hi').D.x.array.copy()
+            else:
+                # Fallback to a reasonable default
+                D_perp = np.ones_like(self.state.electrons.n.x.array) * 1.0  # 1 m²/s
+            
             # Rate limiting is now applied centrally in step() after all parallel losses computed
             dn_lim, dE_lim = compute_limiter_losses(
                 R_positions=self.radial_positions,
                 lHFS=self.params['lHFS'],
                 lLFS=self.params['lLFS'],
-                nlimiters=self.params.get('nlimiters', 6),
+                D_perp=D_perp,
+                lambda_n=self.params.get('bc_ion_lambda_n', 0.02),  # default 2 cm
+                lambda_E=self.params.get('bc_ion_lambda_E', 0.01),  # default 1 cm
                 ne=self.state.electrons.n.x.array,
                 Te=self.state.electrons.T,
                 nHi=self._get_species_n('Hi'),

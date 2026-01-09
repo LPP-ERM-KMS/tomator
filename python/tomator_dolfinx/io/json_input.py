@@ -376,13 +376,17 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['gEdn'] = dict_get(edge, 'gEdn', 5/3)  # Energy flux factor for neutral diffusion
         params['gEe'] = dict_get(edge, 'gEe', 5/3)  # Energy flux factor for electrons
         
-        # Fixed BC option for ions (C++ fixBCs)
-        # Supports: {"fixBC": {"bool": true, "lambda_n": 2, "lambda_E": 1}} with separate decay lengths
-        params['fixBC'] = dict_get_nested(edge, 'fixBC', 'bool', dict_get(edge, 'fixBC', False))
-        # Density decay length (C++ lam_dec_length_ions = 2.0 cm)
-        params['fixBC_lambda_n'] = dict_get_nested(edge, 'fixBC', 'lambda_n', 2.0) / 100.0  # cm to m
-        # Energy decay length (C++ lam_dec_length_energy = 1.0 cm)
-        params['fixBC_lambda_E'] = dict_get_nested(edge, 'fixBC', 'lambda_E', 1.0) / 100.0  # cm to m
+        # Ion boundary condition decay lengths
+        # Supports: {"bc_ion_decay_length": {"lambda_n": 2, "lambda_E": 1, "unit": "cm"}}
+        bc_ion_dict = edge.get('bc_ion_decay_length', {})
+        if isinstance(bc_ion_dict, dict) and ('lambda_n' in bc_ion_dict or 'lambda_E' in bc_ion_dict):
+            # Density decay length (C++ lam_dec_length_ions = 2.0 cm)
+            params['bc_ion_lambda_n'] = bc_ion_dict.get('lambda_n', 2.0) / 100.0  # cm to m
+            # Energy decay length (C++ lam_dec_length_energy = 1.0 cm)
+            params['bc_ion_lambda_E'] = bc_ion_dict.get('lambda_E', 1.0) / 100.0  # cm to m
+        else:
+            params['bc_ion_lambda_n'] = 0.02  # 2 cm default
+            params['bc_ion_lambda_E'] = 0.01  # 1 cm default
         
         # Neutral flux-dependent energy BC option
         params['bNeutrFluxEnergyBC'] = dict_get(edge, 'bNeutrFluxEnergyBC', True)
