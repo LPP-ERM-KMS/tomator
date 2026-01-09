@@ -16,44 +16,6 @@ import numpy as np
 M3_TO_CM3 = 1e-6
 
 
-def limit_loss_rate(rate: np.ndarray, n: np.ndarray, dt: float, accur: float) -> np.ndarray:
-    """
-    Limit loss rate so relative density change doesn't exceed accur.
-    
-    Ensures |rate * dt / n| <= accur.
-    
-    Parameters
-    ----------
-    rate : np.ndarray
-        Loss rate [m^-3/s], typically negative.
-    n : np.ndarray
-        Current density [m^-3].
-    dt : float
-        Time step [s].
-    accur : float
-        Maximum allowed relative change per timestep.
-        
-    Returns
-    -------
-    limited_rate : np.ndarray
-        Rate limited to satisfy |rate * dt / n| <= accur.
-    """
-    if dt is None or accur is None:
-        return rate
-    
-    limited = rate.copy()
-    n_safe = np.maximum(np.abs(n), 1e-30)
-    # Maximum allowed rate magnitude: |rate * dt / n| <= accur => |rate| <= accur * n / dt
-    max_rate = accur * n_safe / dt
-    # Limit where rate magnitude exceeds max_rate
-    exceed = np.abs(limited) > max_rate
-    if np.any(exceed):
-        # Scale down while preserving sign
-        limited[exceed] = np.sign(limited[exceed]) * max_rate[exceed]
-    
-    return limited
-
-
 def ndamp(n_cgs: np.ndarray, nevac: float = 1.0) -> np.ndarray:
     """
     Density damping factor from C++ Tomator1D.
@@ -107,9 +69,6 @@ def compute_limiter_losses(
     
     Lost ions recycle as neutrals at wall temperature Ta0.
     
-    Note: Rate limiting is now applied centrally in the solver after all
-    parallel losses are computed.
-    
     Parameters
     ----------
     R_positions : np.ndarray
@@ -147,7 +106,10 @@ def compute_limiter_losses(
     dE = {}
     
     # Find SOL mask: points outside the confined region
+    # Exclude boundary points (first and last) since they already have decay length BCs
     sol_mask = (R_positions < lHFS) | (R_positions > lLFS)
+    sol_mask[0] = False   # HFS boundary - handled by decay length BC
+    sol_mask[-1] = False  # LFS boundary - handled by decay length BC
     
     # If no points in SOL, return empty sources
     if not np.any(sol_mask):
@@ -194,9 +156,9 @@ def compute_limiter_losses(
     dn['e'][sol_mask] -= Z * loss_rate_Hi[sol_mask]
     dE['e'][sol_mask] -= (Z * loss_rate_Hi * 1.5 * Te)[sol_mask]
     
-    # Recycle H+ -> 0.5 H2 at wall temperature
-    dn['H2'][sol_mask] += 0.5 * loss_rate_Hi[sol_mask]
-    dE['H2'][sol_mask] += 0.5 * loss_rate_Hi[sol_mask] * 1.5 * Ta0
+    # # Recycle H+ -> 0.5 H2 at wall temperature
+    # dn['H2'][sol_mask] += 0.5 * loss_rate_Hi[sol_mask]
+    # dE['H2'][sol_mask] += 0.5 * loss_rate_Hi[sol_mask] * 1.5 * Ta0
     
     # --- H2+ losses ---
     if nH2i is not None:
@@ -226,9 +188,9 @@ def compute_limiter_losses(
         dn['e'][sol_mask] -= Z * loss_rate_H2i[sol_mask]
         dE['e'][sol_mask] -= (Z * loss_rate_H2i * 1.5 * Te)[sol_mask]
         
-        # Recycle H2+ -> H2 at wall temperature
-        dn['H2'][sol_mask] += loss_rate_H2i[sol_mask]
-        dE['H2'][sol_mask] += loss_rate_H2i[sol_mask] * 1.5 * Ta0
+        # # Recycle H2+ -> H2 at wall temperature
+        # dn['H2'][sol_mask] += loss_rate_H2i[sol_mask]
+        # dE['H2'][sol_mask] += loss_rate_H2i[sol_mask] * 1.5 * Ta0
     
     # --- H3+ losses ---
     if nH3i is not None:
@@ -258,9 +220,9 @@ def compute_limiter_losses(
         dn['e'][sol_mask] -= Z * loss_rate_H3i[sol_mask]
         dE['e'][sol_mask] -= (Z * loss_rate_H3i * 1.5 * Te)[sol_mask]
         
-        # Recycle H3+ -> 1.5 H2 at wall temperature
-        dn['H2'][sol_mask] += 1.5 * loss_rate_H3i[sol_mask]
-        dE['H2'][sol_mask] += 1.5 * loss_rate_H3i[sol_mask] * 1.5 * Ta0
+        # # Recycle H3+ -> 1.5 H2 at wall temperature
+        # dn['H2'][sol_mask] += 1.5 * loss_rate_H3i[sol_mask]
+        # dE['H2'][sol_mask] += 1.5 * loss_rate_H3i[sol_mask] * 1.5 * Ta0
     
     # --- He+ (HeII) losses ---
     if nHeII is not None:
@@ -292,9 +254,9 @@ def compute_limiter_losses(
         dn['e'][sol_mask] -= Z * loss_rate_HeII[sol_mask]
         dE['e'][sol_mask] -= (Z * loss_rate_HeII * 1.5 * Te)[sol_mask]
         
-        # Recycle He+ -> HeI at wall temperature
-        dn['HeI'][sol_mask] += loss_rate_HeII[sol_mask]
-        dE['HeI'][sol_mask] += loss_rate_HeII[sol_mask] * 1.5 * Ta0
+        # # Recycle He+ -> HeI at wall temperature
+        # dn['HeI'][sol_mask] += loss_rate_HeII[sol_mask]
+        # dE['HeI'][sol_mask] += loss_rate_HeII[sol_mask] * 1.5 * Ta0
     
     # --- He++ (HeIII) losses ---
     if nHeIII is not None:
@@ -328,9 +290,9 @@ def compute_limiter_losses(
         dn['e'][sol_mask] -= Z * loss_rate_HeIII[sol_mask]
         dE['e'][sol_mask] -= (Z * loss_rate_HeIII * 1.5 * Te)[sol_mask]
         
-        # Recycle He++ -> HeI at wall temperature
-        dn['HeI'][sol_mask] += loss_rate_HeIII[sol_mask]
-        dE['HeI'][sol_mask] += loss_rate_HeIII[sol_mask] * 1.5 * Ta0
+        # # Recycle He++ -> HeI at wall temperature
+        # dn['HeI'][sol_mask] += loss_rate_HeIII[sol_mask]
+        # dE['HeI'][sol_mask] += loss_rate_HeIII[sol_mask] * 1.5 * Ta0
     
     return dn, dE
 

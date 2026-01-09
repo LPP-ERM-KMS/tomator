@@ -617,9 +617,9 @@ class BDF2Solver:
             fixBC = self.params.get('fixBC', False)
             
             if fixBC:
-                # Use fixed decay length from JSON (converted to meters)
-                lambda_hfs = self.params.get('fixBC_value', 0.02)  # Default 2 cm
-                lambda_lfs = self.params.get('fixBC_value', 0.02)
+                # Use fixed decay length for density from JSON (C++ lam_dec_length_ions)
+                lambda_hfs = self.params.get('fixBC_lambda_n', 0.02)  # Default 2 cm
+                lambda_lfs = self.params.get('fixBC_lambda_n', 0.02)
             else:
                 # Ion decay length: connection length physics
                 nlimiters = self.params.get('nlimiters', 1)
@@ -759,10 +759,10 @@ class BDF2Solver:
             fixBC = self.params.get('fixBC', False)
             
             if fixBC:
-                # Use fixed decay length from JSON (converted to meters)
-                # C++ uses lam_dec_length_energy = 1.0 cm for energy, but we use same value
-                lambda_n_hfs = self.params.get('fixBC_value', 0.02)  # Default 2 cm
-                lambda_n_lfs = self.params.get('fixBC_value', 0.02)
+                # Use fixed decay length for energy from JSON (C++ lam_dec_length_energy)
+                # In C++, energy uses a DIFFERENT decay length (1 cm) than density (2 cm)
+                lambda_E_hfs = self.params.get('fixBC_lambda_E', 0.01)  # Default 1 cm
+                lambda_E_lfs = self.params.get('fixBC_lambda_E', 0.01)
             else:
                 # Ion energy decay length: uses connection length formula with gEe/gEd scaling
                 # C++: bEion = bEion / (lambda / sqrt(gEe) * sqrt(gEd))
@@ -807,11 +807,14 @@ class BDF2Solver:
                     ni=max(n_arr[idx_lfs], 1e10),
                     nevac=nevac
                 )
-            
-            # Apply gEe/gEd scaling for energy: λ_E = λ_n * sqrt(gEe/gEd)
-            scale = np.sqrt(gEe / gEd) if gEd > 0 else 1.0
-            lambda_E_hfs = lambda_n_hfs * scale
-            lambda_E_lfs = lambda_n_lfs * scale
+                
+                # Apply gEd/gEe scaling for energy: λ_E = λ_n * sqrt(gEd/gEe)
+                # C++ formula: bEion / (lambda / sqrt(gEe) * sqrt(gEd))
+                #            = bEion / (lambda * sqrt(gEd/gEe))
+                # So effective λ_E = λ_n * sqrt(gEd/gEe)
+                scale = np.sqrt(gEd / gEe) if gEe > 0 else 1.0
+                lambda_E_hfs = lambda_n_hfs * scale
+                lambda_E_lfs = lambda_n_lfs * scale
             
             # Update Robin BC with energy decay lengths directly
             self.transport_eq.robin_bc.update_decay_lengths(lambda_E_hfs, lambda_E_lfs)
@@ -1748,10 +1751,8 @@ class BDF2Solver:
             self.state, self.params
         )
         
-        # Apply rate limiting to TOTAL source terms if enabled
-        use_rate_limiting = self.params.get('bRateLimiting', True)
-        if use_rate_limiting:
-            self._apply_rate_limiting(dn_sources, dE_sources)
+        # Apply rate limiting to TOTAL source terms
+        self._apply_rate_limiting(dn_sources, dE_sources)
         toc('collisions')
         
         # Store nu for transport coefficient and loss calculations
@@ -1784,8 +1785,7 @@ class BDF2Solver:
         self._compute_parallel_losses(dn_parallel, dE_parallel)
         
         # Apply rate limiting to parallel losses (scaling dE with same factor as dn)
-        if use_rate_limiting:
-            self._apply_rate_limiting(dn_parallel, dE_parallel)
+        self._apply_rate_limiting(dn_parallel, dE_parallel)
         
         # For explicit mode, merge parallel losses with reaction sources
         if not use_operator_splitting:
@@ -1802,8 +1802,7 @@ class BDF2Solver:
         self._add_rf_power(dE_RF)
         
         # Apply rate limiting to RF power: limit dE/E to max accuracy
-        if True: # use_rate_limiting:
-            self._apply_energy_rate_limiting(dE_RF)
+        self._apply_energy_rate_limiting(dE_RF)
         
         # Merge RF sources into main sources
         self._merge_sources(dn_sources, dn_RF)

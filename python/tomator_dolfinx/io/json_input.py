@@ -25,6 +25,7 @@ def get_value(data: Union[Dict, float, int, bool, str], default: Any = None) -> 
     Extract value from a parameter that may be either:
     - A simple value (float, int, bool, str)
     - A dict with {"value": ..., "unit": ...} format
+    - A dict with {"bool": ...} format (for boolean flags)
     
     Parameters
     ----------
@@ -43,14 +44,19 @@ def get_value(data: Union[Dict, float, int, bool, str], default: Any = None) -> 
     if isinstance(data, dict):
         if 'value' in data:
             return data['value']
-        # Empty dict or dict without 'value' key
+        if 'bool' in data:
+            return data['bool']
+        # Empty dict or dict without 'value'/'bool' key
         return default
     return data
 
 
 def dict_get(d: Dict, key: str, default: Any = None) -> Any:
     """
-    Get a value from a dict, handling value-unit format.
+    Get a value from a dict, handling multiple formats:
+    - Simple: "key": value
+    - Value-unit: "key": {"value": v, "unit": "..."}
+    - Bool: "key": {"bool": b}
     
     Parameters
     ----------
@@ -69,6 +75,34 @@ def dict_get(d: Dict, key: str, default: Any = None) -> Any:
     if key not in d:
         return default
     return get_value(d[key], default)
+
+
+def dict_get_nested(d: Dict, key: str, subkey: str, default: Any = None) -> Any:
+    """
+    Get a nested value from a dict structure like {"key": {"bool": ..., "subkey": ...}}.
+    
+    Parameters
+    ----------
+    d : dict
+        Dictionary to get value from.
+    key : str
+        Outer key to look up.
+    subkey : str
+        Inner key to look up within the nested dict.
+    default : any, optional
+        Default value if not found.
+        
+    Returns
+    -------
+    value : scalar
+        The extracted value.
+    """
+    if key not in d:
+        return default
+    inner = d[key]
+    if isinstance(inner, dict):
+        return inner.get(subkey, default)
+    return default
 
 
 def compute_density_from_pressure(p_pa: float, T_eV: float) -> float:
@@ -172,6 +206,10 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['P_KI_ini'] = dict_get(nf, 'P_KI_ini', 0.0)   # Initial integral term value
     
     # Physics flags
+    # Supports three formats:
+    # 1. Old format: "bH": true
+    # 2. Value-unit format: "bH": {"value": true, "unit": "-"}
+    # 3. New format: "bH": {"bool": true}
     if 'physics_to_include' in raw:
         phys = raw['physics_to_include']
         params['bH'] = dict_get(phys, 'bH', True)
@@ -182,49 +220,33 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['belas'] = dict_get(phys, 'belas', False)
         params['bcoulomb'] = dict_get(phys, 'bcoulomb', False)
         params['bimpur'] = dict_get(phys, 'bimpur', False)
-        params['btranspions'] = dict_get(phys, 'btranspions', True)
-        params['btranspneut'] = dict_get(phys, 'btranspneut', True)
         params['bpol'] = dict_get(phys, 'bpol', True)
     
     # Diffusion parameters
+    # Supports two formats:
+    # - Old flat: {"bDfix": true, "Dfix": 3330.0, "bDbohm": false, ...}
+    # - New nested: {"Dfix": {"bool": true, "Dfix": 3330.0}, "Dbohm": {"bool": false, "Dfact": 1.0}, ...}
     if 'diffusion' in raw:
         diff = raw['diffusion']
         
-        # Support new nested structure: {"Dfix": {"bool": true, "Dfix": 3330.0, "unit": "cm²/s"}}
-        # as well as old flat structure: {"bDfix": {"value": true}, "Dfix": {"value": 3330.0}}
+        # Dfix: fixed diffusion coefficient
+        params['bDfix'] = dict_get_nested(diff, 'Dfix', 'bool', dict_get(diff, 'bDfix', True))
+        params['Dfix'] = dict_get_nested(diff, 'Dfix', 'Dfix', dict_get(diff, 'Dfix', 1.0)) / 1e4  # cm²/s to m²/s
         
-        # Check for new nested structure first
-        if 'Dfix' in diff and isinstance(diff['Dfix'], dict) and 'bool' in diff['Dfix']:
-            # New structure
-            params['bDfix'] = diff['Dfix'].get('bool', False)
-            params['Dfix'] = diff['Dfix'].get('Dfix', 1.0) / 1e4  # Convert cm²/s to m²/s
-        else:
-            # Old structure
-            params['bDfix'] = dict_get(diff, 'bDfix', True)
-            params['Dfix'] = dict_get(diff, 'Dfix', 1.0) / 1e4  # Convert cm²/s to m²/s
+        # Dbohm: Bohm diffusion scaling
+        params['bDbohm'] = dict_get_nested(diff, 'Dbohm', 'bool', dict_get(diff, 'bDbohm', False))
+        params['Dfact'] = dict_get_nested(diff, 'Dbohm', 'Dfact', dict_get(diff, 'Dfact', 1.0))
         
-        if 'Dbohm' in diff and isinstance(diff['Dbohm'], dict) and 'bool' in diff['Dbohm']:
-            # New structure
-            params['bDbohm'] = diff['Dbohm'].get('bool', False)
-            params['Dfact'] = diff['Dbohm'].get('Dfact', 1.0)
-        else:
-            # Old structure
-            params['bDbohm'] = dict_get(diff, 'bDbohm', False)
-            params['Dfact'] = dict_get(diff, 'Dfact', 1.0)
-        
-        # Support both Dgyrogeom (new name) and Dscaling (legacy name)
-        if 'Dgyrogeom' in diff and isinstance(diff['Dgyrogeom'], dict) and 'bool' in diff['Dgyrogeom']:
-            # New structure with Dgyrogeom
-            params['bDgyrogeom'] = diff['Dgyrogeom'].get('bool', False)
+        # Dgyrogeom/Dscaling: gyro-geometric diffusion scaling
+        if 'Dgyrogeom' in diff:
+            params['bDgyrogeom'] = dict_get_nested(diff, 'Dgyrogeom', 'bool', dict_get(diff, 'bDgyrogeom', False))
             if params['bDgyrogeom']:
-                params['Dfact'] = diff['Dgyrogeom'].get('Dfact', params.get('Dfact', 1.0))
-        elif 'Dscaling' in diff and isinstance(diff['Dscaling'], dict) and 'bool' in diff['Dscaling']:
-            # Legacy structure with Dscaling
-            params['bDgyrogeom'] = diff['Dscaling'].get('bool', False)
+                params['Dfact'] = dict_get_nested(diff, 'Dgyrogeom', 'Dfact', params['Dfact'])
+        elif 'Dscaling' in diff:
+            params['bDgyrogeom'] = dict_get_nested(diff, 'Dscaling', 'bool', dict_get(diff, 'bDscaling', False))
             if params['bDgyrogeom']:
-                params['Dfact'] = diff['Dscaling'].get('Dfact', params.get('Dfact', 1.0))
+                params['Dfact'] = dict_get_nested(diff, 'Dscaling', 'Dfact', params['Dfact'])
         else:
-            # Old flat structure
             params['bDgyrogeom'] = dict_get(diff, 'bDscaling', dict_get(diff, 'bDgyrogeom', False))
         
         # Set diffusion type based on priority: gyrogeom > bohm > fixed
@@ -238,39 +260,24 @@ def load_input_file(filename: str) -> Dict[str, Any]:
             params['diffusion_type'] = 'fixed'
     
     # Advection parameters (also accepts old 'convection' key for backward compatibility)
+    # Supports two formats:
+    # - Old flat: {"bVfix": true, "Vfix": 333.0, "bVscaling": false, ...}
+    # - New nested: {"Vfix": {"bool": true, "value": 333.0}, "Vscaling": {"bool": false, "veq": 8}, ...}
     adv_key = 'advection' if 'advection' in raw else 'convection'
     if adv_key in raw:
         adv = raw[adv_key]
         
-        # Support new nested structure: {"Vfix": {"bool": true, "value": 333.0, "unit": "cm/s"}}
-        # as well as old flat structure: {"bVfix": {"value": true}, "Vfix": {"value": 333.0}}
+        # Vfix: fixed advection velocity
+        params['bVfix'] = dict_get_nested(adv, 'Vfix', 'bool', dict_get(adv, 'bVfix', True))
+        params['Vfix'] = dict_get_nested(adv, 'Vfix', 'value', dict_get(adv, 'Vfix', 0.0)) / 100.0  # cm/s to m/s
         
-        # Check for new nested structure first
-        if 'Vfix' in adv and isinstance(adv['Vfix'], dict) and 'bool' in adv['Vfix']:
-            # New structure
-            params['bVfix'] = adv['Vfix'].get('bool', False)
-            params['Vfix'] = adv['Vfix'].get('value', 0.0) / 100.0  # Convert cm/s to m/s
-        else:
-            # Old structure
-            params['bVfix'] = dict_get(adv, 'bVfix', True)
-            params['Vfix'] = dict_get(adv, 'Vfix', 0.0) / 100.0  # Convert cm/s to m/s
-        
-        if 'Vscaling' in adv and isinstance(adv['Vscaling'], dict) and 'bool' in adv['Vscaling']:
-            # New structure
-            params['bVscaling'] = adv['Vscaling'].get('bool', False)
-            params['veq'] = adv['Vscaling'].get('veq', 8)
-            params['Vfact'] = adv['Vscaling'].get('Vfact', 1.0)
-        else:
-            # Old structure
-            params['bVscaling'] = dict_get(adv, 'bVscaling', False)
-            params['veq'] = dict_get(adv, 'veq', 8)
-            params['Vfact'] = dict_get(adv, 'Vfact', 1.0)
+        # Vscaling: pressure-gradient scaling
+        params['bVscaling'] = dict_get_nested(adv, 'Vscaling', 'bool', dict_get(adv, 'bVscaling', False))
+        params['veq'] = dict_get_nested(adv, 'Vscaling', 'veq', dict_get(adv, 'veq', 8))
+        params['Vfact'] = dict_get_nested(adv, 'Vscaling', 'Vfact', dict_get(adv, 'Vfact', 1.0))
         
         # Set advection type
-        if params['bVfix']:
-            params['advection_type'] = 'fixed'
-        else:
-            params['advection_type'] = 'pressure'
+        params['advection_type'] = 'fixed' if params['bVfix'] else 'pressure'
     
     # Transport dict for TransportManager
     # Include all transport-related flags for proper model selection
@@ -370,17 +377,14 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['gEe'] = dict_get(edge, 'gEe', 5/3)  # Energy flux factor for electrons
         
         # Fixed BC option for ions (C++ fixBCs)
-        # If true, use fixed decay length instead of physics-based calculation
-        if 'fixBC' in edge and isinstance(edge['fixBC'], dict) and 'bool' in edge['fixBC']:
-            params['fixBC'] = edge['fixBC'].get('bool', False)
-            params['fixBC_value'] = edge['fixBC'].get('value', 2.0) / 100.0  # Convert cm to m
-        else:
-            params['fixBC'] = dict_get(edge, 'fixBC', False)
-            params['fixBC_value'] = dict_get(edge, 'fixBC_value', 0.02)  # Default 2 cm in m
+        # Supports: {"fixBC": {"bool": true, "lambda_n": 2, "lambda_E": 1}} with separate decay lengths
+        params['fixBC'] = dict_get_nested(edge, 'fixBC', 'bool', dict_get(edge, 'fixBC', False))
+        # Density decay length (C++ lam_dec_length_ions = 2.0 cm)
+        params['fixBC_lambda_n'] = dict_get_nested(edge, 'fixBC', 'lambda_n', 2.0) / 100.0  # cm to m
+        # Energy decay length (C++ lam_dec_length_energy = 1.0 cm)
+        params['fixBC_lambda_E'] = dict_get_nested(edge, 'fixBC', 'lambda_E', 1.0) / 100.0  # cm to m
         
         # Neutral flux-dependent energy BC option
-        # If true, use flux-direction dependent energy BC for neutrals (H2, HeI)
-        # If false, use simple fixed-temperature BC
         params['bNeutrFluxEnergyBC'] = dict_get(edge, 'bNeutrFluxEnergyBC', True)
     
     # Decay lengths - initial values only, updated dynamically based on actual D
@@ -427,7 +431,6 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['max_newton_iter'] = dict_get(solver, 'max_newton_iter', 20)
         params['newton_tol'] = dict_get(solver, 'newton_tol', 1e-6)
         params['operator_splitting'] = dict_get(solver, 'operator_splitting', False)
-        params['bRateLimiting'] = dict_get(solver, 'bRateLimiting', True)        
         params['output_interval'] = dict_get(out, 'dtsave', 1e-4)
         # Profiling flag (can be plain bool or {"value": bool})
         if 'profile' in out:
