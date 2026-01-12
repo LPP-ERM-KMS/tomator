@@ -25,7 +25,7 @@ Profiles = np.genfromtxt('/tmp/DensAndTemp.csv', delimiter=',',skip_header=1)
 #--------------------#
 # Machine definition #
 #--------------------#
-gasn = 1e19
+gasn = {"H":1e18,"H2":1e19}
 r_ = Profiles[1:,0]
 ne = Profiles[1:,1]
 Te = Profiles[1:,2]
