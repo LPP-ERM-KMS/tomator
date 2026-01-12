@@ -73,14 +73,26 @@ $$\frac{dn}{dt} = S_{\text{reactions}}(n, T) \quad \text{(implicit Newton solve)
 
 ### 1. pip
 
-First [create and source an environment](https://docs.python.org/3/library/venv.html) and subsequently, 
-while in the python folder:
+First install [dolfinx](https://github.com/FEniCS/dolfinx), next [create and/or
+source an environment](https://docs.python.org/3/library/venv.html) and
+subsequently, while in the python folder:
 
 ```bash
 pip install .
 ```
 
-### 2. Verify Installation
+### 2. conda
+
+create and activate a conda environment:
+```bash
+# From the python/ folder
+conda env create -f environment.yml
+
+# Activate the environment
+conda activate t1dl-env
+```
+
+## Verify Installation
 
 ```bash
 python -c "from tomator_dolfinx import run_simulation; print('OK')"
