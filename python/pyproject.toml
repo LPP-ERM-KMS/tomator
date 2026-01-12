@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling","numpy","matplotlib","pandas","fenics-dolfinx","petsc4py","mpi4py","bokeh"]
+build-backend = "hatchling.build"
+[project]
+name = "pytomator"
+version = "0.0.1"
+authors = [
+  { name="Tom Wauters"},
+  { name="Thijs Verhaeghe"},
+  { name="Johan Buermans"},
+  { name="Manuel Graca"},
+  { name="Anthony Piras", email="anthony.piras@kuleuven.be" },
+  { name="Arthur Adriaens", email="arthur.adriaens@mil.be" },
+]
+description = "Python implementation of the Tomator 1D plasma transport solver using FEniCS/dolfinx"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python",
+    "Operating System :: OS Independent",
+]
+[tool.hatch.build]
+exclude = ["docs", "tests", "examples"]
