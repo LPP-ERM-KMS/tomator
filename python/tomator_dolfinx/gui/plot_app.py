@@ -182,6 +182,12 @@ def should_plot_power(column):
     return column in ['PRFe']
 
 
+def should_plot_dt(column):
+    """Check if a column is a timestep limit profile."""
+    return column in ['dt_collision', 'dt_ion_diff', 'dt_neutral_diff', 
+                      'dt_charged_total', 'dt_neutral_total']
+
+
 # =============================================================================
 # Plot initialization
 # =============================================================================
@@ -298,13 +304,40 @@ def initialize_plots(radial_positions):
     )
     power_time_plot.xaxis.formatter = PrintfTickFormatter(format="%.1e")
     
+    # Plot 10: Timestep limits (dt_collision, dt_ion_diff, dt_neutral_diff) vs radial position
+    dt_plot = figure(
+        width=PLOT_WIDTH,
+        height=PLOT_HEIGHT,
+        title="Timestep Limits vs Radial Position",
+        x_axis_label="R [m]",
+        y_axis_label="dt [s]",
+        y_axis_type="log",
+        x_range=Range1d(start=r_min, end=r_max),
+        y_range=Range1d(start=1e-9, end=1e-3),
+    )
+    
+    # Plot 11: Timestep limits vs time
+    dt_time_plot = figure(
+        width=PLOT_WIDTH,
+        height=PLOT_HEIGHT,
+        title="Timestep Limits vs Time",
+        x_axis_label="Time [s]",
+        y_axis_label="dt [s]",
+        y_axis_type="log",
+        x_range=Range1d(start=0, end=1e-3),
+        y_range=Range1d(start=1e-9, end=1e-3),
+    )
+    dt_time_plot.xaxis.formatter = PrintfTickFormatter(format="%.1e")
+    
     return (
         ne_te_plot,
         concentration_plot,
         temperature_plot,
+        dt_plot,
         ne_te_time_plot,
         concentration_time_plot,
         temperature_time_plot,
+        dt_time_plot,
         transport_plot,
         power_plot,
         power_time_plot,
@@ -380,8 +413,8 @@ def plot_species_time(plot, column, timestamps, counter, sources_time):
 
 
 def setup_all_plots(
-    ne_te_plot, concentration_plot, temperature_plot,
-    ne_te_time_plot, concentration_time_plot, temperature_time_plot,
+    ne_te_plot, concentration_plot, temperature_plot, dt_plot,
+    ne_te_time_plot, concentration_time_plot, temperature_time_plot, dt_time_plot,
     transport_plot, power_plot, power_time_plot,
     radial_positions, timestamps, sources_rad, sources_time
 ):
@@ -457,6 +490,45 @@ def setup_all_plots(
         power_time_plot.legend.location = "top_left"
         power_time_plot.legend.click_policy = "hide"
     
+    # Set up timestep limit plots (dt_collision, dt_ion_diff, dt_neutral_diff, dt_charged_total, dt_neutral_total)
+    dt_colors = {
+        'dt_collision': 'red', 
+        'dt_ion_diff': 'blue', 
+        'dt_neutral_diff': 'green',
+        'dt_charged_total': 'purple',
+        'dt_neutral_total': 'orange'
+    }
+    dt_labels = {
+        'dt_collision': 'dt_collision', 
+        'dt_ion_diff': 'dt_ion_diff', 
+        'dt_neutral_diff': 'dt_neutral_diff',
+        'dt_charged_total': 'dt_charged_total',
+        'dt_neutral_total': 'dt_neutral_total'
+    }
+    
+    for dt_col, color in dt_colors.items():
+        if dt_col in df.columns:
+            # Radial profile
+            sources_rad[dt_col] = ColumnDataSource(
+                data=dict(x=radial_positions, y=[1e-6] * len(radial_positions))
+            )
+            dt_plot.line("x", "y", source=sources_rad[dt_col], legend_label=dt_labels[dt_col], 
+                        color=color, line_width=2)
+            
+            # Time trace
+            sources_time[dt_col] = ColumnDataSource(
+                data=dict(x=timestamps, y=[1e-6] * len(timestamps))
+            )
+            dt_time_plot.line("x", "y", source=sources_time[dt_col], legend_label=dt_labels[dt_col],
+                             color=color, line_width=2)
+    
+    # Configure dt plot legends
+    if any(dt_col in df.columns for dt_col in dt_colors):
+        dt_plot.legend.location = "top_left"
+        dt_plot.legend.click_policy = "hide"
+        dt_time_plot.legend.location = "top_left"
+        dt_time_plot.legend.click_policy = "hide"
+    
     # Configure legends
     for plot in [concentration_plot, temperature_plot, concentration_time_plot, temperature_time_plot]:
         plot.legend.location = "top_left"
@@ -516,7 +588,7 @@ def setup_interactive_elements(ne_te_plot, ne_te_time_plot):
 # Update functions
 # =============================================================================
 
-def scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, transport_plot, power_plot, time_val=None):
+def scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, transport_plot, power_plot, dt_plot, time_val=None):
     """Scale radial plot axes based on current data."""
     global df
     
@@ -631,9 +703,29 @@ def scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, transpo
     
     power_plot.x_range.start = x_start
     power_plot.x_range.end = x_end
+    
+    # Scale dt plot (timestep limits) - log scale
+    dt_cols = [c for c in df_slice.columns if should_plot_dt(c)]
+    if dt_cols:
+        all_dt_values = []
+        for col in dt_cols:
+            vals = df_slice[col].values
+            positive_vals = vals[vals > 0]
+            if len(positive_vals) > 0:
+                all_dt_values.extend(positive_vals)
+        
+        if all_dt_values:
+            min_dt = min(all_dt_values)
+            max_dt = max(all_dt_values)
+            # Log scale: set range with padding in log space
+            dt_plot.y_range.start = min_dt * 0.5
+            dt_plot.y_range.end = max_dt * 2.0
+    
+    dt_plot.x_range.start = x_start
+    dt_plot.x_range.end = x_end
 
 
-def scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_plot, power_time_plot=None, radius_val=None):
+def scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_plot, power_time_plot, dt_time_plot, radius_val=None):
     """Scale time plot axes based on current data."""
     global df
     
@@ -747,12 +839,33 @@ def scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_
         power_time_plot.y_range.end = max(1.0, max_P + P_range * 0.1)
         power_time_plot.x_range.start = x_start
         power_time_plot.x_range.end = x_end
+    
+    # Scale dt time plot (timestep limits) - log scale
+    if dt_time_plot is not None:
+        dt_cols = [c for c in df_slice.columns if should_plot_dt(c)]
+        if dt_cols:
+            all_dt_values = []
+            for col in dt_cols:
+                vals = df_slice[col].values
+                positive_vals = vals[vals > 0]
+                if len(positive_vals) > 0:
+                    all_dt_values.extend(positive_vals)
+            
+            if all_dt_values:
+                min_dt = min(all_dt_values)
+                max_dt = max(all_dt_values)
+                # Log scale: set range with padding in log space
+                dt_time_plot.y_range.start = min_dt * 0.5
+                dt_time_plot.y_range.end = max_dt * 2.0
+        
+        dt_time_plot.x_range.start = x_start
+        dt_time_plot.x_range.end = x_end
 
 
 def update_data(
     radial_positions,
-    ne_te_plot, concentration_plot, temperature_plot,
-    ne_te_time_plot, concentration_time_plot, temperature_time_plot,
+    ne_te_plot, concentration_plot, temperature_plot, dt_plot,
+    ne_te_time_plot, concentration_time_plot, temperature_time_plot, dt_time_plot,
     transport_plot, power_plot, power_time_plot,
 ):
     """Periodic callback to check for file changes and update plots."""
@@ -851,8 +964,8 @@ def update_data(
     timestamp_trigger_source.data = {'last_time': [last_time]}
     
     # Scale plots based on displayed data
-    scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, transport_plot, power_plot, display_time)
-    scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_plot, power_time_plot, selected_radius)
+    scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, transport_plot, power_plot, dt_plot, display_time)
+    scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_plot, power_time_plot, dt_time_plot, selected_radius)
 
 
 # =============================================================================
@@ -895,15 +1008,15 @@ def modify_doc(doc):
     
     # Create plots
     (
-        ne_te_plot, concentration_plot, temperature_plot,
-        ne_te_time_plot, concentration_time_plot, temperature_time_plot,
+        ne_te_plot, concentration_plot, temperature_plot, dt_plot,
+        ne_te_time_plot, concentration_time_plot, temperature_time_plot, dt_time_plot,
         transport_plot, power_plot, power_time_plot,
     ) = initialize_plots(radial_positions)
     
     # Set up data sources and plot lines
     setup_all_plots(
-        ne_te_plot, concentration_plot, temperature_plot,
-        ne_te_time_plot, concentration_time_plot, temperature_time_plot,
+        ne_te_plot, concentration_plot, temperature_plot, dt_plot,
+        ne_te_time_plot, concentration_time_plot, temperature_time_plot, dt_time_plot,
         transport_plot, power_plot, power_time_plot,
         radial_positions, timestamps, sources_rad, sources_time
     )
@@ -1031,7 +1144,7 @@ def modify_doc(doc):
         temperature_time_plot.title.text = f"Temperature vs Time at R = {selected_radius:.4f} m"
         power_time_plot.title.text = f"PRFe vs Time at R = {selected_radius:.4f} m"
         
-        scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_plot, power_time_plot, selected_radius)
+        scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_plot, power_time_plot, dt_time_plot, selected_radius)
     
     # Python callback for time selection
     def on_time_selected(attr, old, new):
@@ -1064,7 +1177,7 @@ def modify_doc(doc):
         concentration_plot.title.text = f"Concentration vs Radial Position at t = {time_ms:.2f} ms"
         temperature_plot.title.text = f"Temperature vs Radial Position at t = {time_ms:.2f} ms"
         
-        scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, transport_plot, power_plot, selected_time)
+        scale_radial_plots(ne_te_plot, concentration_plot, temperature_plot, transport_plot, power_plot, dt_plot, selected_time)
     
     # Attach callbacks
     ne_te_plot.js_on_event("tap", callback_radial)
@@ -1077,8 +1190,8 @@ def modify_doc(doc):
     # Initial data update
     update_data(
         radial_positions,
-        ne_te_plot, concentration_plot, temperature_plot,
-        ne_te_time_plot, concentration_time_plot, temperature_time_plot,
+        ne_te_plot, concentration_plot, temperature_plot, dt_plot,
+        ne_te_time_plot, concentration_time_plot, temperature_time_plot, dt_time_plot,
         transport_plot, power_plot, power_time_plot,
     )
     
@@ -1086,18 +1199,18 @@ def modify_doc(doc):
     doc.add_periodic_callback(
         lambda: update_data(
             radial_positions,
-            ne_te_plot, concentration_plot, temperature_plot,
-            ne_te_time_plot, concentration_time_plot, temperature_time_plot,
+            ne_te_plot, concentration_plot, temperature_plot, dt_plot,
+            ne_te_time_plot, concentration_time_plot, temperature_time_plot, dt_time_plot,
             transport_plot, power_plot, power_time_plot,
         ),
         2000,
     )
     
-    # Arrange plots in grid (3x3 with transport and power on bottom row)
+    # Arrange plots in grid (4 columns: ne/Te, concentrations, temperature, dt profiles)
     grid = gridplot([
-        [ne_te_plot, concentration_plot, temperature_plot],
-        [ne_te_time_plot, concentration_time_plot, temperature_time_plot],
-        [transport_plot, power_plot, power_time_plot],
+        [ne_te_plot, concentration_plot, temperature_plot, dt_plot],
+        [ne_te_time_plot, concentration_time_plot, temperature_time_plot, dt_time_plot],
+        [transport_plot, power_plot, power_time_plot, None],
     ])
     
     doc.add_root(grid)

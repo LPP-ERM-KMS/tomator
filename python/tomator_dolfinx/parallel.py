@@ -6,6 +6,11 @@ lines to limiters with a characteristic parallel loss time. Lost ions
 recycle as neutrals at wall temperature.
 
 This module implements the limiters() function from C++ Tomator1D.
+
+Key functions:
+- compute_parallel_loss_rates(): Returns k_n, k_E arrays (1/τ) for implicit LHS treatment
+- compute_limiter_losses(): Legacy function returning explicit dn/dE source terms
+- compute_bpol_losses(): Legacy function returning explicit dn/dE source terms
 """
 
 from typing import Dict, Tuple
@@ -14,6 +19,221 @@ import numpy as np
 
 # Unit conversion: m^-3 to cm^-3
 M3_TO_CM3 = 1e-6
+
+
+def compute_parallel_loss_rates(
+    R_positions: np.ndarray,
+    lHFS: float,
+    lLFS: float,
+    D_perp: np.ndarray,
+    lambda_n: float,
+    lambda_E: float,
+    Br: np.ndarray = None,
+    Bv: float = None,
+    b: float = None,
+    ne: np.ndarray = None,
+    Te: np.ndarray = None,
+    nHi: np.ndarray = None,
+    THi: np.ndarray = None,
+    nuHi: np.ndarray = None,
+    nH2i: np.ndarray = None,
+    TH2i: np.ndarray = None,
+    nuH2i: np.ndarray = None,
+    nH3i: np.ndarray = None,
+    TH3i: np.ndarray = None,
+    nuH3i: np.ndarray = None,
+    nHeII: np.ndarray = None,
+    THeII: np.ndarray = None,
+    nuHeII: np.ndarray = None,
+    nHeIII: np.ndarray = None,
+    THeIII: np.ndarray = None,
+    nuHeIII: np.ndarray = None,
+    Dfsave: float = 1.0,
+    D_ion: np.ndarray = None,
+    diffusion_model: str = 'fixed',
+    gEd: float = 1.0
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute parallel loss rates k_n = 1/τ_n and k_E = 1/τ_E for implicit treatment.
+    
+    Combines limiter losses (SOL region) and bpol losses (vertical diffusion).
+    These rates are the SAME for all charged species, allowing implicit treatment
+    on the LHS of the transport equation: dn/dt + k_n * n = ...
+    
+    The implicit formulation is unconditionally stable for any timestep.
+    
+    Parameters
+    ----------
+    R_positions : np.ndarray
+        Radial positions [m].
+    lHFS : float
+        HFS limiter position [m].
+    lLFS : float
+        LFS limiter position [m].
+    D_perp : np.ndarray
+        Perpendicular diffusion coefficient [m²/s].
+    lambda_n : float
+        Density decay length for limiter losses [m].
+    lambda_E : float
+        Energy decay length for limiter losses [m].
+    Br : np.ndarray, optional
+        Local toroidal magnetic field [T] for bpol losses.
+    Bv : float, optional
+        Vertical magnetic field [T] for bpol losses.
+    b : float, optional
+        Vertical plasma extent [cm] for bpol losses.
+    ne, Te : np.ndarray, optional
+        Electron density [m^-3] and temperature [eV] for gyrogeom model.
+    nHi, THi, nuHi : np.ndarray, optional
+        H+ quantities for gyrogeom model.
+    ... (similar for other species)
+    Dfsave : float
+        Diffusion scaling factor for gyrogeom model. Default 1.0.
+    D_ion : np.ndarray, optional
+        Pre-computed ion diffusion coefficient [m²/s] for fixed/bohm models.
+    diffusion_model : str
+        'fixed', 'bohm', or 'gyrogeom'. Default 'fixed'.
+    gEd : float
+        Energy loss rate factor. Default 1.0.
+        
+    Returns
+    -------
+    k_n : np.ndarray
+        Density loss rate 1/τ_n [s^-1]. Same for all charged species.
+    k_E : np.ndarray
+        Energy loss rate 1/τ_E [s^-1]. Same for all charged species.
+    """
+    n_points = len(R_positions)
+    
+    # Initialize loss rates (will sum contributions from limiter + bpol)
+    k_n = np.zeros(n_points)
+    k_E = np.zeros(n_points)
+    
+    # ================================================================
+    # LIMITER LOSSES (SOL region only)
+    # τ_n = λ_n² / D_⊥,  τ_E = λ_E² / D_⊥
+    # ================================================================
+    
+    # Find SOL mask: points outside the confined region
+    # Exclude boundary points (handled by decay length BCs)
+    sol_mask = (R_positions < lHFS) | (R_positions > lLFS)
+    sol_mask[0] = False   # HFS boundary
+    sol_mask[-1] = False  # LFS boundary
+    
+    if np.any(sol_mask):
+        D_safe = np.maximum(D_perp, 1e-10)
+        tau_n_lim = lambda_n**2 / D_safe
+        tau_E_lim = lambda_E**2 / D_safe
+        
+        tau_n_lim = np.maximum(tau_n_lim, 1e-10)
+        tau_E_lim = np.maximum(tau_E_lim, 1e-10)
+        
+        k_n[sol_mask] += 1.0 / tau_n_lim[sol_mask]
+        k_E[sol_mask] += 1.0 / tau_E_lim[sol_mask]
+    
+    # ================================================================
+    # BPOL LOSSES (vertical diffusion, entire domain)
+    # τ = b² / (2 * Dv)
+    # ================================================================
+    
+    if Br is not None and Bv is not None and b is not None:
+        # Compute vertical diffusion coefficient
+        Br_safe = np.maximum(np.abs(Br), 1e-6)
+        
+        if diffusion_model.lower() in ('fixed', 'bohm') and D_ion is not None:
+            # Use pre-computed diffusion coefficient
+            Dv = D_ion * 1e4  # [cm²/s]
+        elif diffusion_model.lower() == 'gyrogeom' and ne is not None:
+            # Compute gyrogeom vertical diffusion
+            nu_min = 1e4
+            ne_cgs = ne * M3_TO_CM3
+            nHi_cgs = nHi * M3_TO_CM3 if nHi is not None else np.zeros(n_points)
+            ne_safe = np.maximum(ne_cgs, 1e-10)
+            
+            # Initialize sums
+            mfp_sum = np.zeros(n_points)
+            gr_sum = np.zeros(n_points)
+            nu_sum = np.zeros(n_points)
+            n_total = np.zeros(n_points)
+            
+            # H+ contribution
+            if nHi is not None and nuHi is not None and THi is not None:
+                nuHi_eff = np.maximum(nuHi, nu_min)
+                T_eff = Te + THi * nHi_cgs / ne_safe if Te is not None else THi
+                mfp_sum += nHi_cgs * 9.79e5 * np.sqrt(np.maximum(T_eff, 0.01) / 1.0) / nuHi_eff
+                gr_sum += nHi_cgs * 1.02e2 * np.sqrt(np.maximum(THi, 0.01)) / Br_safe / 1e4
+                nu_sum += nHi_cgs * nuHi_eff
+                n_total += nHi_cgs
+            
+            # H2+ contribution
+            if nH2i is not None and nuH2i is not None:
+                nH2i_cgs = nH2i * M3_TO_CM3
+                T_H2i = TH2i if TH2i is not None else (Te if Te is not None else np.full(n_points, 1.0))
+                nuH2i_eff = np.maximum(nuH2i, nu_min)
+                T_eff = Te + T_H2i * nH2i_cgs / ne_safe if Te is not None else T_H2i
+                mfp_sum += nH2i_cgs * 9.79e5 * np.sqrt(np.maximum(T_eff, 0.01) / 2.0) / nuH2i_eff
+                gr_sum += nH2i_cgs * 1.02e2 * np.sqrt(2.0 * np.maximum(T_H2i, 0.01)) / Br_safe / 1e4
+                nu_sum += nH2i_cgs * nuH2i_eff
+                n_total += nH2i_cgs
+            
+            # H3+ contribution
+            if nH3i is not None and nuH3i is not None:
+                nH3i_cgs = nH3i * M3_TO_CM3
+                T_H3i = TH3i if TH3i is not None else (Te if Te is not None else np.full(n_points, 1.0))
+                nuH3i_eff = np.maximum(nuH3i, nu_min)
+                T_eff = Te + T_H3i * nH3i_cgs / ne_safe if Te is not None else T_H3i
+                mfp_sum += nH3i_cgs * 9.79e5 * np.sqrt(np.maximum(T_eff, 0.01) / 3.0) / nuH3i_eff
+                gr_sum += nH3i_cgs * 1.02e2 * np.sqrt(3.0 * np.maximum(T_H3i, 0.01)) / Br_safe / 1e4
+                nu_sum += nH3i_cgs * nuH3i_eff
+                n_total += nH3i_cgs
+            
+            # HeII contribution
+            if nHeII is not None and nuHeII is not None:
+                nHeII_cgs = nHeII * M3_TO_CM3
+                T_HeII = THeII if THeII is not None else (Te if Te is not None else np.full(n_points, 1.0))
+                nuHeII_eff = np.maximum(nuHeII, nu_min)
+                T_eff = Te + T_HeII * nHeII_cgs / ne_safe if Te is not None else T_HeII
+                mfp_sum += nHeII_cgs * 9.79e5 * np.sqrt(np.maximum(T_eff, 0.01) / 4.0) / nuHeII_eff
+                gr_sum += nHeII_cgs * 1.02e2 * np.sqrt(4.0 * np.maximum(T_HeII, 0.01)) / Br_safe / 1e4
+                nu_sum += nHeII_cgs * nuHeII_eff
+                n_total += nHeII_cgs
+            
+            # HeIII contribution
+            if nHeIII is not None and nuHeIII is not None:
+                nHeIII_cgs = nHeIII * M3_TO_CM3
+                T_HeIII = THeIII if THeIII is not None else (Te if Te is not None else np.full(n_points, 1.0))
+                nuHeIII_eff = np.maximum(nuHeIII, nu_min)
+                T_eff = Te + T_HeIII * nHeIII_cgs / ne_safe if Te is not None else T_HeIII
+                mfp_sum += nHeIII_cgs * 9.79e5 * np.sqrt(2.0 * np.maximum(T_eff, 0.01) / 4.0) / nuHeIII_eff
+                gr_sum += nHeIII_cgs * 1.02e2 / 2.0 * np.sqrt(4.0 * np.maximum(T_HeIII, 0.01)) / Br_safe / 1e4
+                nu_sum += nHeIII_cgs * nuHeIII_eff
+                n_total += nHeIII_cgs
+            
+            # Weighted averages
+            n_total_safe = np.maximum(n_total, 1e-10)
+            mfp_avg = mfp_sum / n_total_safe
+            gr_avg = gr_sum / n_total_safe
+            nu_avg = nu_sum / n_total_safe
+            
+            Dv = Dfsave * 0.333 * nu_avg * mfp_avg * (gr_avg + mfp_avg * Bv / Br_safe)
+        else:
+            # Fallback
+            if D_ion is not None:
+                Dv = D_ion * 1e4
+            else:
+                Dv = np.full(n_points, 1e2)  # 1 m²/s minimum
+        
+        # Loss time: τ = b² / (2 * Dv)
+        Dv_safe = np.maximum(Dv, 1e-10)
+        tau_bpol = (b ** 2) / (2.0 * Dv_safe)
+        tau_bpol = np.maximum(tau_bpol, 1e-10)
+        
+        # Add bpol contribution to loss rates
+        # For energy, apply gEd factor: τ_E_bpol = τ_bpol / gEd
+        k_n += 1.0 / tau_bpol
+        k_E += gEd / tau_bpol
+    
+    return k_n, k_E
 
 
 def ndamp(n_cgs: np.ndarray, nevac: float = 1.0) -> np.ndarray:

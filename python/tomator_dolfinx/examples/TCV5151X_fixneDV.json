@@ -159,7 +159,8 @@
         "dtmax": {"value": 1e-4, "unit": "s"},
         "dtmin": {"value": 1e-6, "unit": "s"},
         "dtinit": {"value": 1e-9, "unit": "s"},
-        "maxtstepincrement": {"value": 1.5, "unit": "-"}
+        "maxtstepincrement": {"value": 1.5, "unit": "-"},
+        "use_optimal_dt": {"value": true, "unit": "-"}
     },
     "time_step_for_rf_coupling": {
         "bupdateRFstep": {"value": true, "unit": "-"},

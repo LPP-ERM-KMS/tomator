@@ -24,7 +24,7 @@ from .transport import (TransportCoefficients, TransportManager,
                         compute_gyrogeom_diffusion_from_state, DiffusionModel)
 from .reactions.collisions import compute_sources_from_state
 from .reactions.implicit_reactions import solve_reactions_vectorized
-from .parallel import compute_limiter_losses, compute_bpol_losses
+from .parallel import compute_limiter_losses, compute_bpol_losses, compute_parallel_loss_rates
 
 
 class TransportEquation:
@@ -405,34 +405,25 @@ class TransportEquation:
         step_count : int
             Current step number (0-indexed). C++ uses Nit (1-indexed iteration counter).
         """
-        # TESTING: Always use fixed BDF2 coefficients to check if variable
-        # coefficients cause timestep-dependent steady state
-        # TODO: Remove this after testing - restore variable coefficient logic
-        self.c1.value = 2.0 / 3.0
-        self.c2.value = 4.0 / 3.0
-        self.c3.value = 1.0 / 3.0
-        self.dt.value = dt_new
+        # C++ uses Nit which starts at 1, so step_count < 10 corresponds to Nit <= 10
+        if step_count < 10:
+            # Fixed BDF2 coefficients for startup stability (matching C++ Nit <= 10)
+            self.c1.value = 2.0 / 3.0
+            self.c2.value = 4.0 / 3.0
+            self.c3.value = 1.0 / 3.0
+        elif dt_old > 0:
+            # Variable BDF2 coefficients for adaptive time stepping
+            w = dt_new / dt_old
+            self.c1.value = (1 + w) / (1 + 2*w)
+            self.c2.value = (1 + w)**2 / (1 + 2*w)
+            self.c3.value = w**2 / (1 + 2*w)
+        else:
+            # Fallback to fixed BDF2 if dt_old is invalid
+            self.c1.value = 2.0 / 3.0
+            self.c2.value = 4.0 / 3.0
+            self.c3.value = 1.0 / 3.0
         
-        # Original variable coefficient logic (commented out for testing):
-        # # C++ uses Nit which starts at 1, so step_count < 10 corresponds to Nit <= 10
-        # if step_count < 10:
-        #     # Fixed BDF2 coefficients for startup stability (matching C++ Nit <= 10)
-        #     self.c1.value = 2.0 / 3.0
-        #     self.c2.value = 4.0 / 3.0
-        #     self.c3.value = 1.0 / 3.0
-        # elif dt_old > 0:
-        #     # Variable BDF2 coefficients for adaptive time stepping
-        #     w = dt_new / dt_old
-        #     self.c1.value = (1 + w) / (1 + 2*w)
-        #     self.c2.value = (1 + w)**2 / (1 + 2*w)
-        #     self.c3.value = w**2 / (1 + 2*w)
-        # else:
-        #     # Fallback to fixed BDF2 if dt_old is invalid
-        #     self.c1.value = 2.0 / 3.0
-        #     self.c2.value = 4.0 / 3.0
-        #     self.c3.value = 1.0 / 3.0
-        # 
-        # self.dt.value = dt_new
+        self.dt.value = dt_new
 
 
 class BDF2Solver:
@@ -490,7 +481,8 @@ class BDF2Solver:
             self.radial_positions = state.V.tabulate_dof_coordinates()[:, 0].copy()
         
         # Time stepping parameters
-        self.dt = params.get('dtinit', 1e-6)
+        self.dt_init = params.get('dtinit', 1e-6)  # Store initial dt
+        self.dt = self.dt_init  # Start with dt_init
         self.dt_prev = self.dt
         self.dt_min = params.get('dtmin', 1e-9)
         self.dt_max = params.get('dtmax', 1e-3)
@@ -531,6 +523,10 @@ class BDF2Solver:
         if Prf > 0:
             from .coupledpower import CoupledPower
             self.coupled_power = CoupledPower(params)
+        
+        # Pre-allocate destruction rate Functions for implicit parallel losses
+        self._k_n_func = Function(state.V, name="k_n")
+        self._k_E_func = Function(state.V, name="k_E")
     
     def set_dirichlet_value(self, species_name: str, value: float) -> None:
         """
@@ -973,6 +969,117 @@ class BDF2Solver:
         
         return max_change
 
+    def _compute_post_solve_dt(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Compute per-cell optimal dt based on actual changes after solving.
+        
+        This is for analysis purposes: what would the optimal dt have been
+        given the actual changes that occurred in this timestep?
+        
+        dt = accur × min(n/|Δn|, E/|ΔE|) where Δn = n_new - n_old
+        
+        Computes separately for:
+        - Charged particles: ions (Hi, H2i, H3i, HeII, HeIII) + electrons
+        - Neutral particles: H, H2, HeI
+        
+        Returns
+        -------
+        dt_charged_total : np.ndarray
+            Per-cell optimal dt for all charged particles [s].
+        dt_neutral_total : np.ndarray
+            Per-cell optimal dt for all neutral particles [s].
+        """
+        n_points = len(self.radial_positions)
+        accur = self.accuracy
+        dt = self.dt
+        
+        # Initialize with large value (no constraint)
+        dt_charged = np.full(n_points, 1e30)
+        dt_neutral = np.full(n_points, 1e30)
+        
+        # Ion species
+        ion_names = ['Hi', 'H2i', 'H3i', 'HeII', 'HeIII']
+        for name in ion_names:
+            if name not in self.state.species:
+                continue
+            species = self.state.species[name]
+            
+            # Density change
+            n_new = species.n.x.array
+            n_old = species.n_prev.x.array
+            dn = n_new - n_old
+            
+            # dt = accur * n / |dn/dt| = accur * n * dt / |dn|
+            n_safe = np.maximum(np.abs(n_new), 1e-30)
+            dn_safe = np.maximum(np.abs(dn), 1e-30)
+            dt_n = accur * n_safe * dt / dn_safe
+            
+            # Only apply where change is significant
+            mask = np.abs(dn) > 1e-30
+            dt_charged[mask] = np.minimum(dt_charged[mask], dt_n[mask])
+            
+            # Energy change
+            E_new = species.E.x.array
+            E_old = species.E_prev.x.array
+            dE = E_new - E_old
+            
+            E_safe = np.maximum(np.abs(E_new), 1e-30)
+            dE_safe = np.maximum(np.abs(dE), 1e-30)
+            dt_E = accur * E_safe * dt / dE_safe
+            
+            mask = np.abs(dE) > 1e-30
+            dt_charged[mask] = np.minimum(dt_charged[mask], dt_E[mask])
+        
+        # Electron energy change
+        if self.state.electrons is not None:
+            E_new = self.state.electrons.E.x.array
+            E_old = self.state.electrons.E_prev.x.array
+            dE = E_new - E_old
+            
+            E_safe = np.maximum(np.abs(E_new), 1e-30)
+            dE_safe = np.maximum(np.abs(dE), 1e-30)
+            dt_E = accur * E_safe * dt / dE_safe
+            
+            mask = np.abs(dE) > 1e-30
+            dt_charged[mask] = np.minimum(dt_charged[mask], dt_E[mask])
+        
+        # Neutral species
+        neutral_names = ['H', 'H2', 'HeI']
+        for name in neutral_names:
+            if name not in self.state.species:
+                continue
+            species = self.state.species[name]
+            
+            # Density change
+            n_new = species.n.x.array
+            n_old = species.n_prev.x.array
+            dn = n_new - n_old
+            
+            n_safe = np.maximum(np.abs(n_new), 1e-30)
+            dn_safe = np.maximum(np.abs(dn), 1e-30)
+            dt_n = accur * n_safe * dt / dn_safe
+            
+            mask = np.abs(dn) > 1e-30
+            dt_neutral[mask] = np.minimum(dt_neutral[mask], dt_n[mask])
+            
+            # Energy change
+            E_new = species.E.x.array
+            E_old = species.E_prev.x.array
+            dE = E_new - E_old
+            
+            E_safe = np.maximum(np.abs(E_new), 1e-30)
+            dE_safe = np.maximum(np.abs(dE), 1e-30)
+            dt_E = accur * E_safe * dt / dE_safe
+            
+            mask = np.abs(dE) > 1e-30
+            dt_neutral[mask] = np.minimum(dt_neutral[mask], dt_E[mask])
+        
+        # Clamp to reasonable range
+        dt_charged = np.clip(dt_charged, self.dt_min, self.dt_max)
+        dt_neutral = np.clip(dt_neutral, self.dt_min, self.dt_max)
+        
+        return dt_charged, dt_neutral
+
     # =========================================================================
     # Helper methods for cleaner code organization
     # =========================================================================
@@ -1067,6 +1174,82 @@ class BDF2Solver:
         if self.params.get('bpol', True) and all(self.params.get(k) is not None for k in ['Bt', 'Bv', 'b', 'R']):
             self._add_bpol_losses(dn_sources, dE_sources)
 
+    def _compute_parallel_loss_rates_k(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Compute parallel loss rates k_n and k_E for implicit LHS treatment.
+        
+        Combines limiter losses (SOL region) and bpol losses (vertical diffusion)
+        into unified loss rate arrays that are the SAME for all charged species.
+        
+        Returns
+        -------
+        k_n : np.ndarray
+            Density loss rate 1/τ_n [s^-1].
+        k_E : np.ndarray  
+            Energy loss rate 1/τ_E [s^-1].
+        """
+        # Get perpendicular diffusion coefficient (use Hi as representative)
+        if 'Hi' in self.transport.coefficients:
+            D_perp = self.transport.get('Hi').D.x.array.copy()
+        else:
+            D_perp = np.ones_like(self.state.electrons.n.x.array) * 1.0
+        
+        # Determine diffusion model
+        if self.params.get('bDgyrogeom', False):
+            diffusion_model = 'gyrogeom'
+        elif self.params.get('bDbohm', False):
+            diffusion_model = 'bohm'
+        else:
+            diffusion_model = 'fixed'
+        
+        # Get D_ion for fixed/bohm models
+        D_ion = None
+        if diffusion_model in ('fixed', 'bohm') and 'Hi' in self.transport.coefficients:
+            D_ion = self.transport.get('Hi').D.x.array.copy()
+        
+        # Get required parameters with defaults
+        lHFS = self.params.get('lHFS', self.radial_positions[0])
+        lLFS = self.params.get('lLFS', self.radial_positions[-1])
+        Br = getattr(self, '_B_toroidal', None)
+        Bv = self.params.get('Bv')
+        b = self.params.get('b')
+        if b is not None:
+            b = b * 100.0  # m to cm
+        
+        k_n, k_E = compute_parallel_loss_rates(
+            R_positions=self.radial_positions,
+            lHFS=lHFS,
+            lLFS=lLFS,
+            D_perp=D_perp,
+            lambda_n=self.params.get('bc_ion_lambda_n', 0.02),
+            lambda_E=self.params.get('bc_ion_lambda_E', 0.01),
+            Br=Br,
+            Bv=Bv,
+            b=b,
+            ne=self.state.electrons.n.x.array,
+            Te=self.state.electrons.T,
+            nHi=self._get_species_n('Hi'),
+            THi=self._get_species_T('Hi'),
+            nuHi=self._nu_collision.get('Hi') if hasattr(self, '_nu_collision') else None,
+            nH2i=self._get_species_n('H2i'),
+            TH2i=self._get_species_T('H2i'),
+            nuH2i=self._nu_collision.get('H2i') if hasattr(self, '_nu_collision') else None,
+            nH3i=self._get_species_n('H3i'),
+            TH3i=self._get_species_T('H3i'),
+            nuH3i=self._nu_collision.get('H3i') if hasattr(self, '_nu_collision') else None,
+            nHeII=self._get_species_n('HeII'),
+            THeII=self._get_species_T('HeII'),
+            nuHeII=self._nu_collision.get('HeII') if hasattr(self, '_nu_collision') else None,
+            nHeIII=self._get_species_n('HeIII'),
+            THeIII=self._get_species_T('HeIII'),
+            nuHeIII=self._nu_collision.get('HeIII') if hasattr(self, '_nu_collision') else None,
+            Dfsave=self.params.get('Dfact', 1.0),
+            D_ion=D_ion,
+            diffusion_model=diffusion_model,
+            gEd=self.params.get('gEd', 1.0)
+        )
+        
+        return k_n, k_E
     def _add_limiter_losses(self, dn_sources: dict, dE_sources: dict) -> None:
         """
         Add limiter parallel losses.
@@ -1172,183 +1355,9 @@ class BDF2Solver:
         self._merge_sources(dn_sources, dn_bpol)
         self._merge_sources(dE_sources, dE_bpol)
 
-    def _compute_parallel_losses(self, dn_sources: dict, dE_sources: dict) -> None:
-        """
-        Compute parallel transport losses without adding to existing sources.
-        
-        Same as _add_parallel_losses but for operator splitting where we need
-        parallel losses separate from reaction sources.
-        
-        Parameters
-        ----------
-        dn_sources : dict
-            Empty dict, will be populated with parallel loss sources.
-        dE_sources : dict
-            Empty dict, will be populated with parallel energy loss sources.
-        """
-        # Limiter losses (requires lHFS, lLFS)
-        lHFS = self.params.get('lHFS')
-        lLFS = self.params.get('lLFS')
-        if lHFS is not None and lLFS is not None:
-            # Get perpendicular diffusion coefficient (use Hi as representative)
-            if 'Hi' in self.transport.coefficients:
-                D_perp = self.transport.get('Hi').D.x.array.copy()
-            else:
-                # Fallback to a reasonable default
-                D_perp = np.ones_like(self.state.electrons.n.x.array) * 1.0  # 1 m²/s
-            
-            # Rate limiting is now applied centrally in step() after all parallel losses computed
-            dn_lim, dE_lim = compute_limiter_losses(
-                R_positions=self.radial_positions,
-                lHFS=self.params['lHFS'],
-                lLFS=self.params['lLFS'],
-                D_perp=D_perp,
-                lambda_n=self.params.get('bc_ion_lambda_n', 0.02),  # default 2 cm
-                lambda_E=self.params.get('bc_ion_lambda_E', 0.01),  # default 1 cm
-                ne=self.state.electrons.n.x.array,
-                Te=self.state.electrons.T,
-                nHi=self._get_species_n('Hi'),
-                THi=self._get_species_T('Hi'),
-                nH2i=self._get_species_n('H2i'),
-                TH2i=self._get_species_T('H2i'),
-                nH3i=self._get_species_n('H3i'),
-                TH3i=self._get_species_T('H3i'),
-                nHeII=self._get_species_n('HeII'),
-                THeII=self._get_species_T('HeII'),
-                nHeIII=self._get_species_n('HeIII'),
-                THeIII=self._get_species_T('HeIII'),
-                Ta0=self.params.get('Ta0', 0.026)
-            )
-            self._merge_sources(dn_sources, dn_lim)
-            self._merge_sources(dE_sources, dE_lim)
-        
-        # Vertical diffusion losses (requires Bt, Bv, b, R)
-        if all(self.params.get(k) is not None for k in ['Bt', 'Bv', 'b', 'R']):
-            # Determine diffusion model type
-            if self.params.get('bDgyrogeom', False):
-                diffusion_model = 'gyrogeom'
-            elif self.params.get('bDbohm', False):
-                diffusion_model = 'bohm'
-            else:
-                diffusion_model = 'fixed'
-            
-            D_ion = None
-            if diffusion_model in ('fixed', 'bohm'):
-                if 'Hi' in self.transport.coefficients:
-                    D_ion = self.transport.get('Hi').D.x.array.copy()
-            
-            ne = self.state.electrons.n.x.array
-            Te = self.state.electrons.T
-            
-            dn_bpol, dE_bpol = compute_bpol_losses(
-                Br=self._B_toroidal,
-                Bv=self.params['Bv'],
-                b=self.params['b'] * 100.0,
-                ne=ne,
-                Te=Te,
-                nHi=self._get_species_n('Hi'),
-                THi=self._get_species_T('Hi'),
-                EHi=self._get_species_E('Hi'),
-                nuHi=self._nu_collision.get('Hi', np.ones_like(ne) * 5e3),
-                nH2i=self._get_species_n('H2i'),
-                TH2i=self._get_species_T('H2i'),
-                EH2i=self._get_species_E('H2i'),
-                nuH2i=self._nu_collision.get('H2i'),
-                nH3i=self._get_species_n('H3i'),
-                TH3i=self._get_species_T('H3i'),
-                EH3i=self._get_species_E('H3i'),
-                nuH3i=self._nu_collision.get('H3i'),
-                nHeII=self._get_species_n('HeII'),
-                THeII=self._get_species_T('HeII'),
-                EHeII=self._get_species_E('HeII'),
-                nuHeII=self._nu_collision.get('HeII'),
-                nHeIII=self._get_species_n('HeIII'),
-                THeIII=self._get_species_T('HeIII'),
-                EHeIII=self._get_species_E('HeIII'),
-                nuHeIII=self._nu_collision.get('HeIII'),
-                Dfsave=self.params.get('Dfact', 1.0),
-                D_ion=D_ion,
-                diffusion_model=diffusion_model,
-                gEd=self.params.get('gEd', 1.0),
-                Ta0=self.params.get('Ta0', 0.026)
-            )
-            self._merge_sources(dn_sources, dn_bpol)
-            self._merge_sources(dE_sources, dE_bpol)
-        
-        # NOTE: Do NOT apply ENERGY_FACTOR here!
-        # In C++ Tomator1D.cpp, ENERGY_FACTOR is applied ONLY to collision sources
-        # (lines 169-177), BEFORE limiters() and bpol_function() are called.
-        # Parallel losses are already in the correct units from compute_limiter_losses
-        # and compute_bpol_losses (they use E = 1.5*n*T directly, matching C++).
-
-    def _solve_ions_transport_only(self, dn_sources: dict, dE_sources: dict) -> None:
-        """
-        Solve transport equations for ion species (transport + parallel losses only).
-        
-        For operator splitting: no reaction sources, only diffusion/advection/parallel losses.
-        """
-        ion_mass = {'Hi': 1.0, 'H2i': 2.0, 'H3i': 3.0, 'HeII': 4.0, 'HeIII': 4.0}
-        
-        for species in self.state.ions:
-            if not species.solve_density:
-                continue
-            
-            name = species.name
-            
-            coeff = self.transport.get(name)
-            D = coeff.D
-            V = coeff.V
-            
-            # Parallel losses only (no reaction sources)
-            if name in dn_sources:
-                self.source.x.array[:] = dn_sources[name]
-            else:
-                self.source.x.array[:] = 0.0
-            
-            use_robin = (species.bc_type == "robin")
-            bcs = []
-            
-            if not use_robin and name in self.dirichlet_values:
-                bcs = self.bc_handler.get_dirichlet_bc(
-                    self.dirichlet_values[name], "both"
-                )
-            
-            if use_robin:
-                m_amu = ion_mass.get(name, 1.0)
-                self._update_robin_decay_lengths(species, D, m_amu, is_ion=True)
-            
-            self.transport_eq.solve(
-                D, V, species.n, species.n_prev, species.n_prev2,
-                self.source, bcs=bcs, use_robin_bc=use_robin
-            )
-            
-            self._enforce_outflow_boundary(species.n)
-            
-            # Solve energy equation
-            if species.solve_energy and name in dE_sources:
-                self.source.x.array[:] = dE_sources[name]
-                
-                gEd = self.params.get('gEd', 5/3)
-                gEv = self.params.get('gEv', 5/3)
-                
-                D_energy = Function(self.state.V)
-                V_energy = Function(self.state.V)
-                D_energy.x.array[:] = gEd * D.x.array[:]
-                V_energy.x.array[:] = gEv * V.x.array[:]
-                
-                if use_robin:
-                    m_amu = ion_mass.get(name, 1.0)
-                    self._update_robin_energy_decay_lengths(species, D, m_amu, is_ion=True)
-                
-                self.transport_eq.solve(
-                    D_energy, V_energy, species.E, species.E_prev, species.E_prev2,
-                    self.source, bcs=[], use_robin_bc=use_robin
-                )
-                self._enforce_outflow_boundary(species.E)
-
     def _solve_neutrals_transport_only(self, dn_sources: dict, dE_sources: dict) -> None:
         """
-        Solve transport equations for neutral species (transport + parallel losses only).
+        Solve transport equations for neutral species (transport only).
         
         For operator splitting: no reaction sources, only diffusion/advection.
         """
@@ -1397,8 +1406,12 @@ class BDF2Solver:
                 self.source, bcs=bcs, use_robin_bc=use_robin
             )
             
-            if species.solve_energy and name in dE_sources:
-                self.source.x.array[:] = dE_sources[name]
+            # Solve energy equation (always, sources are handled by reaction step)
+            if species.solve_energy:
+                if name in dE_sources:
+                    self.source.x.array[:] = dE_sources[name]
+                else:
+                    self.source.x.array[:] = 0.0
                 
                 gEdn = self.params.get('gEdn', 5/3)
                 D_energy = Function(self.state.V)
@@ -1414,107 +1427,6 @@ class BDF2Solver:
                     D_energy, V_energy, species.E, species.E_prev, species.E_prev2,
                     self.source, bcs=[], use_robin_bc=use_robin
                 )
-
-    # =========================================================================
-    # Rate limiting for total source terms
-    # =========================================================================
-
-    def _apply_rate_limiting(self, dn_sources: dict, dE_sources: dict) -> None:
-        """
-        Apply rate limiting to the total collision source terms.
-        
-        This limits the total dn/dt and dE/dt for each species so that relative
-        density changes don't exceed self.accuracy per timestep. This is applied
-        to the TOTAL source terms (sum of all reactions) rather than per-reaction.
-        
-        The limiting ensures: |dn * dt / n| <= accuracy for all species.
-        
-        Parameters
-        ----------
-        dn_sources : dict
-            Density source terms [m^-3/s], modified in place.
-        dE_sources : dict
-            Energy source terms [eV·m^-3/s], modified in place.
-        """
-        dt = self.dt
-        accur = self.accuracy
-        
-        if dt is None or accur is None:
-            return
-        
-        # For each species, limit the total source term
-        for name in dn_sources:
-            # Get current density for this species
-            if name == 'e':
-                n = self.state.electrons.n.x.array
-            elif name in self.state.species:
-                n = self.state.species[name].n.x.array
-            else:
-                continue  # Species not present in state
-            
-            dn = dn_sources[name]
-            
-            # Maximum allowed change: |dn * dt / n| <= accur => |dn| <= accur * n / dt
-            n_safe = np.maximum(np.abs(n), 1e-30)  # Avoid division by zero
-            max_dn = accur * n_safe / dt
-            
-            # Find where limiting is needed
-            exceed = np.abs(dn) > max_dn
-            if np.any(exceed):
-                # Calculate scale factor for each point
-                scale = np.ones_like(dn)
-                scale[exceed] = max_dn[exceed] / np.abs(dn[exceed])
-                
-                # Apply same scale to both density and energy sources
-                dn_sources[name] = dn * scale
-                if name in dE_sources:
-                    dE_sources[name] = dE_sources[name] * scale
-
-    def _apply_energy_rate_limiting(self, dE_sources: dict) -> None:
-        """
-        Apply rate limiting to energy source terms based on dE/E.
-        
-        This limits the dE/dt for each species so that relative energy
-        changes don't exceed self.accuracy per timestep.
-        
-        The limiting ensures: |dE * dt / E| <= accuracy for all species.
-        
-        Parameters
-        ----------
-        dE_sources : dict
-            Energy source terms [eV·m^-3/s], modified in place.
-        """
-        dt = self.dt
-        accur = self.accuracy
-        
-        if dt is None or accur is None:
-            return
-        
-        # For each species, limit the energy source term
-        for name in list(dE_sources.keys()):
-            # Get current energy for this species
-            if name == 'e':
-                E = self.state.electrons.E.x.array
-            elif name in self.state.species:
-                E = self.state.species[name].E.x.array
-            else:
-                continue  # Species not present in state
-            
-            dE = dE_sources[name]
-            
-            # Maximum allowed change: |dE * dt / E| <= accur => |dE| <= accur * E / dt
-            E_safe = np.maximum(np.abs(E), 1e-30)  # Avoid division by zero
-            max_dE = accur * E_safe / dt
-            
-            # Find where limiting is needed
-            exceed = np.abs(dE) > max_dE
-            if np.any(exceed):
-                # Calculate scale factor for each point
-                scale = np.ones_like(dE)
-                scale[exceed] = max_dE[exceed] / np.abs(dE[exceed])
-                
-                # Apply scale to energy source
-                dE_sources[name] = dE * scale
 
     # =========================================================================
     # RF power deposition
@@ -1588,6 +1500,197 @@ class BDF2Solver:
             self.state.electrons.E.x.array[:] = ENERGY_FACTOR * n_arr * T_arr
 
     # =========================================================================
+    # Timestep calculation methods
+    # =========================================================================
+
+    def _compute_dt_collisions(
+        self, 
+        dn_sources: Dict[str, np.ndarray], 
+        dE_sources: Dict[str, np.ndarray]
+    ) -> np.ndarray:
+        """
+        Compute per-cell timestep limit from collision + RF sources.
+        
+        For each grid point, computes the dt that would make the maximum
+        relative change equal to accur, considering all species (n and E).
+        
+        dt[i] = accur × min(n/|dn|, E/|dE|) across all species at point i
+        
+        Grid points where a species has n < nevac are ignored for that species
+        (large relative changes in vacuum regions don't impact physics).
+        
+        Parameters
+        ----------
+        dn_sources : dict
+            Density source terms [m^-3/s] for each species.
+        dE_sources : dict
+            Energy source terms [eV·m^-3/s] for each species.
+            
+        Returns
+        -------
+        dt_collision : np.ndarray
+            Per-cell timestep limit [s].
+        """
+        n_points = len(self.radial_positions)
+        
+        # Initialize with large value (no constraint)
+        dt_limit = np.full(n_points, 1e30)
+        
+        accur = self.accuracy
+        nevac = self.params.get('nevac', 1e10)  # Vacuum density threshold
+        
+        # Check all species densities
+        for name, dn in dn_sources.items():
+            if dn is None:
+                continue
+            
+            # Get current density
+            if name == 'e':
+                n = self.state.electrons.n.x.array
+            elif name in self.state.species:
+                n = self.state.species[name].n.x.array
+            else:
+                continue
+            
+            # dt = accur * n / |dn| where dn != 0
+            n_safe = np.maximum(np.abs(n), 1e-30)
+            dn_safe = np.maximum(np.abs(dn), 1e-30)
+            dt_n = accur * n_safe / dn_safe
+            
+            # Only apply where dn is significant AND density is above vacuum
+            # (ignore vacuum regions where relative changes are large but irrelevant)
+            mask = (np.abs(dn) > 1e-30) & (n > nevac)
+            dt_limit[mask] = np.minimum(dt_limit[mask], dt_n[mask])
+        
+        # Check all species energies
+        for name, dE in dE_sources.items():
+            if dE is None:
+                continue
+            
+            # Get current energy and density
+            if name == 'e':
+                E = self.state.electrons.E.x.array
+                n = self.state.electrons.n.x.array
+            elif name in self.state.species:
+                E = self.state.species[name].E.x.array
+                n = self.state.species[name].n.x.array
+            else:
+                continue
+            
+            # dt = accur * E / |dE| where dE != 0
+            E_safe = np.maximum(np.abs(E), 1e-30)
+            dE_safe = np.maximum(np.abs(dE), 1e-30)
+            dt_E = accur * E_safe / dE_safe
+            
+            # Only apply where dE is significant AND density is above vacuum
+            mask = (np.abs(dE) > 1e-30) & (n > nevac)
+            dt_limit[mask] = np.minimum(dt_limit[mask], dt_E[mask])
+        
+        # Clamp to reasonable range
+        dt_limit = np.clip(dt_limit, self.dt_min, self.dt_max)
+        
+        return dt_limit
+
+    def _compute_dt_diffusion(self) -> Dict[str, np.ndarray]:
+        """
+        Compute per-cell diffusion stability timestep limit.
+        
+        Uses the stability criterion: dt ≤ safety × Δx² / (2D)
+        with safety factor 0.5.
+        
+        Computes separately for:
+        - ions: collective ion diffusion coefficient
+        - H: neutral hydrogen
+        - H2: molecular hydrogen
+        - HeI: neutral helium
+        
+        Returns
+        -------
+        dt_diffusion : dict
+            Per-cell timestep limits for each species group.
+            Keys: 'ions', 'H', 'H2', 'HeI'
+        """
+        safety = 0.5
+        
+        # Compute per-cell Δx (distance between adjacent nodes)
+        dx = np.diff(self.radial_positions)  # length n_points - 1
+        
+        # Extend to n_points by duplicating last value
+        dx_cell = np.zeros(len(self.radial_positions))
+        dx_cell[:-1] = dx
+        dx_cell[-1] = dx[-1]
+        
+        dt_diffusion = {}
+        
+        # Ion diffusion (use Hi as representative)
+        if 'Hi' in self.transport.coefficients:
+            D_ion = self.transport.get('Hi').D.x.array
+            D_safe = np.maximum(D_ion, 1e-10)
+            dt_diffusion['ions'] = safety * dx_cell**2 / (2.0 * D_safe)
+        
+        # Neutral species
+        for name in ('H', 'H2', 'HeI'):
+            if name in self.transport.coefficients:
+                D_neut = self.transport.get(name).D.x.array
+                D_safe = np.maximum(D_neut, 1e-10)
+                dt_diffusion[name] = safety * dx_cell**2 / (2.0 * D_safe)
+        
+        # Clamp all to reasonable range
+        for key in dt_diffusion:
+            dt_diffusion[key] = np.clip(dt_diffusion[key], self.dt_min, self.dt_max)
+        
+        return dt_diffusion
+
+    def _compute_optimal_dt(
+        self,
+        dt_collision: np.ndarray,
+        dt_diffusion: Dict[str, np.ndarray]
+    ) -> float:
+        """
+        Compute optimal timestep combining collision and diffusion limits.
+        
+        Uses harmonic mean: dt = (1/dt_col + 1/dt_diff)^{-1}
+        This ensures the smaller limit dominates.
+        
+        Takes the global minimum across all grid points.
+        
+        Parameters
+        ----------
+        dt_collision : np.ndarray
+            Per-cell collision timestep limit [s].
+        dt_diffusion : dict
+            Per-cell diffusion timestep limits for each species group.
+            
+        Returns
+        -------
+        dt_optimal : float
+            Optimal global timestep [s].
+        """
+        n_points = len(self.radial_positions)
+        
+        # Start with collision limit
+        inv_dt = 1.0 / np.maximum(dt_collision, 1e-30)
+        
+        # Add ion diffusion limit only (ignore neutral diffusion for optimal dt)
+        # Neutrals have much larger D (~1000x ions) so their dt_diff would be overly restrictive
+        if 'ions' in dt_diffusion:
+            inv_dt += 1.0 / np.maximum(dt_diffusion['ions'], 1e-30)
+        
+        # Harmonic mean: dt = 1 / (sum of 1/dt_i)
+        dt_per_cell = 1.0 / inv_dt
+        
+        # Global minimum
+        dt_optimal = np.min(dt_per_cell)
+        
+        # Clamp to bounds (but allow dt < dt_min on first step to grow from dt_init)
+        if self.step_count > 0:
+            dt_optimal = np.clip(dt_optimal, self.dt_min, self.dt_max)
+        else:
+            dt_optimal = min(dt_optimal, self.dt_max)
+        
+        return dt_optimal
+
+    # =========================================================================
     # Main time stepping method
     # =========================================================================
 
@@ -1595,15 +1698,18 @@ class BDF2Solver:
         """
         Perform one time step.
         
-        The calculation order matches C++ Tomator1D:
+        Calculation order:
         1. Compute collision sources and collision frequencies (nu)
-        2. Compute transport coefficients (D, V) - these use nu
-        3. Add parallel losses (limiters, bpol) - these use nu and D
-        4. Add RF power deposition
-        5. Solve transport equations for all species
-        6. Apply floors/clamps and update electron density
-        7. Solve electron energy
-        8. Limit solution change and adapt timestep
+        2. Compute RF power coupling
+        3. Compute collision timestep limit (dt_collision)
+        4. Compute parallel loss rates k_n, k_E for implicit treatment
+        5. Compute transport coefficients D, V
+        6. Compute diffusion timestep limit (dt_diffusion)
+        7. Compute optimal timestep: dt_init for step 0, then dt_optimal
+        8. Update BDF2 coefficients
+        9. Solve transport equations with implicit parallel losses
+        10. Solve reactions (implicit Newton)
+        11. Apply post-solve corrections (floors, quasi-neutrality, clamps)
         
         Parameters
         ----------
@@ -1648,172 +1754,150 @@ class BDF2Solver:
                 'nHeII': self._get_species_n('HeII'),
             })
         
-        # Check if using operator splitting for reactions
-        use_operator_splitting = self.params.get('operator_splitting', True)
+        # ================================================================
+        # STEP 1: Compute collision sources and frequencies (nu)
+        # ================================================================
+        tic('collisions')
+        dn_sources, dE_sources, nu_collision = compute_sources_from_state(
+            self.state, self.params
+        )
+        self._nu_collision = nu_collision
+        
+        # Apply energy factor: E = 3/2 * n * T
+        ENERGY_FACTOR = 1.5
+        for species_name in dE_sources:
+            dE_sources[species_name] *= ENERGY_FACTOR
+        toc('collisions')
         
         # ================================================================
-        # STEP 1: Update BDF2 time discretization coefficients
+        # STEP 2: Compute RF power coupling
+        # ================================================================
+        tic('rf_power')
+        dE_RF = {}
+        self._add_rf_power(dE_RF)
+        
+        # Merge RF into collision sources for timestep calculation
+        self._merge_sources(dE_sources, dE_RF)
+        toc('rf_power')
+        
+        # ================================================================
+        # STEP 3: Compute collision timestep limit (per-cell)
+        # dt_col = accur × min(n/|dn|, E/|dE|) across all species
+        # ================================================================
+        tic('dt_collision')
+        dt_collision = self._compute_dt_collisions(dn_sources, dE_sources)
+        self._dt_collision = dt_collision  # Store for output
+        toc('dt_collision')
+        
+        # ================================================================
+        # STEP 4: Compute parallel loss rates k_n, k_E for implicit treatment
+        # Now that nu is available, compute the shared loss rates
+        # ================================================================
+        tic('parallel_loss_rates')
+        # First need transport coefficients for D_perp
+        # Compute transport coefficients early (needed for parallel loss rates)
+        self._compute_transport_coefficients()
+        
+        # Compute k_n and k_E (same for all charged species)
+        k_n, k_E = self._compute_parallel_loss_rates_k()
+        
+        # Store in Functions for passing to transport solver
+        self._k_n_func.x.array[:] = k_n
+        self._k_E_func.x.array[:] = k_E
+        toc('parallel_loss_rates')
+        
+        # ================================================================
+        # STEP 5: Transport coefficients already computed above
+        # ================================================================
+        
+        # ================================================================
+        # STEP 6: Compute diffusion timestep limit (per-cell)
+        # dt_diff = 0.5 × Δx² / (2D) for each species group
+        # ================================================================
+        tic('dt_diffusion')
+        dt_diffusion = self._compute_dt_diffusion()
+        self._dt_diffusion = dt_diffusion  # Store for output
+        toc('dt_diffusion')
+        
+        # ================================================================
+        # STEP 7: Compute optimal timestep (store, use if enabled)
+        # dt = (1/dt_col + 1/dt_diff)^{-1}
+        # ================================================================
+        tic('optimal_dt')
+        dt_optimal = self._compute_optimal_dt(dt_collision, dt_diffusion)
+        self._dt_optimal = dt_optimal  # Store for diagnostics
+        
+        # First step ALWAYS uses dt_init exactly (matching C++ behavior)
+        # After first step, always use optimal dt
+        if self.step_count == 0:
+            self.dt = self.dt_init
+            if debug:
+                print(f"  [TIMESTEP] First step: using dt_init={self.dt_init:.3e}")
+        else:
+            self.dt = dt_optimal
+            if debug:
+                print(f"  [OPTIMAL_DT] Using optimal dt={dt_optimal:.3e}")
+        toc('optimal_dt')
+        
+        # ================================================================
+        # STEP 8: Update BDF2 coefficients with current timestep
         # ================================================================
         tic('bdf2_coef')
         self.transport_eq.update_bdf2_coefficients(self.dt, self.dt_prev, self.step_count)
         toc('bdf2_coef')
         
         # ================================================================
-        # STEP 2: Compute collision frequencies (nu)
-        # nu is needed by: transport coefficients, bpol losses, RF power
-        # For operator splitting, we only need nu here (sources computed in reaction step)
+        # STEP 9: Solve transport equations
+        # BDF2 + implicit parallel losses via k_n, k_E on LHS
         # ================================================================
-        tic('collisions')
-        dn_sources, dE_sources, nu_collision = compute_sources_from_state(
-            self.state, self.params
+        # Transport with implicit parallel losses (no reaction sources yet)
+        tic('solve_ions')
+        self._solve_ions_with_implicit_k(k_n, k_E)
+        toc('solve_ions')
+        
+        if debug:
+            _dbg("After ion transport:", {
+                'nHi': self._get_species_n('Hi'),
+                'nHeII': self._get_species_n('HeII'),
+            })
+        
+        tic('solve_neutrals')
+        self._solve_neutrals_transport_only({}, {})  # No parallel losses for neutrals
+        toc('solve_neutrals')
+        
+        if debug:
+            _dbg("After neutral transport:", {
+                'nH': self._get_species_n('H'),
+            })
+        
+        # Electron energy transport with implicit parallel losses
+        tic('solve_electron_E')
+        self._solve_electron_energy_with_implicit_k(k_E, dE_RF)
+        toc('solve_electron_E')
+        
+        if debug:
+            _dbg("After electron energy transport:", {'Te': self.state.electrons.T})
+        
+        # ================================================================
+        # STEP 10: Reactions (implicit Newton at each mesh point)
+        # ================================================================
+        tic('reactions_implicit')
+        solve_reactions_vectorized(
+            self.state, self.dt, self.params, 
+            max_newton_iter=self.max_newton_iter,
+            newton_tol=self.newton_tol
         )
+        toc('reactions_implicit')
         
-        # Apply rate limiting to TOTAL source terms
-        self._apply_rate_limiting(dn_sources, dE_sources)
-        toc('collisions')
-        
-        # Store nu for transport coefficient and loss calculations
-        self._nu_collision = nu_collision
-        
-        # Apply energy factor: E = 3/2 * n * T, so dE = 3/2 * d(nT)
-        ENERGY_FACTOR = 1.5
-        for species_name in dE_sources:
-            dE_sources[species_name] *= ENERGY_FACTOR
+        if debug:
+            _dbg("After implicit reactions:", {
+                'nHi': self._get_species_n('Hi'),
+                'nH': self._get_species_n('H'),
+                'Te': self.state.electrons.T,
+            })
         
         # ================================================================
-        # STEP 3: Compute transport coefficients D and V
-        # Equivalent to C++ transpCoef() function
-        # Must be done BEFORE bpol because bpol uses D (via Dfsave)
-        # ================================================================
-        tic('transport_coef')
-        self._compute_transport_coefficients()
-        toc('transport_coef')
-        
-        # ================================================================
-        # STEP 4: Compute parallel loss sources (limiter + bpol)
-        # Always compute parallel losses first, then apply rate limiting
-        # For operator splitting: keep parallel losses separate
-        # For explicit: merge parallel losses with reaction sources
-        # ================================================================
-        tic('parallel_losses')
-        # Always compute parallel losses first
-        dn_parallel = {}
-        dE_parallel = {}
-        self._compute_parallel_losses(dn_parallel, dE_parallel)
-        
-        # Apply rate limiting to parallel losses (scaling dE with same factor as dn)
-        self._apply_rate_limiting(dn_parallel, dE_parallel)
-        
-        # For explicit mode, merge parallel losses with reaction sources
-        if not use_operator_splitting:
-            self._merge_sources(dn_sources, dn_parallel)
-            self._merge_sources(dE_sources, dE_parallel)
-        toc('parallel_losses')
-        
-        # ================================================================
-        # STEP 5: Add RF power deposition to electron energy
-        # ================================================================
-        tic('rf_power')
-        dn_RF = {}
-        dE_RF = {}
-        self._add_rf_power(dE_RF)
-        
-        # Apply rate limiting to RF power: limit dE/E to max accuracy
-        self._apply_energy_rate_limiting(dE_RF)
-        
-        # Merge RF sources into main sources
-        self._merge_sources(dn_sources, dn_RF)
-        self._merge_sources(dE_sources, dE_RF)
-        toc('rf_power')
-        
-        # ================================================================
-        # STEP 6: TRANSPORT STEP
-        # Operator splitting: transport with parallel losses only (no reactions)
-        # Explicit: transport with all sources (reactions + parallel losses)
-        # ================================================================
-        if use_operator_splitting:
-            # Transport with parallel losses only (no reaction sources)
-            tic('solve_ions')
-            self._solve_ions_transport_only(dn_parallel, dE_parallel)
-            toc('solve_ions')
-            
-            if debug:
-                _dbg("After ion transport:", {
-                    'nHi': self._get_species_n('Hi'),
-                    'nHeII': self._get_species_n('HeII'),
-                })
-            
-            tic('solve_neutrals')
-            self._solve_neutrals_transport_only(dn_parallel, dE_parallel)
-            toc('solve_neutrals')
-            
-            if debug:
-                _dbg("After neutral transport:", {
-                    'nH': self._get_species_n('H'),
-                })
-            
-            # Electron energy transport (parallel losses only, no reaction sources)
-            tic('solve_electron_E')
-            self._solve_electron_energy_transport_only(dE_parallel)
-            toc('solve_electron_E')
-            
-            if debug:
-                _dbg("After electron energy transport:", {'Te': self.state.electrons.T})
-            
-            # ================================================================
-            # STEP 7: REACTION STEP (implicit ODE at each mesh point)
-            # All densities + electron energy updated with reaction sources
-            # ================================================================
-            tic('reactions_implicit')
-            # Newton solver parameters: max_newton_iter (default 20), newton_tol (default 1e-6)
-            # Can be configured via params['max_newton_iter'] and params['newton_tol']
-            solve_reactions_vectorized(
-                self.state, self.dt, self.params, 
-                max_newton_iter=self.max_newton_iter,
-                newton_tol=self.newton_tol
-            )
-            toc('reactions_implicit')
-            
-            if debug:
-                _dbg("After implicit reactions:", {
-                    'nHi': self._get_species_n('Hi'),
-                    'nH': self._get_species_n('H'),
-                    'Te': self.state.electrons.T,
-                })
-        else:
-            # Original explicit treatment (all sources already combined in Step 4)
-            tic('solve_ions')
-            self._solve_ions(dn_sources, dE_sources)
-            toc('solve_ions')
-            
-            if debug:
-                _dbg("After ion solve:", {
-                    'nHi': self._get_species_n('Hi'),
-                    'nHeII': self._get_species_n('HeII'),
-                })
-            
-            tic('solve_neutrals')
-            self._solve_neutrals(dn_sources, dE_sources)
-            toc('solve_neutrals')
-            
-            if debug:
-                _dbg("After neutral solve:", {
-                    'nH': self._get_species_n('H'),
-                })
-                
-            # ================================================================
-            # STEP 7: Solve electron energy equation (explicit mode only)
-            # ================================================================
-            tic('solve_electron_E')
-            self._solve_electron_energy(dE_sources)
-            toc('solve_electron_E')
-            
-            if debug:
-                _dbg("After energy solve:", {'Te': self.state.electrons.T})
-        
-        # ================================================================
-        # STEP 8: Post-solve corrections (matching C++ order)
-        # Order: density floors → QN + Ee scaling → temperature clamps → E consistency
+        # STEP 11: Post-solve corrections
         # ================================================================
         tic('floors_clamps')
         
@@ -1821,15 +1905,10 @@ class BDF2Solver:
         self._apply_density_floors()
         
         # 2. Recompute ne from quasi-neutrality and scale Ee to preserve Te
-        #    This matches C++: Er.Ee[im] = Er.Ee[im] * neh / nr.ne[im]
         self._recompute_electron_density_preserve_temperature()
         
         # 3. Apply temperature clamps (adjusts E to enforce T bounds)
         self._apply_temperature_clamps()
-        
-        # NOTE: Do NOT call _recompute_energy_from_temperature() here!
-        # The temperature clamps already set E correctly. Recomputing E from T
-        # would be a circular no-op that doesn't enforce the clamps properly.
         
         toc('floors_clamps')
         
@@ -1837,7 +1916,16 @@ class BDF2Solver:
             _dbg("After post-solve corrections:", {'ne': self.state.electrons.n, 'Te': self.state.electrons.T})
 
         # ================================================================
-        # STEP 9: Adapt timestep based on solution change
+        # Compute post-solve dt diagnostics (for analysis)
+        # ================================================================
+        tic('post_solve_dt')
+        dt_charged_total, dt_neutral_total = self._compute_post_solve_dt()
+        self._dt_charged_total = dt_charged_total
+        self._dt_neutral_total = dt_neutral_total
+        toc('post_solve_dt')
+
+        # ================================================================
+        # Adapt timestep based on solution change
         # ================================================================
         tic('limit_adapt')
         max_change = self._compute_max_change()
@@ -1845,9 +1933,8 @@ class BDF2Solver:
         if debug:
             print(f"  [TIMESTEP] max_change={max_change:.3e}, target={self.accuracy:.3e}")
         
-        # Adapt timestep based on change
+        # Using optimal dt - no adaptive timestep needed
         dt_taken = self.dt
-        self._adapt_timestep(max_change)
         
         # Store previous solutions for BDF2
         self.state.store_all_previous()
@@ -1867,6 +1954,135 @@ class BDF2Solver:
                 print(f"    {name:20s}: {t*1000:7.2f}ms ({pct:5.1f}%)")
         
         return dt_taken
+    
+    def _solve_ions_with_implicit_k(self, k_n: np.ndarray, k_E: np.ndarray) -> None:
+        """
+        Solve transport equations for ions with implicit parallel loss rates.
+        
+        The parallel losses (k_n * n and k_E * E) are added to the LHS of the
+        transport equation as destruction terms, making them unconditionally stable.
+        
+        Parameters
+        ----------
+        k_n : np.ndarray
+            Density loss rate 1/τ_n [s^-1].
+        k_E : np.ndarray
+            Energy loss rate 1/τ_E [s^-1].
+        """
+        ion_mass = {'Hi': 1.0, 'H2i': 2.0, 'H3i': 3.0, 'HeII': 4.0, 'HeIII': 4.0}
+        
+        # Create destruction rate Functions
+        k_n_func = Function(self.state.V)
+        k_E_func = Function(self.state.V)
+        k_n_func.x.array[:] = k_n
+        k_E_func.x.array[:] = k_E
+        
+        for species in self.state.ions:
+            if not species.solve_density:
+                continue
+            
+            name = species.name
+            
+            coeff = self.transport.get(name)
+            D = coeff.D
+            V = coeff.V
+            
+            # No explicit sources for transport step (reactions handled separately)
+            self.source.x.array[:] = 0.0
+            
+            use_robin = (species.bc_type == "robin")
+            bcs = []
+            
+            if not use_robin and name in self.dirichlet_values:
+                bcs = self.bc_handler.get_dirichlet_bc(
+                    self.dirichlet_values[name], "both"
+                )
+            
+            if use_robin:
+                m_amu = ion_mass.get(name, 1.0)
+                self._update_robin_decay_lengths(species, D, m_amu, is_ion=True)
+            
+            # Solve density with implicit k_n
+            self.transport_eq.solve(
+                D, V, species.n, species.n_prev, species.n_prev2,
+                self.source, bcs=bcs, use_robin_bc=use_robin,
+                destruction_rate=k_n_func  # Implicit parallel losses
+            )
+            
+            self._enforce_outflow_boundary(species.n)
+            
+            # Solve energy equation with implicit k_E
+            if species.solve_energy:
+                self.source.x.array[:] = 0.0
+                
+                gEd = self.params.get('gEd', 5/3)
+                gEv = self.params.get('gEv', 5/3)
+                
+                D_energy = Function(self.state.V)
+                V_energy = Function(self.state.V)
+                D_energy.x.array[:] = gEd * D.x.array[:]
+                V_energy.x.array[:] = gEv * V.x.array[:]
+                
+                if use_robin:
+                    m_amu = ion_mass.get(name, 1.0)
+                    self._update_robin_energy_decay_lengths(species, D, m_amu, is_ion=True)
+                
+                self.transport_eq.solve(
+                    D_energy, V_energy, species.E, species.E_prev, species.E_prev2,
+                    self.source, bcs=[], use_robin_bc=use_robin,
+                    destruction_rate=k_E_func  # Implicit parallel losses
+                )
+                self._enforce_outflow_boundary(species.E)
+    
+    def _solve_electron_energy_with_implicit_k(
+        self, 
+        k_E: np.ndarray, 
+        dE_RF: Dict[str, np.ndarray]
+    ) -> None:
+        """
+        Solve electron energy equation with implicit parallel losses and RF source.
+        
+        Parameters
+        ----------
+        k_E : np.ndarray
+            Energy loss rate 1/τ_E [s^-1].
+        dE_RF : dict
+            RF power source for electrons.
+        """
+        # Create destruction rate Function
+        k_E_func = Function(self.state.V)
+        k_E_func.x.array[:] = k_E
+        
+        electrons = self.state.electrons
+        
+        # RF power as explicit source
+        if 'e' in dE_RF:
+            self.source.x.array[:] = dE_RF['e']
+        else:
+            self.source.x.array[:] = 0.0
+        
+        # Use ion diffusion coefficient scaled by gEe for electrons
+        gEe = self.params.get('gEe', 5/3)
+        
+        if 'Hi' in self.transport.coefficients:
+            D_ion = self.transport.get('Hi').D.x.array
+        else:
+            D_ion = np.ones_like(electrons.n.x.array) * 1.0
+        
+        D_energy = Function(self.state.V)
+        V_energy = Function(self.state.V)
+        D_energy.x.array[:] = gEe * D_ion
+        V_energy.x.array[:] = 0.0  # No advection for electron energy
+        
+        # Update Robin BC for electron energy
+        lambda_E = self.params.get('bc_ion_lambda_E', 0.01)
+        self.transport_eq.robin_bc.update_decay_lengths(lambda_E, lambda_E)
+        
+        self.transport_eq.solve(
+            D_energy, V_energy, electrons.E, electrons.E_prev, electrons.E_prev2,
+            self.source, bcs=[], use_robin_bc=True,
+            destruction_rate=k_E_func  # Implicit parallel losses
+        )
     
     def _apply_density_floors(self) -> None:
         """
@@ -1998,276 +2214,6 @@ class BDF2Solver:
                     if grad_lfs > 0:
                         n_arr[idx_lfs] = n_arr[idx_next_lfs]
     
-    def _solve_ions(self, dn_sources: dict, dE_sources: dict) -> None:
-        """Solve transport equations for ion species."""
-        # Map ions to their atomic masses (for decay length calculation)
-        ion_mass = {'Hi': 1.0, 'H2i': 2.0, 'H3i': 3.0, 'HeII': 4.0, 'HeIII': 4.0}
-        
-        for species in self.state.ions:
-            if not species.solve_density:
-                continue
-            
-            name = species.name
-            
-            # Get transport coefficients (updated by transport.update_all in step())
-            # D model depends on params: bDfix -> fixed, bDbohm -> Bohm, bDscaling -> classical
-            coeff = self.transport.get(name)
-            D = coeff.D
-            V = coeff.V
-            
-            # Set source term
-            if name in dn_sources:
-                self.source.x.array[:] = dn_sources[name]
-            else:
-                self.source.x.array[:] = 0.0
-            
-            # Determine BC type
-            use_robin = (species.bc_type == "robin")
-            bcs = []
-            
-            if not use_robin and name in self.dirichlet_values:
-                # Create Dirichlet BCs
-                bcs = self.bc_handler.get_dirichlet_bc(
-                    self.dirichlet_values[name], "both"
-                )
-            
-            # For Robin BC species: update decay lengths from physics
-            # Ions use connection length formula: λ = sqrt(D * L_conn / c_s)
-            if use_robin:
-                m_amu = ion_mass.get(name, 1.0)
-                self._update_robin_decay_lengths(species, D, m_amu, is_ion=True)
-            
-            # Solve density equation
-            self.transport_eq.solve(
-                D, V, species.n, species.n_prev, species.n_prev2,
-                self.source, bcs=bcs, use_robin_bc=use_robin
-            )
-            
-            # CRITICAL: Enforce outflow-only at boundaries for ions
-            # This prevents artificial ion influx that causes numerical blowup
-            self._enforce_outflow_boundary(species.n)
-            
-            # Solve energy equation (similar structure)
-            # C++ uses: B = Ts - coef1 * gEd * Ds * tstep + coef1 * gEv * Vs * tstep
-            # So for energy, scale D by gEd and V by gEv
-            if species.solve_energy and name in dE_sources:
-                self.source.x.array[:] = dE_sources[name]
-                
-                # Get energy transport scaling factors
-                gEd = self.params.get('gEd', 5/3)
-                gEv = self.params.get('gEv', 5/3)
-                
-                # Create scaled transport coefficients for energy
-                D_energy = Function(self.state.V)
-                V_energy = Function(self.state.V)
-                D_energy.x.array[:] = gEd * D.x.array[:]
-                V_energy.x.array[:] = gEv * V.x.array[:]
-                
-                # Use energy-specific decay lengths for Robin BC species
-                # Ions use connection length formula with gEe/gEd scaling
-                if use_robin:
-                    m_amu = ion_mass.get(name, 1.0)
-                    self._update_robin_energy_decay_lengths(species, D, m_amu, is_ion=True)
-                
-                self.transport_eq.solve(
-                    D_energy, V_energy, species.E, species.E_prev, species.E_prev2,
-                    self.source, bcs=[], use_robin_bc=use_robin
-                )
-                # Also enforce outflow for energy
-                self._enforce_outflow_boundary(species.E)
-    
-    def _solve_neutrals(self, dn_sources: dict, dE_sources: dict) -> None:
-        """Solve transport equations for neutral species."""
-        # Get parameters for flux-based energy BC
-        Ta0 = self.params.get('Ta0', 0.026)  # Ambient temperature [eV]
-        REH = self.params.get('REH', 0.9)    # Energy reflection coefficient
-        
-        # Map species to their atomic masses (for decay length calculation)
-        species_mass = {'H': 1.0, 'H2': 2.0, 'HeI': 4.0}
-        
-        for species in self.state.neutrals:
-            if not species.solve_density:
-                continue
-            
-            name = species.name
-            
-            # Get transport coefficients (or use default for neutrals)
-            if name in self.transport.coefficients:
-                coeff = self.transport.get(name)
-                D = coeff.D
-                V = coeff.V
-            else:
-                # Default neutral diffusion
-                D = Function(self.state.V)
-                D.x.array[:] = 1.0  # Default D for neutrals
-                V = Function(self.state.V)
-                V.x.array[:] = 0.0  # No advection for neutrals
-            
-            # Neutrals always use physics-based diffusion from collision rates
-            self._compute_neutral_diffusion(name, D)
-            
-            # Set source term
-            if name in dn_sources:
-                self.source.x.array[:] = dn_sources[name]
-            else:
-                self.source.x.array[:] = 0.0
-            
-            # Determine BC type
-            use_robin = (species.bc_type == "robin")
-            bcs = []
-            has_dirichlet = (not use_robin and name in self.dirichlet_values)
-            n_bc = self.dirichlet_values.get(name, 0.0) if has_dirichlet else 0.0
-            
-            if has_dirichlet:
-                bcs = self.bc_handler.get_dirichlet_bc(n_bc, "both")
-            
-            # For Robin BC species (H): update decay lengths from physics
-            # Neutral H uses thermal velocity formula: λ = 2D / (vth * (1 - RH))
-            if use_robin:
-                m_amu = species_mass.get(name, 1.0)
-                self._update_robin_decay_lengths(species, D, m_amu, is_ion=False)
-            
-            # Solve density equation
-            self.transport_eq.solve(
-                D, V, species.n, species.n_prev, species.n_prev2,
-                self.source, bcs=bcs, use_robin_bc=use_robin
-            )
-            
-            # Solve energy equation
-            # C++ transport.cpp uses gEd, gEv scaling for energy transport:
-            # B = Ts - coef1 * gEd * Ds * tstep + coef1 * gEv * Vs * tstep
-            if species.solve_energy and name in dE_sources:
-                self.source.x.array[:] = dE_sources[name]
-                
-                # Get neutral energy transport scaling factor (gEdn for neutrals)
-                # C++ uses gEdn for neutral energy (boundary conditions), not gEd
-                gEdn = self.params.get('gEdn', 5/3)
-                
-                # Create scaled transport coefficients for energy
-                # Neutrals have no advection (V=0), so no gEv needed
-                D_energy = Function(self.state.V)
-                V_energy = Function(self.state.V)
-                D_energy.x.array[:] = gEdn * D.x.array[:]
-                V_energy.x.array[:] = 0.0  # Neutrals have no advection
-                
-                # For Robin BC species (H): use energy-specific decay lengths
-                # C++ uses: dE/dr = ±1/2 * gEdn * vth/D * n * 3/2 * T * (1 - REH)
-                # This differs from density BC by factor gEdn*(1-REH)/(1-RH)
-                if use_robin:
-                    m_amu = species_mass.get(name, 1.0)
-                    self._update_robin_energy_decay_lengths(species, D, m_amu, is_ion=False)
-                
-                self.transport_eq.solve(
-                    D_energy, V_energy, species.E, species.E_prev, species.E_prev2,
-                    self.source, bcs=[], use_robin_bc=use_robin
-                )
-                
-                # Apply flux-based energy BC for Dirichlet density species (H2, HeI)
-                # - Inward flux: incoming at Ta0, reflected at REH * T_interior
-                # - Outward flux: particles leave with their local temperature
-                # Can be disabled with bNeutrFluxEnergyBC=False for testing
-                use_flux_energy_bc = self.params.get('bNeutrFluxEnergyBC', True)
-                if has_dirichlet and use_flux_energy_bc:
-                    self._apply_energy_bc_with_flux(
-                        species.E, species.n, D, n_bc, Ta0, REH
-                    )
-                elif has_dirichlet and not use_flux_energy_bc:
-                    # Simple fixed-temperature BC: E = 1.5 * n * Ta0 at boundaries
-                    coords = self.state.V.tabulate_dof_coordinates()[:, 0]
-                    sorted_idx = np.argsort(coords)
-                    idx_hfs = sorted_idx[0]
-                    idx_lfs = sorted_idx[-1]
-                    species.E.x.array[idx_hfs] = 1.5 * n_bc * Ta0
-                    species.E.x.array[idx_lfs] = 1.5 * n_bc * Ta0
-    
-    def _solve_electron_energy(self, dE_sources: dict) -> None:
-        """Solve electron energy equation."""
-        electrons = self.state.electrons
-        
-        if not electrons.solve_energy:
-            return
-        
-        # Get electron transport coefficients
-        if 'e' in self.transport.coefficients:
-            coeff = self.transport.get('e')
-            D = coeff.D
-            V = coeff.V
-        else:
-            # Use ion transport as proxy
-            D = Function(self.state.V)
-            D.x.array[:] = 1.0
-            V = Function(self.state.V)
-            V.x.array[:] = 0.0
-        
-        # Set source term
-        if 'e' in dE_sources:
-            self.source.x.array[:] = dE_sources['e']
-        else:
-            self.source.x.array[:] = 0.0
-        
-        # Get energy transport scaling factors (from C++ transport.cpp)
-        # C = Ts - coef1 * gEd * Ds * tstep + coef1 * gEv * Vs * tstep
-        gEd = self.params.get('gEd', 5/3)
-        gEv = self.params.get('gEv', 5/3)
-        
-        # Create scaled transport coefficients for energy
-        D_energy = Function(self.state.V)
-        V_energy = Function(self.state.V)
-        D_energy.x.array[:] = gEd * D.x.array[:]
-        V_energy.x.array[:] = gEv * V.x.array[:]
-        
-        # Solve with Robin BC
-        self.transport_eq.solve(
-            D_energy, V_energy, electrons.E, electrons.E_prev, electrons.E_prev2,
-            self.source, bcs=[], use_robin_bc=True
-        )
-    
-    def _solve_electron_energy_transport_only(self, dE_parallel: dict) -> None:
-        """
-        Solve electron energy transport with parallel losses only (no reaction sources).
-        
-        Used in operator splitting mode where reaction sources are handled
-        by the implicit reaction solver.
-        """
-        electrons = self.state.electrons
-        
-        if not electrons.solve_energy:
-            return
-        
-        # Get electron transport coefficients
-        if 'e' in self.transport.coefficients:
-            coeff = self.transport.get('e')
-            D = coeff.D
-            V = coeff.V
-        else:
-            # Use ion transport as proxy
-            D = Function(self.state.V)
-            D.x.array[:] = 1.0
-            V = Function(self.state.V)
-            V.x.array[:] = 0.0
-        
-        # Set source term (parallel losses only, no reaction sources)
-        if 'e' in dE_parallel:
-            self.source.x.array[:] = dE_parallel['e']
-        else:
-            self.source.x.array[:] = 0.0
-        
-        # Get energy transport scaling factors (from C++ transport.cpp)
-        gEd = self.params.get('gEd', 5/3)
-        gEv = self.params.get('gEv', 5/3)
-        
-        # Create scaled transport coefficients for energy
-        D_energy = Function(self.state.V)
-        V_energy = Function(self.state.V)
-        D_energy.x.array[:] = gEd * D.x.array[:]
-        V_energy.x.array[:] = gEv * V.x.array[:]
-        
-        # Solve with Robin BC
-        self.transport_eq.solve(
-            D_energy, V_energy, electrons.E, electrons.E_prev, electrons.E_prev2,
-            self.source, bcs=[], use_robin_bc=True
-        )
-    
     def _adapt_timestep(self, max_change: float = None) -> None:
         """
         Adapt time step based on solution change.
@@ -2296,7 +2242,13 @@ class BDF2Solver:
             factor = min(factor, max_increment)
             
             self.dt = self.dt * factor
-            self.dt = np.clip(self.dt, self.dt_min, self.dt_max)
+            # While dt < dt_min, let it grow naturally with maxtstepincrement
+            # Once dt >= dt_min, enforce the dt_min floor
+            if self.dt >= self.dt_min:
+                self.dt = np.clip(self.dt, self.dt_min, self.dt_max)
+            else:
+                # Below dt_min: only enforce dt_max, let dt grow toward dt_min
+                self.dt = min(self.dt, self.dt_max)
     
     def run_until(self, t_end: float, callback: Callable = None, debug: bool = False, profile: bool = False) -> None:
         """
@@ -2483,9 +2435,33 @@ def run_simulation(
                     )
                     power_data = power_result.PRFe
                 
+                # Gather timestep limit profiles
+                dt_data = None
+                if hasattr(solver, '_dt_collision') and solver._dt_collision is not None:
+                    dt_data = {}
+                    dt_data['dt_collision'] = solver._dt_collision.copy()
+                    if hasattr(solver, '_dt_diffusion') and solver._dt_diffusion is not None:
+                        # Ion diffusion limit
+                        if 'ions' in solver._dt_diffusion:
+                            dt_data['dt_ion_diff'] = solver._dt_diffusion['ions'].copy()
+                        # Neutral diffusion limit (use H as representative, or take min)
+                        neutral_keys = [k for k in solver._dt_diffusion if k in ('H', 'H2', 'HeI')]
+                        if neutral_keys:
+                            # Take minimum across all neutral species
+                            dt_neutral = solver._dt_diffusion[neutral_keys[0]].copy()
+                            for k in neutral_keys[1:]:
+                                dt_neutral = np.minimum(dt_neutral, solver._dt_diffusion[k])
+                            dt_data['dt_neutral_diff'] = dt_neutral
+                    # Post-solve dt diagnostics (based on actual changes)
+                    if hasattr(solver, '_dt_charged_total') and solver._dt_charged_total is not None:
+                        dt_data['dt_charged_total'] = solver._dt_charged_total.copy()
+                    if hasattr(solver, '_dt_neutral_total') and solver._dt_neutral_total is not None:
+                        dt_data['dt_neutral_total'] = solver._dt_neutral_total.copy()
+                
                 write_csv_output(solver.state, t, dof_coords, output_dir, 
                                 filename=output_filename, append=True,
-                                transport_data=transport_data, power_data=power_data)
+                                transport_data=transport_data, power_data=power_data,
+                                dt_data=dt_data)
             # Get pecabs from coupled power if available (only for relevant modes)
             pecabs_str = ""
             show_pecabs = (params.get('bgray', False) or params.get('bram', False) or 

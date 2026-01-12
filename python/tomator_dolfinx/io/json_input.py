@@ -412,6 +412,7 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['dtmax'] = dict_get(ts, 'dtmax', 1e-5)
         params['dtmin'] = dict_get(ts, 'dtmin', 1e-10)
         params['dtinit'] = dict_get(ts, 'dtinit', 1e-9)
+        params['use_optimal_dt'] = dict_get(ts, 'use_optimal_dt', False)
     
     params['time_step'] = {
         'dtinit': params.get('dtinit', 1e-9),

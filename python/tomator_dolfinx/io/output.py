@@ -22,7 +22,8 @@ def write_csv_output(
     filename: Optional[str] = None,
     append: bool = True,
     transport_data: Optional[dict] = None,
-    power_data: Optional[np.ndarray] = None
+    power_data: Optional[np.ndarray] = None,
+    dt_data: Optional[dict] = None
 ) -> str:
     """
     Write current state to CSV file.
@@ -49,6 +50,13 @@ def write_csv_output(
         Keys can be species names (e.g., 'Hi', 'e') or just 'D', 'V' for common values.
     power_data : np.ndarray, optional
         RF power deposition profile [eV/m³/s].
+    dt_data : dict, optional
+        Dictionary with timestep limit profiles:
+        - 'dt_collision': per-cell collision timestep limit [s]
+        - 'dt_ion_diff': per-cell ion diffusion timestep limit [s]
+        - 'dt_neutral_diff': per-cell neutral diffusion timestep limit [s]
+        - 'dt_charged_total': per-cell optimal dt from actual charged particle changes [s]
+        - 'dt_neutral_total': per-cell optimal dt from actual neutral particle changes [s]
         
     Returns
     -------
@@ -103,6 +111,24 @@ def write_csv_output(
     if power_data is not None:
         header.append('PRFe')
         data_columns.append(power_data)
+    
+    # Add timestep limit profiles if provided
+    if dt_data is not None:
+        if 'dt_collision' in dt_data:
+            header.append('dt_collision')
+            data_columns.append(dt_data['dt_collision'])
+        if 'dt_ion_diff' in dt_data:
+            header.append('dt_ion_diff')
+            data_columns.append(dt_data['dt_ion_diff'])
+        if 'dt_neutral_diff' in dt_data:
+            header.append('dt_neutral_diff')
+            data_columns.append(dt_data['dt_neutral_diff'])
+        if 'dt_charged_total' in dt_data:
+            header.append('dt_charged_total')
+            data_columns.append(dt_data['dt_charged_total'])
+        if 'dt_neutral_total' in dt_data:
+            header.append('dt_neutral_total')
+            data_columns.append(dt_data['dt_neutral_total'])
     
     # Stack data
     data = np.column_stack(data_columns)
