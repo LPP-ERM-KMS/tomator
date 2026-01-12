@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling","numpy","matplotlib","pandas","fenics-dolfinx","petsc4py","mpi4py","bokeh"]
+requires = ["hatchling","numpy","matplotlib","pandas","dolfinx","petsc4py","mpi4py","bokeh"]
 build-backend = "hatchling.build"
 [project]
 name = "pytomator"

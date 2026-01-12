@@ -13,7 +13,7 @@ from pathlib import Path
 # Add parent directory to path if running as script
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from tomator_dolfinx import (
+from pytomator import (
     run_simulation,
     load_input_file,
 )
