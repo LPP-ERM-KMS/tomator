@@ -1,5 +1,4 @@
-"""
-Implicit reaction solver using operator splitting.
+"""Implicit reaction solver using operator splitting with transport-balanced formulation.
 
 Solves the stiff reaction ODE system using backward Euler with Newton iteration.
 Uses the existing compute_collision_sources() function for the RHS.
@@ -10,6 +9,24 @@ The approach:
 
 This module solves step 2 implicitly, allowing large timesteps.
 Optimized for performance: vectorized backward Euler across all mesh points.
+
+Transport-balanced formulation (optional):
+------------------------------------------
+Instead of the standard formulation starting from post-transport state:
+    n_final = n_transport + dt * S_reactions(n_final)
+
+We can use a transport-balanced approach starting from pre-transport state:
+    n_final = n_prev + dt * (rate_transport + S_reactions(n_final))
+
+where rate_transport = (n_transport - n_prev) / dt.
+
+The key insight: near steady state, rate_transport ≈ -S_reactions, so the NET
+rate (rate_transport + S_reactions) is small. This makes Newton iteration
+converge faster because the updates are small rather than having large opposing
+transport and reaction rates that nearly cancel.
+
+Enable transport-balanced mode by providing dn_transport and dE_transport
+dictionaries containing the transport rates for each species.
 """
 
 import numpy as np
@@ -28,7 +45,9 @@ def solve_reactions_vectorized(
     dt: float,
     params: dict,
     max_newton_iter: int = 20,
-    newton_tol: float = 1e-6
+    newton_tol: float = 1e-6,
+    dn_transport: Optional[Dict[str, np.ndarray]] = None,
+    dE_transport: Optional[Dict[str, np.ndarray]] = None
 ) -> None:
     """
     Solve reactions implicitly for one timestep using operator splitting.
@@ -36,6 +55,11 @@ def solve_reactions_vectorized(
     Uses vectorized backward Euler with Newton iteration across all mesh points.
     Updates state.species[X].n and state.species[X].E in-place for all species.
     Also updates electron energy state.electrons.E.
+    
+    Supports two modes:
+    - Standard mode: solve from post-transport state
+    - Transport-balanced mode: include transport rates so Newton works with
+      the small NET rate (transport + reactions) rather than large reaction rates
     
     Parameters
     ----------
@@ -49,8 +73,20 @@ def solve_reactions_vectorized(
         Maximum Newton iterations for implicit solve
     newton_tol : float
         Convergence tolerance for Newton iteration
+    dn_transport : dict, optional
+        Transport rates for densities {species_name: np.ndarray [m^-3/s]}.
+        If provided, enables transport-balanced mode.
+    dE_transport : dict, optional
+        Transport rates for energies {species_name: np.ndarray [eV·m^-3/s]}.
     """
     nmesh = len(state.electrons.n.x.array)
+    
+    # Check if transport-balanced mode is enabled
+    use_transport_balanced = (dn_transport is not None)
+    if dn_transport is None:
+        dn_transport = {}
+    if dE_transport is None:
+        dE_transport = {}
     
     # Get physics flags
     include_H2 = params.get('bH2', 'H2' in state.species)
@@ -97,24 +133,34 @@ def solve_reactions_vectorized(
     E_new = {name: arr.copy() for name, arr in E_arrays.items()}
     
     for newton_iter in range(max_newton_iter):
-        # Compute RHS at current guess
-        dn, dE = _compute_reaction_rhs_vectorized(
+        # Compute reaction RHS at current guess
+        dn_reactions, dE_reactions = _compute_reaction_rhs_vectorized(
             n_new, E_new, active_density_species, active_energy_species, params
         )
         
-        # Compute residual: F = y - y^n - dt * f(y)
+        # Compute residual: F = y - y^base - dt * total_rate
+        # Transport-balanced: total_rate = rate_transport + rate_reactions
+        # Standard: total_rate = rate_reactions
         max_residual = 0.0
         
         for name in active_density_species:
-            residual = n_new[name] - n_arrays[name] - dt * dn.get(name, 0.0)
+            # Total rate: transport + reactions (transport-balanced) or just reactions
+            rate_trans = dn_transport.get(name, 0.0) if use_transport_balanced else 0.0
+            total_dn = rate_trans + dn_reactions.get(name, 0.0)
+            
+            residual = n_new[name] - n_arrays[name] - dt * total_dn
             # Simple fixed-point iteration update (no Jacobian needed for mildly stiff)
-            n_new[name] = n_arrays[name] + dt * dn.get(name, 0.0)
+            n_new[name] = n_arrays[name] + dt * total_dn
             n_new[name] = np.maximum(n_new[name], 1e-10)
             max_residual = max(max_residual, np.max(np.abs(residual) / (np.abs(n_new[name]) + 1e-10)))
         
         for name in active_energy_species:
-            residual = E_new[name] - E_arrays[name] - dt * dE.get(name, 0.0)
-            E_new[name] = E_arrays[name] + dt * dE.get(name, 0.0)
+            # Total rate: transport + reactions (transport-balanced) or just reactions
+            rate_trans = dE_transport.get(name, 0.0) if use_transport_balanced else 0.0
+            total_dE = rate_trans + dE_reactions.get(name, 0.0)
+            
+            residual = E_new[name] - E_arrays[name] - dt * total_dE
+            E_new[name] = E_arrays[name] + dt * total_dE
             E_new[name] = np.maximum(E_new[name], 1e-20)
             max_residual = max(max_residual, np.max(np.abs(residual) / (np.abs(E_new[name]) + 1e-20)))
         

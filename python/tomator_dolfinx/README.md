@@ -17,23 +17,36 @@ where:
 
 ## Physics Steps (per timestep)
 
-The solver uses **operator splitting** with implicit parallel losses:
+The solver uses **BDF2 transport with explicit reaction sources** and implicit parallel losses:
 
 1. **Collision Sources** — Compute ionization, recombination, charge exchange rates (ADAS data) and collision frequencies (ν)
-2. **RF Power** — Compute electron heating from IC/EC waves
-3. **Collision Timestep** — Compute per-cell dt_collision from source magnitudes (ignoring vacuum regions where n < nevac)
+2. **RF Power** — Compute electron heating from IC/EC waves (merged into energy sources)
+3. **Collision Timestep** — Compute per-cell dt_collision from source magnitudes (for analysis only)
 4. **Parallel Loss Rates** — Compute k_n, k_E loss rates for implicit LHS treatment (limiter + Bpol losses)
 5. **Transport Coefficients** — Calculate D (Bohm/gyro-geometric) and V for each species
-6. **Diffusion Timestep** — Compute per-cell dt_diffusion from stability criterion
-7. **Optimal Timestep** — Combine dt_collision and dt_diffusion; first step always uses dt_init (ignores neutrals)
-8. **BDF2 Coefficients** — Update time discretization weights (variable for adaptive dt)
-9. **Transport Solve** — Advance densities and energies via BDF2 FEM with implicit parallel losses:
-   - Ion transport (n, E) with implicit k_n, k_E on LHS
-   - Neutral transport (n, E) — no parallel losses
-   - Electron energy transport with implicit k_E on LHS
-10. **Reaction Solve** — Implicit Newton solve for all reactions at each mesh point
-11. **Post-processing** — Apply density floors, quasi-neutrality, temperature clamps
-12. **Timestep Adaptation** — Adjust dt based on solution change (grows toward dt_min with maxtstepincrement)
+6. **Diffusion Timestep** — Compute per-cell dt_diffusion from stability criterion (for analysis only)
+7. **BDF2 Coefficients** — Update time discretization weights (variable for adaptive dt)
+8. **Transport + Reactions Solve** — Advance densities and energies via BDF2 FEM:
+   - Ion transport (n, E) with implicit k_n, k_E on LHS + explicit reaction sources
+   - Neutral transport (n, E) with explicit reaction sources
+   - Electron energy transport with implicit k_E on LHS + collision/RF sources
+9. **Post-processing** — Apply density floors, quasi-neutrality, temperature clamps
+10. **Timestep Adaptation** — Adjust dt for next step based on max_change
+
+## Timestep Strategy
+
+The solver uses a **simple adaptive timestep** scheme:
+
+1. **Initialize**: `dt = dt_init` (can be smaller than dt_min)
+2. **After each step**: Compute `max_change = max(|Δn|/n, |ΔE|/E)` across non-vacuum cells
+3. **Adapt dt**: `dt_next = dt * (accur / max_change)`, clamped to dt_max
+4. **dt_min enforcement**: Only enforced once dt has grown above it (allows starting small)
+
+This way:
+- If `max_change > accur`: dt shrinks → smaller changes next step
+- If `max_change < accur`: dt grows → larger steps while staying accurate
+
+No step rejection — just continuous adaptation.
 
 ## Implicit Parallel Losses
 
@@ -61,7 +74,7 @@ This allows much larger timesteps than explicit treatment since parallel losses 
 | `mesh.py` | 1D mesh generation |
 | `boundary.py` | Robin/Dirichlet boundary conditions |
 | `transport.py` | Diffusion models (Bohm, gyro-geometric) |
-| `reactions/` | Collision rates, ADAS data, implicit Newton reaction solver |
+| `reactions/` | Collision rates, ADAS data |
 | `parallel.py` | Limiter and Bpol loss rate calculations |
 | `io/` | JSON input, CSV output |
 | `gui/` | Bokeh-based interactive plotter |

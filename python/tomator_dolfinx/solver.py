@@ -23,7 +23,6 @@ from .transport import (TransportCoefficients, TransportManager,
                         compute_neutral_diffusion_from_state, compute_neutral_diffusion,
                         compute_gyrogeom_diffusion_from_state, DiffusionModel)
 from .reactions.collisions import compute_sources_from_state
-from .reactions.implicit_reactions import solve_reactions_vectorized
 from .parallel import compute_limiter_losses, compute_bpol_losses, compute_parallel_loss_rates
 
 
@@ -527,6 +526,9 @@ class BDF2Solver:
         # Pre-allocate destruction rate Functions for implicit parallel losses
         self._k_n_func = Function(state.V, name="k_n")
         self._k_E_func = Function(state.V, name="k_E")
+        
+        # Initialize dt to dt_init (will be adapted after each step)
+        self.dt = self.dt_init
     
     def set_dirichlet_value(self, species_name: str, value: float) -> None:
         """
@@ -940,12 +942,16 @@ class BDF2Solver:
         """
         Compute maximum relative change across all species (for timestep adaptation).
         
+        Ignores vacuum regions (n < nevac) where relative changes can be huge
+        but physically irrelevant.
+        
         Returns
         -------
         max_change : float
             Maximum relative change in density or energy across all species.
         """
         max_change = 0.0
+        nevac = self.params.get('nevac', 1e10)  # Vacuum density threshold [m^-3]
         
         for species in self.state.all_species:
             n_new = species.n.x.array
@@ -953,19 +959,28 @@ class BDF2Solver:
             E_new = species.E.x.array
             E_old = species.E_prev.x.array
             
+            # Only consider cells above vacuum threshold
+            mask = n_new > nevac
+            if not np.any(mask):
+                continue
+            
             with np.errstate(divide='ignore', invalid='ignore'):
                 rel_change_n = np.abs(n_new - n_old) / np.maximum(np.abs(n_old), 1e-30)
                 rel_change_E = np.abs(E_new - E_old) / np.maximum(np.abs(E_old), 1e-30)
             
-            max_change = max(max_change, np.max(rel_change_n), np.max(rel_change_E))
+            max_change = max(max_change, np.max(rel_change_n[mask]), np.max(rel_change_E[mask]))
         
-        # Electrons (energy only)
+        # Electrons (energy only) - use electron density for vacuum check
         if self.state.electrons is not None:
+            ne = self.state.electrons.n.x.array
             E_new = self.state.electrons.E.x.array
             E_old = self.state.electrons.E_prev.x.array
-            with np.errstate(divide='ignore', invalid='ignore'):
-                rel_change_E = np.abs(E_new - E_old) / np.maximum(np.abs(E_old), 1e-30)
-            max_change = max(max_change, np.max(rel_change_E))
+            
+            mask = ne > nevac
+            if np.any(mask):
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    rel_change_E = np.abs(E_new - E_old) / np.maximum(np.abs(E_old), 1e-30)
+                max_change = max(max_change, np.max(rel_change_E[mask]))
         
         return max_change
 
@@ -1696,20 +1711,24 @@ class BDF2Solver:
 
     def step(self, debug: bool = False, profile: bool = False) -> float:
         """
-        Perform one time step.
+        Perform one time step with simple adaptive timestep control.
+        
+        Timestep strategy:
+        - dt grows or shrinks so that max_change stays near accur
+        - After each step: dt_next = dt * accur / max_change (clamped to dt_max)
         
         Calculation order:
         1. Compute collision sources and collision frequencies (nu)
         2. Compute RF power coupling
-        3. Compute collision timestep limit (dt_collision)
+        3. Compute collision timestep limit (dt_collision) - for analysis
         4. Compute parallel loss rates k_n, k_E for implicit treatment
         5. Compute transport coefficients D, V
-        6. Compute diffusion timestep limit (dt_diffusion)
-        7. Compute optimal timestep: dt_init for step 0, then dt_optimal
-        8. Update BDF2 coefficients
-        9. Solve transport equations with implicit parallel losses
-        10. Solve reactions (implicit Newton)
-        11. Apply post-solve corrections (floors, quasi-neutrality, clamps)
+        6. Compute diffusion timestep limit (dt_diffusion) - for analysis
+        7. Update BDF2 coefficients
+        8. Solve transport equations with implicit parallel losses
+        9. Solve reactions (implicit Newton)
+        10. Apply post-solve corrections (floors, quasi-neutrality, clamps)
+        11. Adapt dt for next step based on max_change
         
         Parameters
         ----------
@@ -1745,6 +1764,9 @@ class BDF2Solver:
                         continue
                     arr_np = arr if isinstance(arr, np.ndarray) else arr.x.array
                     print(f"        {name}: min={arr_np.min():.3e}, max={arr_np.max():.3e}")
+        
+        # Timestep was already adapted at end of previous step
+        # (or set to dt_init in __init__)
         
         if debug:
             print(f"\n=== STEP {self.step_count}, t={self.t:.3e}, dt={self.dt:.3e} ===")
@@ -1811,7 +1833,7 @@ class BDF2Solver:
         # ================================================================
         
         # ================================================================
-        # STEP 6: Compute diffusion timestep limit (per-cell)
+        # STEP 6: Compute diffusion timestep limit (per-cell) - for analysis
         # dt_diff = 0.5 × Δx² / (2D) for each species group
         # ================================================================
         tic('dt_diffusion')
@@ -1820,23 +1842,15 @@ class BDF2Solver:
         toc('dt_diffusion')
         
         # ================================================================
-        # STEP 7: Compute optimal timestep (store, use if enabled)
-        # dt = (1/dt_col + 1/dt_diff)^{-1}
+        # STEP 7: Compute optimal timestep from collision/diffusion (for analysis)
+        # The actual dt used is dt_optimal_prev from previous step
         # ================================================================
         tic('optimal_dt')
-        dt_optimal = self._compute_optimal_dt(dt_collision, dt_diffusion)
-        self._dt_optimal = dt_optimal  # Store for diagnostics
+        dt_optimal_sources = self._compute_optimal_dt(dt_collision, dt_diffusion)
+        self._dt_optimal = dt_optimal_sources  # Store for diagnostics (source-based)
         
-        # First step ALWAYS uses dt_init exactly (matching C++ behavior)
-        # After first step, always use optimal dt
-        if self.step_count == 0:
-            self.dt = self.dt_init
-            if debug:
-                print(f"  [TIMESTEP] First step: using dt_init={self.dt_init:.3e}")
-        else:
-            self.dt = dt_optimal
-            if debug:
-                print(f"  [OPTIMAL_DT] Using optimal dt={dt_optimal:.3e}")
+        if debug:
+            print(f"  [TIMESTEP] Using dt={self.dt:.3e} (dt_optimal_sources={dt_optimal_sources:.3e})")
         toc('optimal_dt')
         
         # ================================================================
@@ -1847,12 +1861,12 @@ class BDF2Solver:
         toc('bdf2_coef')
         
         # ================================================================
-        # STEP 9: Solve transport equations
+        # STEP 9: Solve transport equations with reaction sources
         # BDF2 + implicit parallel losses via k_n, k_E on LHS
+        # Reaction sources (dn_sources, dE_sources) are explicit RHS terms
         # ================================================================
-        # Transport with implicit parallel losses (no reaction sources yet)
         tic('solve_ions')
-        self._solve_ions_with_implicit_k(k_n, k_E)
+        self._solve_ions_with_implicit_k(k_n, k_E, dn_sources, dE_sources)
         toc('solve_ions')
         
         if debug:
@@ -1862,7 +1876,7 @@ class BDF2Solver:
             })
         
         tic('solve_neutrals')
-        self._solve_neutrals_transport_only({}, {})  # No parallel losses for neutrals
+        self._solve_neutrals_transport_only(dn_sources, dE_sources)
         toc('solve_neutrals')
         
         if debug:
@@ -1870,34 +1884,16 @@ class BDF2Solver:
                 'nH': self._get_species_n('H'),
             })
         
-        # Electron energy transport with implicit parallel losses
+        # Electron energy transport with implicit parallel losses and sources
         tic('solve_electron_E')
-        self._solve_electron_energy_with_implicit_k(k_E, dE_RF)
+        self._solve_electron_energy_with_implicit_k(k_E, dE_sources)
         toc('solve_electron_E')
         
         if debug:
             _dbg("After electron energy transport:", {'Te': self.state.electrons.T})
         
         # ================================================================
-        # STEP 10: Reactions (implicit Newton at each mesh point)
-        # ================================================================
-        tic('reactions_implicit')
-        solve_reactions_vectorized(
-            self.state, self.dt, self.params, 
-            max_newton_iter=self.max_newton_iter,
-            newton_tol=self.newton_tol
-        )
-        toc('reactions_implicit')
-        
-        if debug:
-            _dbg("After implicit reactions:", {
-                'nHi': self._get_species_n('Hi'),
-                'nH': self._get_species_n('H'),
-                'Te': self.state.electrons.T,
-            })
-        
-        # ================================================================
-        # STEP 11: Post-solve corrections
+        # STEP 10: Post-solve corrections
         # ================================================================
         tic('floors_clamps')
         
@@ -1925,20 +1921,38 @@ class BDF2Solver:
         toc('post_solve_dt')
 
         # ================================================================
-        # Adapt timestep based on solution change
+        # STEP 11: Adapt timestep for next iteration
+        # Simple scheme: dt grows/shrinks so max_change stays near accur
         # ================================================================
-        tic('limit_adapt')
+        tic('timestep_adapt')
         max_change = self._compute_max_change()
-
+        dt_taken = self.dt
+        
         if debug:
             print(f"  [TIMESTEP] max_change={max_change:.3e}, target={self.accuracy:.3e}")
         
-        # Using optimal dt - no adaptive timestep needed
-        dt_taken = self.dt
+        # Adapt dt for next step: dt_next = dt * accur / max_change
+        if max_change > 1e-30:
+            dt_next = self.dt * (self.accuracy / max_change)
+        else:
+            # No change - allow dt to grow to max
+            dt_next = self.dt_max
+        
+        # Clamp to dt_max always, but only enforce dt_min once we've grown above it
+        # This allows starting with dt_init < dt_min and growing from there
+        dt_next = min(dt_next, self.dt_max)
+        if self.dt >= self.dt_min:
+            # Once above dt_min, don't go below it
+            dt_next = max(dt_next, self.dt_min)
+        self.dt = dt_next
+        
+        if debug:
+            print(f"  [TIMESTEP] dt_next={self.dt:.3e}")
+        
+        toc('timestep_adapt')
         
         # Store previous solutions for BDF2
         self.state.store_all_previous()
-        toc('limit_adapt')
         
         # Update time and counter
         self.t += dt_taken
@@ -1955,12 +1969,20 @@ class BDF2Solver:
         
         return dt_taken
     
-    def _solve_ions_with_implicit_k(self, k_n: np.ndarray, k_E: np.ndarray) -> None:
+    def _solve_ions_with_implicit_k(
+        self, 
+        k_n: np.ndarray, 
+        k_E: np.ndarray,
+        dn_sources: Dict[str, np.ndarray],
+        dE_sources: Dict[str, np.ndarray]
+    ) -> None:
         """
-        Solve transport equations for ions with implicit parallel loss rates.
+        Solve transport equations for ions with implicit parallel loss rates
+        and explicit reaction sources.
         
         The parallel losses (k_n * n and k_E * E) are added to the LHS of the
         transport equation as destruction terms, making them unconditionally stable.
+        Reaction sources are added as explicit RHS terms.
         
         Parameters
         ----------
@@ -1968,6 +1990,10 @@ class BDF2Solver:
             Density loss rate 1/τ_n [s^-1].
         k_E : np.ndarray
             Energy loss rate 1/τ_E [s^-1].
+        dn_sources : dict
+            Density source terms [m^-3/s] for each species.
+        dE_sources : dict
+            Energy source terms [eV·m^-3/s] for each species.
         """
         ion_mass = {'Hi': 1.0, 'H2i': 2.0, 'H3i': 3.0, 'HeII': 4.0, 'HeIII': 4.0}
         
@@ -1987,8 +2013,11 @@ class BDF2Solver:
             D = coeff.D
             V = coeff.V
             
-            # No explicit sources for transport step (reactions handled separately)
-            self.source.x.array[:] = 0.0
+            # Reaction sources as explicit RHS term
+            if name in dn_sources:
+                self.source.x.array[:] = dn_sources[name]
+            else:
+                self.source.x.array[:] = 0.0
             
             use_robin = (species.bc_type == "robin")
             bcs = []
@@ -2011,9 +2040,12 @@ class BDF2Solver:
             
             self._enforce_outflow_boundary(species.n)
             
-            # Solve energy equation with implicit k_E
+            # Solve energy equation with implicit k_E and reaction sources
             if species.solve_energy:
-                self.source.x.array[:] = 0.0
+                if name in dE_sources:
+                    self.source.x.array[:] = dE_sources[name]
+                else:
+                    self.source.x.array[:] = 0.0
                 
                 gEd = self.params.get('gEd', 5/3)
                 gEv = self.params.get('gEv', 5/3)
@@ -2037,17 +2069,19 @@ class BDF2Solver:
     def _solve_electron_energy_with_implicit_k(
         self, 
         k_E: np.ndarray, 
-        dE_RF: Dict[str, np.ndarray]
+        dE_sources: Dict[str, np.ndarray]
     ) -> None:
         """
-        Solve electron energy equation with implicit parallel losses and RF source.
+        Solve electron energy equation with implicit parallel losses and sources.
+        
+        Sources include both RF power and collision sources (already merged).
         
         Parameters
         ----------
         k_E : np.ndarray
             Energy loss rate 1/τ_E [s^-1].
-        dE_RF : dict
-            RF power source for electrons.
+        dE_sources : dict
+            Energy source terms [eV·m^-3/s] including RF power for electrons.
         """
         # Create destruction rate Function
         k_E_func = Function(self.state.V)
@@ -2055,9 +2089,9 @@ class BDF2Solver:
         
         electrons = self.state.electrons
         
-        # RF power as explicit source
-        if 'e' in dE_RF:
-            self.source.x.array[:] = dE_RF['e']
+        # Electron energy sources (collisions + RF, already merged)
+        if 'e' in dE_sources:
+            self.source.x.array[:] = dE_sources['e']
         else:
             self.source.x.array[:] = 0.0
         
