@@ -8,6 +8,7 @@ from netgen.occ import *
 from ngsolve.webgui import Draw
 import netgen.geom2d as geom2d
 from netgen.geom2d import CSG2d, Circle, Rectangle
+import matplotlib.pyplot as plt
 
 with open('/tmp/DensAndTemp.csv') as f:
     info = str(f.readline().strip('\n'))
@@ -29,7 +30,7 @@ gasn = {"H":1e18,"H2":1e19}
 r_ = Profiles[1:,0]*1e-2 #in cm
 ne = Profiles[1:,1]*1e6 #in cm^-3
 Te = Profiles[1:,2]
-ni = Profiles[1:,3]*1e6 #in cm^-3
+ni = {"H":Profiles[1:,3]*1e6} #in cm^-3
 Ti = Profiles[1:,4]
 
 I = 1600 #A
@@ -83,6 +84,8 @@ for r in R:
     TP.append(P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real)
 PowerScalingFactor = 6000/sum(TP)
 TP = [TP[i]*PowerScalingFactor for i,j in enumerate(TP)]
+R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
+plt.plot(R,TP,linestyle="dashed",label="total absorbed power")
 
 # Compute ion heating
 TOMASH2 = System({"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn)
@@ -91,9 +94,11 @@ H2diel = TOMASH2.eps
 P = solution.PowerDeposition2D(H2diel)
 angle = np.pi*10/180
 HP = []
-R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
 for r in R:
     HP.append(P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real*PowerScalingFactor)
+vtk = VTKOutput(mesh,coefs=[P.real*PowerScalingFactor],names=["Re(eP)"],filename="outputs/iPdepo"+prefix,subdivision=2)
+vtk.Do()
+
 
 # Compute electron heating
 TOMASe = System({"e":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn)
@@ -111,3 +116,12 @@ with open('/tmp/PowerDeposition.csv', 'w', newline='') as csvfile:
     spamwriter.writerow(['eP','HP'])
     for i in range(len(TP)):
         spamwriter.writerow([eP[i],HP[i]])
+
+plt.plot(R,HP,label="by hydrogen ions")
+plt.ylabel("Power per millimeter")
+plt.xlabel("radial distance (m)")
+plt.legend()
+plt.plot(R,eP,label="by electrons")
+plt.legend()
+plt.savefig("/tmp/powerplot.pdf")
+plt.clf
