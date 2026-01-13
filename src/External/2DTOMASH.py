@@ -38,7 +38,7 @@ R0 = 0.780 #major radius
 Ra = 0.260 #minor radius
 
 MAXH=0.01
-order_mesh = 3
+order_mesh = 4
 
 try: 
     with open('/tmp/mesh.pkl', 'rb') as file:
