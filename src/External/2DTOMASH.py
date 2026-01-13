@@ -26,10 +26,10 @@ Profiles = np.genfromtxt('/tmp/DensAndTemp.csv', delimiter=',',skip_header=1)
 # Machine definition #
 #--------------------#
 gasn = {"H":1e18,"H2":1e19}
-r_ = Profiles[1:,0]
-ne = Profiles[1:,1]
+r_ = Profiles[1:,0]*1e-2 #in cm
+ne = Profiles[1:,1]*1e6 #in cm^-3
 Te = Profiles[1:,2]
-ni = Profiles[1:,3]
+ni = Profiles[1:,3]*1e6 #in cm^-3
 Ti = Profiles[1:,4]
 
 I = 1600 #A
@@ -66,7 +66,7 @@ from pyRFplasma.system import System
 from pyRFplasma.solve import Solve
 from pyRFplasma.constants import Constants
 
-TOMAS = System({"e":1,"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn)
+TOMAS = System({"e":1,"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn,orientation="horizontal",ni=ni)
 TOMAS.Epsilon2D(MAXH,temperature="CXD")
 
 solution = Solve(TOMAS)
