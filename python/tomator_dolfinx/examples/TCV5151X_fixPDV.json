@@ -11,7 +11,6 @@
         "b": {"value": 75.0, "unit": "cm"},
         "lHFS": {"value": 60, "unit": "cm"},
         "lLFS": {"value": 116, "unit": "cm"},
-        "nlimiters": {"value": 6, "unit": "-"},
         "Vpl": {"value": 56100, "unit": "cm³"}
     },
     "neutral_pressure": {
@@ -20,28 +19,20 @@
     },
     "rf_power": {
         "Prf": {"value": 320.0, "unit": "kW"},
-        "bselfcol": {"bool": false},
         "freq": {"value": 82700.0, "unit": "MHz"},
         "dtpramp": {"value": 0.0, "unit": "s"}
     },
     "type": {
         "bfixpowerfrac": {"bool": true},
         "bnefix": {"bool": false},
-        "bTOMAS": {"bool": false},
         "bproptone": {"bool": false},
-        "bnopower": {"bool": false},
-        "bkipt": {"bool": false},
-        "blhr": {"bool": false},
-        "bmanuel": {"bool": false},
-        "bICWC": {"bool": false}
+        "bnopower": {"bool": false}
     },
     "general_ec": {
         "Rdep": {"value": 91.85, "unit": "cm"},
         "pecabs0": {"value": 0.025, "unit": "-"},
         "widthech": {"value": 1.8667, "unit": "cm"},
-        "echbackground": {"value": 1e-05, "unit": "-"},
-        "harmonic": {"value": 2.0, "unit": "-"},
-        "muw": {"value": 0.01, "unit": "-"}
+        "echbackground": {"value": 1e-05, "unit": "-"}
     },
     "necfix": {
         "ic": {"value": 91, "unit": "-"},
@@ -51,16 +42,6 @@
         "P_KI": {"value": 10000.0, "unit": "-"},
         "P_KD": {"value": 0.1, "unit": "-"}
     },
-    "tomas": {
-        "Rdep1": {"value": 86.1875, "unit": "cm"},
-        "PRdep1": {"value": 0.0, "unit": "-"},
-        "Rdep2": {"value": 97.65, "unit": "cm"},
-        "PRdep2": {"value": 1.0, "unit": "-"},
-        "Rdep3": {"value": 72.4325, "unit": "cm"},
-        "PRdep3": {"value": 0.0, "unit": "-"},
-        "Rdep4": {"value": 72.4325, "unit": "cm"},
-        "PRdep4": {"value": 0.0, "unit": "-"}
-    },
     "general_ic": {
         "Rant": {"value": 200.0, "unit": "cm"},
         "bantlr": {"bool": false},
@@ -68,15 +49,6 @@
         "alphalaw": {"value": 0.002, "unit": "-"},
         "HtoHD": {"value": 1.0, "unit": "-"}
     },
-    "kipt": {},
-    "lhr": {
-        "fracpne": {"value": 0.5, "unit": "-"},
-        "fraclhr": {"value": 0.25, "unit": "-"},
-        "widthlhr": {"value": 2.5, "unit": "cm"},
-        "lhrbackground": {"value": 1e-07, "unit": "-"}
-    },
-    "erm": {},
-    "pppl": {},
     "other": {
         "fixedTe": {"bool": false}
     },
@@ -124,11 +96,7 @@
         "nH2i0": {"value": 1e6, "unit": "cm⁻³"},
         "nH3i0": {"value": 2e6, "unit": "cm⁻³"},
         "nHeII0": {"value": 7.39e12, "unit": "cm⁻³"},
-        "nHeIII0": {"value": 2e6, "unit": "cm⁻³"},
-        "nCII0": {"value": 1e9, "unit": "cm⁻³"},
-        "nCIII0": {"value": 10.0, "unit": "cm⁻³"},
-        "nCIV0": {"value": 10.0, "unit": "cm⁻³"},
-        "nCV0": {"value": 10.0, "unit": "cm⁻³"}
+        "nHeIII0": {"value": 2e6, "unit": "cm⁻³"}
     },
     "edge_conditions": {
         "RH": {"value": 0.5, "unit": "-"},
@@ -140,20 +108,19 @@
         "bc_ion_decay_length": {"lambda_n": 2, "lambda_E": 1, "unit": "cm"}
     },
     "simulation_grid": {
-        "nmeshp": {"value": 161, "unit": "-"}
+        "nmeshp": {"value": 161, "unit": "-"},
+        "fem_degree": {"value": 1, "unit": "-"}
     },
     "input_file": {
         "bfinput": {"bool": false}
     },
     "time_step": {
-        "t0": {"value": 0.0, "unit": "s"},
         "tmainend": {"value": 1.0, "unit": "s"},
         "accur": {"value": 0.05, "unit": "-"},
-        "dtmax": {"value": 1e-6, "unit": "s"},
+        "dtmax": {"value": 1e-5, "unit": "s"},
         "dtmin": {"value": 1e-7, "unit": "s"},
         "dtinit": {"value": 1e-9, "unit": "s"},
-        "maxtstepincrement": {"value": 1.1, "unit": "-"},
-        "use_optimal_dt": {"value": true, "unit": "-"}
+        "maxtstepincrement": {"value": 1.1, "unit": "-"}
     },
     "time_step_for_rf_coupling": {
         "bupdateRFstep": {"bool": true},
@@ -165,10 +132,13 @@
         "dtRFconv": {"bool": true}
     },
     "output_parameters": {
-        "Nlog": {"value": 1000, "unit": "-"},
-        "cc": {"value": 91, "unit": "-"},
-        "Nloopsave": {"value": 5000, "unit": "-"},
-        "bOutdt": {"bool": true},
         "dtsave": {"value": 0.0005, "unit": "s"}
+    },
+    "solver_parameters": {
+        "solvertolerance": 1e-9,
+        "step_rejection": {"bool": true},
+        "rejection_margin": {"value": 1.5, "unit": "-"},
+        "rejection_safety": {"value": 0.8, "unit": "-"},
+        "max_rejections": {"value": 5, "unit": "-"}
     }
 }

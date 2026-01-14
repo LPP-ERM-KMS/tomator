@@ -42,8 +42,7 @@ class TransportEquation:
         self,
         V: FunctionSpace,
         bc_handler: BoundaryConditions,
-        decay_length_hfs: float = 0.01,
-        decay_length_lfs: float = 0.01,
+        lambda_n: float = 0.02,
         solver_tolerance: float = 1e-10
     ):
         """
@@ -55,10 +54,8 @@ class TransportEquation:
             Function space for the solution.
         bc_handler : BoundaryConditions
             Boundary condition handler.
-        decay_length_hfs : float
-            Decay length at HFS boundary [m].
-        decay_length_lfs : float
-            Decay length at LFS boundary [m].
+        lambda_n : float
+            Ion density decay length at boundaries [m] (same for HFS and LFS).
         solver_tolerance : float
             Linear solver tolerance for PETSc KSP.
         """
@@ -67,8 +64,8 @@ class TransportEquation:
         self.bc_handler = bc_handler
         self.solver_tolerance = solver_tolerance
         
-        # Create Robin BC handler
-        self.robin_bc = DecayLengthBC(decay_length_hfs, decay_length_lfs, bc_handler)
+        # Create Robin BC handler (same decay length for HFS and LFS)
+        self.robin_bc = DecayLengthBC(lambda_n, lambda_n, bc_handler)
         
         # Get radial coordinate
         x = ufl.SpatialCoordinate(self.mesh)
@@ -458,8 +455,8 @@ class BDF2Solver:
             - dtmin: Minimum time step [s]
             - dtmax: Maximum time step [s]
             - accur: Target accuracy (max relative change)
-            - decay_length_hfs: HFS decay length [m]
-            - decay_length_lfs: LFS decay length [m]
+            - bc_ion_lambda_n: Ion density decay length [m] (same for HFS/LFS)
+            - bc_ion_lambda_E: Ion energy decay length [m]
             - lHFS: HFS limiter position [m] (for parallel losses)
             - lLFS: LFS limiter position [m] (for parallel losses)
             - nlimiters: Number of poloidal limiters
@@ -487,20 +484,22 @@ class BDF2Solver:
         self.dt_max = params.get('dtmax', 1e-3)
         self.accuracy = params.get('accur', 0.05)
         
-        # Decay lengths for Robin BC
-        lambda_hfs = params.get('decay_length_hfs', 0.01)
-        lambda_lfs = params.get('decay_length_lfs', 0.01)
+        # Step rejection parameters
+        self.step_rejection = params.get('step_rejection', True)  # Enable/disable
+        self.rejection_margin = params.get('rejection_margin', 1.5)  # Reject if max_change > margin * accur
+        self.rejection_safety = params.get('rejection_safety', 0.8)  # Use safety * optimal_dt for retry
+        self.max_rejections = params.get('max_rejections', 5)  # Max retries before accepting anyway
+        self._rejection_count = 0  # Track rejections for diagnostics
+        
+        # Ion boundary condition decay length (same for HFS and LFS)
+        lambda_n = params.get('bc_ion_lambda_n', 0.02)  # Default 2 cm
         
         # Linear solver tolerance
         solver_tolerance = params.get('solvertolerance', 1e-10)
         
-        # Newton solver parameters for implicit reactions
-        self.max_newton_iter = params.get('max_newton_iter', 20)
-        self.newton_tol = params.get('newton_tol', 1e-6)
-        
         # Create transport equation solver
         self.transport_eq = TransportEquation(
-            state.V, bc_handler, lambda_hfs, lambda_lfs, solver_tolerance
+            state.V, bc_handler, lambda_n, solver_tolerance
         )
         
         # Source term function
@@ -1705,17 +1704,134 @@ class BDF2Solver:
         
         return dt_optimal
 
+    def _save_state_for_rejection(self) -> dict:
+        """
+        Save current state so we can restore if step is rejected.
+        
+        Returns
+        -------
+        saved_state : dict
+            Dictionary containing copies of all state arrays.
+        """
+        saved = {}
+        
+        # Save all species (ions and neutrals)
+        for species in self.state.all_species:
+            name = species.name
+            saved[f'{name}_n'] = species.n.x.array.copy()
+            saved[f'{name}_E'] = species.E.x.array.copy()
+        
+        # Save electrons
+        saved['e_n'] = self.state.electrons.n.x.array.copy()
+        saved['e_E'] = self.state.electrons.E.x.array.copy()
+        
+        return saved
+    
+    def _restore_state_from_saved(self, saved: dict) -> None:
+        """
+        Restore state from saved copy after step rejection.
+        
+        Parameters
+        ----------
+        saved : dict
+            Dictionary containing saved state arrays from _save_state_for_rejection.
+        """
+        # Restore all species (ions and neutrals)
+        for species in self.state.all_species:
+            name = species.name
+            species.n.x.array[:] = saved[f'{name}_n']
+            species.E.x.array[:] = saved[f'{name}_E']
+        
+        # Restore electrons
+        self.state.electrons.n.x.array[:] = saved['e_n']
+        self.state.electrons.E.x.array[:] = saved['e_E']
+
+    def _solve_with_current_dt(
+        self,
+        k_n: np.ndarray,
+        k_E: np.ndarray,
+        dn_sources: Dict[str, np.ndarray],
+        dE_sources: Dict[str, np.ndarray],
+        debug: bool = False
+    ) -> None:
+        """
+        Solve transport equations with current dt.
+        
+        This is the core solve step that can be retried with different dt.
+        Sources and transport coefficients are reused (depend only on previous state).
+        
+        Parameters
+        ----------
+        k_n : np.ndarray
+            Density loss rate for implicit parallel losses.
+        k_E : np.ndarray
+            Energy loss rate for implicit parallel losses.
+        dn_sources : dict
+            Density source terms.
+        dE_sources : dict
+            Energy source terms.
+        debug : bool
+            Print debug information.
+        """
+        # Debug helper
+        def _dbg(msg, arrays=None):
+            if not debug:
+                return
+            print(f"  [DBG] {msg}")
+            if arrays:
+                for name, arr in arrays.items():
+                    if arr is None:
+                        continue
+                    arr_np = arr if isinstance(arr, np.ndarray) else arr.x.array
+                    print(f"        {name}: min={arr_np.min():.3e}, max={arr_np.max():.3e}")
+        
+        # Update BDF2 coefficients with current timestep
+        self.transport_eq.update_bdf2_coefficients(self.dt, self.dt_prev, self.step_count)
+        
+        # Solve ions
+        self._solve_ions_with_implicit_k(k_n, k_E, dn_sources, dE_sources)
+        
+        if debug:
+            _dbg("After ion transport:", {
+                'nHi': self._get_species_n('Hi'),
+                'nHeII': self._get_species_n('HeII'),
+            })
+        
+        # Solve neutrals
+        self._solve_neutrals_transport_only(dn_sources, dE_sources)
+        
+        if debug:
+            _dbg("After neutral transport:", {
+                'nH': self._get_species_n('H'),
+            })
+        
+        # Solve electron energy
+        self._solve_electron_energy_with_implicit_k(k_E, dE_sources)
+        
+        if debug:
+            _dbg("After electron energy transport:", {'Te': self.state.electrons.T})
+        
+        # Post-solve corrections
+        self._apply_density_floors()
+        self._recompute_electron_density_preserve_temperature()
+        self._apply_temperature_clamps()
+        
+        if debug:
+            _dbg("After post-solve corrections:", {'ne': self.state.electrons.n, 'Te': self.state.electrons.T})
+
     # =========================================================================
     # Main time stepping method
     # =========================================================================
 
     def step(self, debug: bool = False, profile: bool = False) -> float:
         """
-        Perform one time step with simple adaptive timestep control.
+        Perform one time step with adaptive timestep control and optional step rejection.
         
         Timestep strategy:
         - dt grows or shrinks so that max_change stays near accur
         - After each step: dt_next = dt * accur / max_change (clamped to dt_max)
+        - Optional step rejection: if max_change > rejection_margin * accur,
+          restore state and retry with smaller dt
         
         Calculation order:
         1. Compute collision sources and collision frequencies (nu)
@@ -1724,11 +1840,11 @@ class BDF2Solver:
         4. Compute parallel loss rates k_n, k_E for implicit treatment
         5. Compute transport coefficients D, V
         6. Compute diffusion timestep limit (dt_diffusion) - for analysis
-        7. Update BDF2 coefficients
-        8. Solve transport equations with implicit parallel losses
-        9. Solve reactions (implicit Newton)
-        10. Apply post-solve corrections (floors, quasi-neutrality, clamps)
-        11. Adapt dt for next step based on max_change
+        7. Solve transport with step rejection loop:
+           - Save state, solve, check max_change
+           - If max_change > rejection_margin * accur: restore and retry with smaller dt
+           - Sources/transport coefficients reused (depend on previous state only)
+        8. Adapt dt for next step based on final max_change
         
         Parameters
         ----------
@@ -1854,62 +1970,58 @@ class BDF2Solver:
         toc('optimal_dt')
         
         # ================================================================
-        # STEP 8: Update BDF2 coefficients with current timestep
+        # STEP 8-10: Solve with step rejection
+        # Save state, solve, check max_change, reject if too large
+        # Sources and transport coefficients are reused (depend on previous state)
         # ================================================================
-        tic('bdf2_coef')
-        self.transport_eq.update_bdf2_coefficients(self.dt, self.dt_prev, self.step_count)
-        toc('bdf2_coef')
+        tic('solve_with_rejection')
         
-        # ================================================================
-        # STEP 9: Solve transport equations with reaction sources
-        # BDF2 + implicit parallel losses via k_n, k_E on LHS
-        # Reaction sources (dn_sources, dE_sources) are explicit RHS terms
-        # ================================================================
-        tic('solve_ions')
-        self._solve_ions_with_implicit_k(k_n, k_E, dn_sources, dE_sources)
-        toc('solve_ions')
+        # Save state for potential rejection
+        saved_state = self._save_state_for_rejection()
         
-        if debug:
-            _dbg("After ion transport:", {
-                'nHi': self._get_species_n('Hi'),
-                'nHeII': self._get_species_n('HeII'),
-            })
+        rejection_count = 0
+        while True:
+            # Solve transport + post-corrections with current dt
+            self._solve_with_current_dt(k_n, k_E, dn_sources, dE_sources, debug=debug)
+            
+            # Check max_change
+            max_change = self._compute_max_change()
+            
+            if debug:
+                print(f"  [TIMESTEP] max_change={max_change:.3e}, target={self.accuracy:.3e}, margin={self.rejection_margin:.1f}")
+            
+            # Check if step should be rejected
+            reject_threshold = self.accuracy * self.rejection_margin
+            should_reject = (
+                self.step_rejection and 
+                max_change > reject_threshold and 
+                rejection_count < self.max_rejections
+            )
+            
+            if should_reject:
+                rejection_count += 1
+                self._rejection_count += 1
+                
+                # Compute optimal dt with safety factor
+                dt_optimal = self.dt * (self.accuracy / max_change) * self.rejection_safety
+                dt_optimal = max(dt_optimal, self.dt_min * 0.1)  # Don't go too small
+                
+                if debug:
+                    print(f"  [REJECT #{rejection_count}] max_change={max_change:.3e} > {reject_threshold:.3e}")
+                    print(f"  [REJECT] Retrying with dt={dt_optimal:.3e} (was {self.dt:.3e})")
+                
+                # Restore state and retry with smaller dt
+                self._restore_state_from_saved(saved_state)
+                self.dt = dt_optimal
+            else:
+                # Step accepted
+                if debug and rejection_count > 0:
+                    print(f"  [ACCEPTED] after {rejection_count} rejection(s)")
+                break
         
-        tic('solve_neutrals')
-        self._solve_neutrals_transport_only(dn_sources, dE_sources)
-        toc('solve_neutrals')
+        toc('solve_with_rejection')
         
-        if debug:
-            _dbg("After neutral transport:", {
-                'nH': self._get_species_n('H'),
-            })
-        
-        # Electron energy transport with implicit parallel losses and sources
-        tic('solve_electron_E')
-        self._solve_electron_energy_with_implicit_k(k_E, dE_sources)
-        toc('solve_electron_E')
-        
-        if debug:
-            _dbg("After electron energy transport:", {'Te': self.state.electrons.T})
-        
-        # ================================================================
-        # STEP 10: Post-solve corrections
-        # ================================================================
-        tic('floors_clamps')
-        
-        # 1. Apply density floors to ions (preserves T by scaling E)
-        self._apply_density_floors()
-        
-        # 2. Recompute ne from quasi-neutrality and scale Ee to preserve Te
-        self._recompute_electron_density_preserve_temperature()
-        
-        # 3. Apply temperature clamps (adjusts E to enforce T bounds)
-        self._apply_temperature_clamps()
-        
-        toc('floors_clamps')
-        
-        if debug:
-            _dbg("After post-solve corrections:", {'ne': self.state.electrons.n, 'Te': self.state.electrons.T})
+        dt_taken = self.dt
 
         # ================================================================
         # Compute post-solve dt diagnostics (for analysis)
@@ -1923,13 +2035,9 @@ class BDF2Solver:
         # ================================================================
         # STEP 11: Adapt timestep for next iteration
         # Simple scheme: dt grows/shrinks so max_change stays near accur
+        # max_change was already computed in the rejection loop
         # ================================================================
         tic('timestep_adapt')
-        max_change = self._compute_max_change()
-        dt_taken = self.dt
-        
-        if debug:
-            print(f"  [TIMESTEP] max_change={max_change:.3e}, target={self.accuracy:.3e}")
         
         # Adapt dt for next step: dt_next = dt * accur / max_change
         if max_change > 1e-30:

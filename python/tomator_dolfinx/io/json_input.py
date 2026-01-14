@@ -145,8 +145,6 @@ def load_input_file(filename: str) -> Dict[str, Any]:
     
     # Flatten nested structure into single dict
     params = {}
-
-    params['operator_splitting'] = False  # Default to operator splitting
     
     # Magnetic field
     if 'magnetic_field' in raw:
@@ -163,7 +161,6 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['b'] = dict_get(geo, 'b', 75.0) / 100.0  # Vertical extent [m]
         params['lHFS'] = dict_get(geo, 'lHFS', 28.0) / 100.0  # HFS limiter distance [m]
         params['lLFS'] = dict_get(geo, 'lLFS', 28.0) / 100.0  # LFS limiter distance [m]
-        params['nlimiters'] = dict_get(geo, 'nlimiters', 1)
         params['Vpl'] = dict_get(geo, 'Vpl', 1.0) / 1e6  # Plasma volume [m³]
     
     # Neutral pressure - convert from mbar to Pa (1 mbar = 100 Pa)
@@ -219,8 +216,8 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['bcx'] = dict_get(phys, 'bcx', True)
         params['belas'] = dict_get(phys, 'belas', False)
         params['bcoulomb'] = dict_get(phys, 'bcoulomb', False)
-        params['bimpur'] = dict_get(phys, 'bimpur', False)
         params['bpol'] = dict_get(phys, 'bpol', True)
+        params['bADAS'] = dict_get(phys, 'bADAS', True)  # Use ADAS rate coefficients
     
     # Diffusion parameters
     # Supports two formats:
@@ -387,13 +384,6 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         else:
             params['bc_ion_lambda_n'] = 0.02  # 2 cm default
             params['bc_ion_lambda_E'] = 0.01  # 1 cm default
-        
-        # Neutral flux-dependent energy BC option
-        params['bNeutrFluxEnergyBC'] = dict_get(edge, 'bNeutrFluxEnergyBC', True)
-    
-    # Decay lengths - initial values only, updated dynamically based on actual D
-    params['decay_length_hfs'] = 0.01  # [m] - will be recomputed from physics
-    params['decay_length_lfs'] = 0.01  # [m] - will be recomputed from physics
     
     # Simulation grid
     if 'simulation_grid' in raw:
@@ -406,36 +396,42 @@ def load_input_file(filename: str) -> Dict[str, Any]:
     # Time stepping
     if 'time_step' in raw:
         ts = raw['time_step']
-        params['t0'] = dict_get(ts, 't0', 0.0)
         params['tmainend'] = dict_get(ts, 'tmainend', 1e-3)
         params['accur'] = dict_get(ts, 'accur', 0.05)
         params['dtmax'] = dict_get(ts, 'dtmax', 1e-5)
         params['dtmin'] = dict_get(ts, 'dtmin', 1e-10)
         params['dtinit'] = dict_get(ts, 'dtinit', 1e-9)
-        params['use_optimal_dt'] = dict_get(ts, 'use_optimal_dt', False)
+        params['maxtstepincrement'] = dict_get(ts, 'maxtstepincrement', 1.5)
     
     params['time_step'] = {
         'dtinit': params.get('dtinit', 1e-9),
         'dtmin': params.get('dtmin', 1e-10),
         'dtmax': params.get('dtmax', 1e-5),
         'accur': params.get('accur', 0.05),
-        'decay_length_hfs': params.get('decay_length_hfs', 0.02),
-        'decay_length_lfs': params.get('decay_length_lfs', 0.02),
+        'maxtstepincrement': params.get('maxtstepincrement', 1.5),
+        'bc_ion_lambda_n': params.get('bc_ion_lambda_n', 0.02),  # Ion density decay length [m]
+        'bc_ion_lambda_E': params.get('bc_ion_lambda_E', 0.01),  # Ion energy decay length [m]
         'nevac': params.get('nevac', 1.0),  # Vacuum density floor [cm^-3]
+        # Step rejection parameters
+        'step_rejection': params.get('step_rejection', True),
+        'rejection_margin': params.get('rejection_margin', 2.0),
+        'rejection_safety': params.get('rejection_safety', 0.8),
+        'max_rejections': params.get('max_rejections', 5),
     }
     
     # Output parameters
     if 'output_parameters' in raw:
         out = raw['output_parameters']
-        params['Nlog'] = dict_get(out, 'Nlog', 100)
         params['dtsave'] = dict_get(out, 'dtsave', 1e-4)    
     # Solver parameters
     if 'solver_parameters' in raw:
         solver = raw['solver_parameters']
         params['solvertolerance'] = dict_get(solver, 'solvertolerance', 1e-10)
-        params['max_newton_iter'] = dict_get(solver, 'max_newton_iter', 20)
-        params['newton_tol'] = dict_get(solver, 'newton_tol', 1e-6)
-        params['operator_splitting'] = dict_get(solver, 'operator_splitting', False)
+        # Step rejection parameters
+        params['step_rejection'] = dict_get(solver, 'step_rejection', True)
+        params['rejection_margin'] = dict_get(solver, 'rejection_margin', 2.0)
+        params['rejection_safety'] = dict_get(solver, 'rejection_safety', 0.8)
+        params['max_rejections'] = dict_get(solver, 'max_rejections', 5)
         params['output_interval'] = dict_get(out, 'dtsave', 1e-4)
         # Profiling flag (can be plain bool or {"value": bool})
         if 'profile' in out:
@@ -527,8 +523,8 @@ def create_default_params() -> Dict[str, Any]:
             'dtmin': 1e-10,
             'dtmax': 1e-5,
             'accur': 0.05,
-            'decay_length_hfs': 0.02,
-            'decay_length_lfs': 0.02,
+            'bc_ion_lambda_n': 0.02,   # Ion density decay length [m]
+            'bc_ion_lambda_E': 0.01,   # Ion energy decay length [m]
         },
         
         # Grid
