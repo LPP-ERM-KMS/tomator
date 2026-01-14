@@ -1,144 +1,109 @@
 {
     "description": "TCV #5151X simulation with fixed power fraction coupling (bfixpowerfrac). Absorbed power = Prf * pecabs0 (constant, no feedback). Transport: Fixed diffusion (bDfix, D=3330 cm²/s) and fixed advection (bVfix, V=333 cm/s).",
     "magnetic_field": {
-        "Bt": {"value": 1.54, "unit": "T"},
-        "Bv": {"value": 0.0035, "unit": "T"},
-        "Bh": {"value": 0.0001, "unit": "T"}
+        "Bt": {"value": 1.54, "unit": "T", "description": "Toroidal magnetic field at R0"},
+        "Bv": {"value": 0.0035, "unit": "T", "description": "Vertical magnetic field component"},
+        "Bh": {"value": 0.0001, "unit": "T", "description": "Horizontal magnetic field component"}
     },
     "toroidal_machine_geometry": {
-        "R": {"value": 88.0, "unit": "cm"},
-        "a": {"value": 28.0, "unit": "cm"},
-        "b": {"value": 75.0, "unit": "cm"},
-        "lHFS": {"value": 60, "unit": "cm"},
-        "lLFS": {"value": 116, "unit": "cm"},
-        "Vpl": {"value": 56100, "unit": "cm³"}
+        "R": {"value": 88.0, "unit": "cm", "description": "Major radius of torus"},
+        "a": {"value": 28.0, "unit": "cm", "description": "Minor radius (half-width in radial direction)"},
+        "b": {"value": 75.0, "unit": "cm", "description": "Vertical extent (half-height)"},
+        "lHFS": {"value": 60, "unit": "cm", "description": "High-field side limiter position"},
+        "lLFS": {"value": 116, "unit": "cm", "description": "Low-field side limiter position"},
+        "Vpl": {"value": 56100, "unit": "cm³", "description": "Total plasma volume"}
     },
     "neutral_pressure": {
-        "pHe": {"value": 4.49e-05, "unit": "mbar"},
-        "pH2": {"value": 1.09e-06, "unit": "mbar"}
+        "pHe": {"value": 4.49e-05, "unit": "mbar", "description": "Neutral helium partial pressure, used with Ta0 to compute neutral density at boundaries"},
+        "pH2": {"value": 1.09e-06, "unit": "mbar", "description": "Neutral H₂ partial pressure, used with Ta0 to compute neutral density at boundaries"}
     },
     "rf_power": {
-        "Prf": {"value": 320.0, "unit": "kW"},
-        "freq": {"value": 82700.0, "unit": "MHz"},
-        "dtpramp": {"value": 0.0, "unit": "s"}
+        "Prf": {"value": 320.0, "unit": "kW", "description": "Total injected RF power"},
+        "freq": {"value": 82700.0, "unit": "MHz", "description": "RF frequency (not used)"},
+        "dtpramp": {"value": 0.0, "unit": "s", "description": "Duration of power ramp-up (not used)"}
     },
     "type": {
-        "bfixpowerfrac": {"bool": true},
-        "bnefix": {"bool": false},
-        "bproptone": {"bool": false},
-        "bnopower": {"bool": false}
+        "bfixpowerfrac": {"bool": true, "description": "Fixed absorbed power = Prf × pecabs0"},
+        "bnefix": {"bool": false, "description": "PID controller maintains ne at control point"},
+        "bproptone": {"bool": false, "description": "Power deposition proportional to ne (not used)"},
+        "bnopower": {"bool": false, "description": "Disable RF power coupling (not used)"}
     },
     "general_ec": {
-        "Rdep": {"value": 91.85, "unit": "cm"},
-        "pecabs0": {"value": 0.025, "unit": "-"},
-        "widthech": {"value": 1.8667, "unit": "cm"},
-        "echbackground": {"value": 1e-05, "unit": "-"}
+        "Rdep": {"value": 91.85, "unit": "cm", "description": "Radial location of power deposition center"},
+        "pecabs0": {"value": 0.025, "unit": "-", "description": "Initial/fixed absorbed power fraction"},
+        "widthech": {"value": 1.8667, "unit": "cm", "description": "Gaussian width of EC power deposition"},
+        "echbackground": {"value": 1e-05, "unit": "-", "description": "Background absorption level"}
     },
     "necfix": {
-        "ic": {"value": 91, "unit": "-"},
-        "necfix": {"value": 7.4116e12, "unit": "cm⁻³"},
-        "P_KI_ini": {"value": 2.0, "unit": "-"},
-        "P_KP": {"value": 10.0, "unit": "-"},
-        "P_KI": {"value": 10000.0, "unit": "-"},
-        "P_KD": {"value": 0.1, "unit": "-"}
-    },
-    "general_ic": {
-        "Rant": {"value": 200.0, "unit": "cm"},
-        "bantlr": {"bool": false},
-        "avlr": {"value": 0.23, "unit": "-"},
-        "alphalaw": {"value": 0.002, "unit": "-"},
-        "HtoHD": {"value": 1.0, "unit": "-"}
-    },
-    "other": {
-        "fixedTe": {"bool": false}
+        "ic": {"value": 91, "unit": "-", "description": "Mesh index of density control point"},
+        "necfix": {"value": 7.4116e12, "unit": "cm⁻³", "description": "Target electron density for PID"},
+        "P_KI_ini": {"value": 2.0, "unit": "-", "description": "Initial integral term value"},
+        "P_KP": {"value": 10.0, "unit": "-", "description": "Proportional gain"},
+        "P_KI": {"value": 10000.0, "unit": "-", "description": "Integral gain"},
+        "P_KD": {"value": 0.1, "unit": "-", "description": "Derivative gain"}
     },
     "diffusion": {
-        "Dfix": {"bool": true, "Dfix": 3330.0, "unit": "cm²/s"},
-        "Dbohm": {"bool": false, "Dfact": 1.0, "unit": "-"},
-        "Dscaling": {"bool": false, "Dfact": 1.0, "unit": "-"}
+        "Dfix": {"bool": true, "Dfix": 3330.0, "unit": "cm²/s", "description": "Fixed diffusion coefficient"},
+        "Dbohm": {"bool": false, "Dfact": 0.0625, "unit": "-", "description": "Bohm diffusion: D = Dfact × T/B"},
+        "Dgyrogeom": {"bool": false, "Dfact": 1.0, "unit": "-", "description": "Gyro-Geometric Diffusion model"},
+        "gEd": {"value": 1.6667, "unit": "-", "description": "Energy diffusion enhancement factor: D_E_ion = gEd × D_ion"},
+        "gEdn": {"value": 1.6667, "unit": "-", "description": "Neutral energy transport enhancement factor: D_E_neutral = gEdn × D_neutral"}
     },
     "advection": {
-        "Vfix": {"bool": true, "value": 333.0, "unit": "cm/s"},
-        "Vscaling": {"bool": false, "veq": 8, "Vfact": 5.0, "unit": "-"}
-    },
-    "tune_d_and_v": {
-        "btunedv": {"bool": false},
-        "btunevleft": {"bool": false},
-        "il": {"value": 73, "unit": "-"},
-        "nelfix": {"value": 3.1898e12, "unit": "cm⁻³"},
-        "ir": {"value": 114, "unit": "-"},
-        "nerfix": {"value": 6.4301e12, "unit": "cm⁻³"},
-        "Vini": {"value": -2.0, "unit": "cm/s"},
-        "tauV": {"value": 0.01, "unit": "s"},
-        "Dini": {"value": 1.0, "unit": "cm²/s"},
-        "tauD": {"value": 0.0005, "unit": "s"}
-    },
-    "physics_to_include": {
-        "bH": {"bool": true},
-        "bH2": {"bool": true},
-        "bHe": {"bool": true},
-        "bion": {"bool": true},
-        "bcx": {"bool": true},
-        "belas": {"bool": true},
-        "bcoulomb": {"bool": true},
-        "bpol": {"bool": true}
-    },
-    "initial_conditions": {
-        "rmaxini": {"value": 91.85, "unit": "cm"},
-        "widthini": {"value": 5.6, "unit": "cm"},
-        "nebackgroundl": {"value": 1e-05, "unit": "-"},
-        "nebackgroundr": {"value": 0.001, "unit": "-"},
-        "Ta0": {"value": 0.02587, "unit": "eV"},
-        "Te0": {"value": 3.0, "unit": "eV"},
-        "nevac": {"value": 1e0, "unit": "cm⁻³"},
-        "nH0": {"value": 2e6, "unit": "cm⁻³"},
-        "nHi0": {"value": 1e6, "unit": "cm⁻³"},
-        "nH2i0": {"value": 1e6, "unit": "cm⁻³"},
-        "nH3i0": {"value": 2e6, "unit": "cm⁻³"},
-        "nHeII0": {"value": 7.39e12, "unit": "cm⁻³"},
-        "nHeIII0": {"value": 2e6, "unit": "cm⁻³"}
+        "Vfix": {"bool": true, "value": 333.0, "unit": "cm/s", "description": "Fixed advection velocity"},
+        "Vscaling": {"bool": false, "veq": 8, "Vfact": 5.0, "unit": "-", "description": "Pressure-driven pinch (not used)"},
+        "gEv": {"value": 1.6667, "unit": "-", "description": "Energy advection enhancement factor"}
     },
     "edge_conditions": {
-        "RH": {"value": 0.5, "unit": "-"},
-        "REH": {"value": 0.9, "unit": "-"},
-        "gEd": {"value": 1.6667, "unit": "-"},
-        "gEv": {"value": 1.6667, "unit": "-"},
-        "gEdn": {"value": 1.6667, "unit": "-"},
-        "gEe": {"value": 1.6667, "unit": "-"},
-        "bc_ion_decay_length": {"lambda_n": 2, "lambda_E": 1, "unit": "cm"}
+        "RH": {"value": 0.5, "unit": "-", "description": "Neutral particle reflection coefficient at wall"},
+        "REH": {"value": 0.9, "unit": "-", "description": "Neutral particle energy reflection coefficient at wall"},
+        "bc_ion_decay_length": {"lambda_n": 2, "lambda_E": 1, "unit": "cm", "description": "Ion density and energy decay lengths at boundary"}
+    },
+    "physics_to_include": {
+        "bH": {"bool": true, "description": "Include atomic hydrogen reactions"},
+        "bH2": {"bool": true, "description": "Include molecular hydrogen reactions"},
+        "bHe": {"bool": true, "description": "Include helium reactions"},
+        "bion": {"bool": true, "description": "Include ionization reactions"},
+        "bcx": {"bool": true, "description": "Include charge exchange reactions"},
+        "belas": {"bool": true, "description": "Include elastic collisions"},
+        "bcoulomb": {"bool": true, "description": "Include Coulomb collisions"},
+        "bpol": {"bool": true, "description": "Include poloidal magnetic field losses"}
+    },
+    "initial_conditions": {
+        "rmaxini": {"value": 91.85, "unit": "cm", "description": "Radial position of initial density peak"},
+        "widthini": {"value": 5.6, "unit": "cm", "description": "Gaussian width of initial profile"},
+        "nebackgroundl": {"value": 1e-05, "unit": "-", "description": "Background density fraction on HFS"},
+        "nebackgroundr": {"value": 0.001, "unit": "-", "description": "Background density fraction on LFS"},
+        "Ta0": {"value": 0.02587, "unit": "eV", "description": "Ambient/wall temperature"},
+        "Te0": {"value": 3.0, "unit": "eV", "description": "Initial electron temperature"},
+        "nevac": {"value": 1e0, "unit": "cm⁻³", "description": "Minimum density floor"},
+        "nH0": {"value": 2e6, "unit": "cm⁻³", "description": "Initial atomic hydrogen density"},
+        "nHi0": {"value": 1e6, "unit": "cm⁻³", "description": "Initial H⁺ ion density"},
+        "nH2i0": {"value": 1e6, "unit": "cm⁻³", "description": "Initial H₂⁺ ion density"},
+        "nH3i0": {"value": 2e6, "unit": "cm⁻³", "description": "Initial H₃⁺ ion density"},
+        "nHeII0": {"value": 7.39e12, "unit": "cm⁻³", "description": "Initial He⁺ ion density"},
+        "nHeIII0": {"value": 2e6, "unit": "cm⁻³", "description": "Initial He²⁺ ion density"}
     },
     "simulation_grid": {
-        "nmeshp": {"value": 161, "unit": "-"},
-        "fem_degree": {"value": 1, "unit": "-"}
-    },
-    "input_file": {
-        "bfinput": {"bool": false}
+        "nmeshp": {"value": 161, "unit": "-", "description": "Number of radial mesh points"},
+        "fem_degree": {"value": 1, "unit": "-", "description": "FEM polynomial degree (1=linear)"}
     },
     "time_step": {
-        "tmainend": {"value": 1.0, "unit": "s"},
-        "accur": {"value": 0.05, "unit": "-"},
-        "dtmax": {"value": 1e-5, "unit": "s"},
-        "dtmin": {"value": 1e-7, "unit": "s"},
-        "dtinit": {"value": 1e-9, "unit": "s"},
-        "maxtstepincrement": {"value": 1.1, "unit": "-"}
-    },
-    "time_step_for_rf_coupling": {
-        "bupdateRFstep": {"bool": true},
-        "updateRF": {"value": 1, "unit": "-"},
-        "dtRF": {"value": 1e-07, "unit": "s"},
-        "dtRFvar": {"bool": false},
-        "dtRFmax": {"value": 5e-06, "unit": "s"},
-        "dtRFmin": {"value": 1e-08, "unit": "s"},
-        "dtRFconv": {"bool": true}
-    },
-    "output_parameters": {
-        "dtsave": {"value": 0.0005, "unit": "s"}
+        "tmainend": {"value": 1.0, "unit": "s", "description": "Simulation end time"},
+        "accur": {"value": 0.05, "unit": "-", "description": "Target relative accuracy per time step"},
+        "dtmax": {"value": 1e-5, "unit": "s", "description": "Maximum allowed time step"},
+        "dtmin": {"value": 1e-7, "unit": "s", "description": "Minimum allowed time step"},
+        "dtinit": {"value": 1e-9, "unit": "s", "description": "Initial time step size"},
+        "maxtstepincrement": {"value": 1.1, "unit": "-", "description": "Maximum dt increase factor"}
     },
     "solver_parameters": {
-        "solvertolerance": 1e-9,
-        "step_rejection": {"bool": true},
-        "rejection_margin": {"value": 1.5, "unit": "-"},
-        "rejection_safety": {"value": 0.8, "unit": "-"},
-        "max_rejections": {"value": 5, "unit": "-"}
+        "solvertolerance": {"value": 1e-9, "unit": "-", "description": "Solver tolerance"},
+        "step_rejection": {"bool": true, "description": "Enable step rejection for stability"},
+        "rejection_margin": {"value": 1.5, "unit": "-", "description": "Threshold factor for rejecting steps"},
+        "rejection_safety": {"value": 0.8, "unit": "-", "description": "Safety factor for retry timestep"},
+        "max_rejections": {"value": 5, "unit": "-", "description": "Maximum consecutive rejections"}
+    },
+    "output_parameters": {
+        "dtsave": {"value": 0.0005, "unit": "s", "description": "Time interval for saving results"}
     }
 }

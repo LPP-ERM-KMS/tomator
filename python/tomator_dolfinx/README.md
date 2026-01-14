@@ -17,36 +17,38 @@ where:
 
 ## Physics Steps (per timestep)
 
-The solver uses **BDF2 transport with explicit reaction sources** and implicit parallel losses:
+The solver uses **BDF2 transport with explicit reaction sources**, implicit parallel losses, and optional step rejection:
 
 1. **Collision Sources** — Compute ionization, recombination, charge exchange rates (ADAS data) and collision frequencies (ν)
 2. **RF Power** — Compute electron heating from IC/EC waves (merged into energy sources)
-3. **Collision Timestep** — Compute per-cell dt_collision from source magnitudes (for analysis only)
-4. **Parallel Loss Rates** — Compute k_n, k_E loss rates for implicit LHS treatment (limiter + Bpol losses)
-5. **Transport Coefficients** — Calculate D (Bohm/gyro-geometric) and V for each species
-6. **Diffusion Timestep** — Compute per-cell dt_diffusion from stability criterion (for analysis only)
-7. **BDF2 Coefficients** — Update time discretization weights (variable for adaptive dt)
-8. **Transport + Reactions Solve** — Advance densities and energies via BDF2 FEM:
+3. **Parallel Loss Rates** — Compute k_n, k_E loss rates for implicit LHS treatment (limiter + Bpol losses)
+4. **Transport Coefficients** — Calculate D (fixed/Bohm/gyro-geometric) and V for each species
+5. **Save State** — Store current state for potential step rejection
+6. **BDF2 Transport Solve** — Advance densities and energies via BDF2 FEM:
    - Ion transport (n, E) with implicit k_n, k_E on LHS + explicit reaction sources
-   - Neutral transport (n, E) with explicit reaction sources
+   - Neutral transport (n, E) with explicit reaction sources  
    - Electron energy transport with implicit k_E on LHS + collision/RF sources
-9. **Post-processing** — Apply density floors, quasi-neutrality, temperature clamps
-10. **Timestep Adaptation** — Adjust dt for next step based on max_change
+7. **Post-processing** — Apply density floors, quasi-neutrality, temperature clamps
+8. **Step Rejection Check** — If `max_change > rejection_margin × accur`:
+   - Restore saved state
+   - Reduce dt: `dt = dt × (accur / max_change) × rejection_safety`
+   - Retry from step 6 (sources/transport coefficients reused)
+9. **Timestep Adaptation** — Adjust dt for next step: `dt_next = dt × (accur / max_change)`
 
 ## Timestep Strategy
 
-The solver uses a **simple adaptive timestep** scheme:
+The solver uses a **simple adaptive timestep** scheme with optional step rejection:
 
 1. **Initialize**: `dt = dt_init` (can be smaller than dt_min)
 2. **After each step**: Compute `max_change = max(|Δn|/n, |ΔE|/E)` across non-vacuum cells
-3. **Adapt dt**: `dt_next = dt * (accur / max_change)`, clamped to dt_max
-4. **dt_min enforcement**: Only enforced once dt has grown above it (allows starting small)
+3. **Step rejection** (if enabled): If `max_change > rejection_margin × accur`, restore state and retry with smaller dt
+4. **Adapt dt**: `dt_next = dt × (accur / max_change)`, clamped to dt_max
+5. **dt_min enforcement**: Only enforced once dt has grown above it (allows starting small)
 
 This way:
 - If `max_change > accur`: dt shrinks → smaller changes next step
 - If `max_change < accur`: dt grows → larger steps while staying accurate
-
-No step rejection — just continuous adaptation.
+- Step rejection prevents accepting steps with excessive error
 
 ## Implicit Parallel Losses
 
@@ -58,12 +60,18 @@ This allows much larger timesteps than explicit treatment since parallel losses 
 
 ## Timestep Control
 
-- **dt_init**: Initial timestep (always used for first step)
-- **dt_min**: Minimum timestep floor (only enforced after dt grows above it)
-- **dt_max**: Maximum timestep ceiling
-- **accur**: Target relative change per step
-- **maxtstepincrement**: Maximum factor by which dt can increase per step
-- **nevac**: Vacuum density threshold — grid points with n < nevac are ignored in dt_collision calculation
+| Parameter | Description |
+|-----------|-------------|
+| `dt_init` | Initial timestep (always used for first step) |
+| `dt_min` | Minimum timestep floor (only enforced after dt grows above it) |
+| `dt_max` | Maximum timestep ceiling |
+| `accur` | Target relative change per step |
+| `maxtstepincrement` | Maximum factor by which dt can increase per step |
+| `nevac` | Vacuum density threshold — grid points with n < nevac are ignored |
+| `step_rejection` | Enable/disable step rejection (bool) |
+| `rejection_margin` | Reject step if max_change > rejection_margin × accur |
+| `rejection_safety` | Safety factor for retry timestep (typically 0.8) |
+| `max_rejections` | Maximum consecutive rejections before accepting step |
 
 ## Module Overview
 

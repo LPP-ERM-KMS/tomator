@@ -246,6 +246,10 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         else:
             params['bDgyrogeom'] = dict_get(diff, 'bDscaling', dict_get(diff, 'bDgyrogeom', False))
         
+        # Energy enhancement factors (can also be in edge_conditions for backward compat)
+        params['gEd'] = dict_get(diff, 'gEd', None)  # Ion energy diffusion
+        params['gEdn'] = dict_get(diff, 'gEdn', None)  # Neutral energy
+        
         # Set diffusion type based on priority: gyrogeom > bohm > fixed
         if params.get('bDgyrogeom', False):
             params['diffusion_type'] = 'gyrogeom'
@@ -272,6 +276,9 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         params['bVscaling'] = dict_get_nested(adv, 'Vscaling', 'bool', dict_get(adv, 'bVscaling', False))
         params['veq'] = dict_get_nested(adv, 'Vscaling', 'veq', dict_get(adv, 'veq', 8))
         params['Vfact'] = dict_get_nested(adv, 'Vscaling', 'Vfact', dict_get(adv, 'Vfact', 1.0))
+        
+        # Energy enhancement factor for advection
+        params['gEv'] = dict_get(adv, 'gEv', None)  # Ion energy advection
         
         # Set advection type
         params['advection_type'] = 'fixed' if params['bVfix'] else 'pressure'
@@ -368,10 +375,13 @@ def load_input_file(filename: str) -> Dict[str, Any]:
         edge = raw['edge_conditions']
         params['RH'] = dict_get(edge, 'RH', 0.5)  # Reflection coefficient for H
         params['REH'] = dict_get(edge, 'REH', 0.9)  # Energy reflection coefficient for neutrals
-        params['gEd'] = dict_get(edge, 'gEd', 5/3)  # Energy flux factor for diffusion
-        params['gEv'] = dict_get(edge, 'gEv', 5/3)  # Energy flux factor for advection
-        params['gEdn'] = dict_get(edge, 'gEdn', 5/3)  # Energy flux factor for neutral diffusion
-        params['gEe'] = dict_get(edge, 'gEe', 5/3)  # Energy flux factor for electrons
+        # gE* factors: prefer values from diffusion/advection, fallback to edge_conditions, then default
+        if params.get('gEd') is None:
+            params['gEd'] = dict_get(edge, 'gEd', 5/3)
+        if params.get('gEv') is None:
+            params['gEv'] = dict_get(edge, 'gEv', 5/3)
+        if params.get('gEdn') is None:
+            params['gEdn'] = dict_get(edge, 'gEdn', 5/3)
         
         # Ion boundary condition decay lengths
         # Supports: {"bc_ion_decay_length": {"lambda_n": 2, "lambda_E": 1, "unit": "cm"}}

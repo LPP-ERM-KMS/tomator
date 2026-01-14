@@ -556,10 +556,8 @@ class BDF2Solver:
             λ = 2 * D / (vth * (1 - R))
         
         For ions (Hi, H2i, H3i, HeII, HeIII):
-            λ = sqrt(D * L_conn / (c_s * corrections))
+            λ = fixed value from JSON (C++ lam_dec_length_ions)
         
-        where:
-            L_conn = 0.66 * 2π * a_R / n_limiters  [connection length]
             c_s = 9790 * sqrt(Z/μ * (Te + Ti))     [sound speed, m/s]
         
         Parameters
@@ -571,7 +569,7 @@ class BDF2Solver:
         m_amu : float
             Particle mass in atomic mass units.
         is_ion : bool
-            If True, use ion formula with connection length physics.
+            If True, use fixed decay length from parameters.
             If False, use neutral formula with thermal velocity.
         """
         coords = self.state.V.tabulate_dof_coordinates()[:, 0]
@@ -585,7 +583,6 @@ class BDF2Solver:
         
         # HFS boundary (smallest r)
         idx_hfs = sorted_idx[0]
-        r_hfs = coords[idx_hfs]
         if n_arr[idx_hfs] > 1e-30:
             T_hfs = E_arr[idx_hfs] / (1.5 * n_arr[idx_hfs])
         else:
@@ -598,7 +595,6 @@ class BDF2Solver:
         
         # LFS boundary (largest r)
         idx_lfs = sorted_idx[-1]
-        r_lfs = coords[idx_lfs]
         if n_arr[idx_lfs] > 1e-30:
             T_lfs = E_arr[idx_lfs] / (1.5 * n_arr[idx_lfs])
         else:
@@ -650,8 +646,8 @@ class BDF2Solver:
             This uses REH (energy reflection) and includes gEdn factor.
         
         For ions:
-            The C++ uses: bEion = bEion / (lambda / sqrt(gEe) * sqrt(gEd))
-            So λ_E = λ_n * sqrt(gEe) / sqrt(gEd) = λ_n * sqrt(gEe/gEd)
+            The C++ uses: fixed decay length for energy from JSON (C++ lam_dec_length_energy).
+            So we directly set the decay lengths from parameters.
         
         Parameters
         ----------
@@ -662,15 +658,13 @@ class BDF2Solver:
         m_amu : float
             Particle mass in atomic mass units.
         is_ion : bool
-            If True, use ion formula with gEe/gEd scaling.
+            If True, use ion formula with fixed decay length from parameters.
             If False, use neutral formula with gEdn and REH.
         """
         # Get parameters
         RH = self.params.get('RH', 0.5)
         REH = self.params.get('REH', 0.9)
         gEdn = self.params.get('gEdn', 5/3)
-        gEd = self.params.get('gEd', 5/3)
-        gEe = self.params.get('gEe', 5/3)
         
         coords = self.state.V.tabulate_dof_coordinates()[:, 0]
         D_arr = D.x.array
@@ -683,7 +677,6 @@ class BDF2Solver:
         
         # HFS boundary (smallest r)
         idx_hfs = sorted_idx[0]
-        r_hfs = coords[idx_hfs]
         if n_arr[idx_hfs] > 1e-30:
             T_hfs = E_arr[idx_hfs] / (1.5 * n_arr[idx_hfs])
         else:
@@ -695,7 +688,6 @@ class BDF2Solver:
         
         # LFS boundary (largest r)
         idx_lfs = sorted_idx[-1]
-        r_lfs = coords[idx_lfs]
         if n_arr[idx_lfs] > 1e-30:
             T_lfs = E_arr[idx_lfs] / (1.5 * n_arr[idx_lfs])
         else:
@@ -2203,18 +2195,22 @@ class BDF2Solver:
         else:
             self.source.x.array[:] = 0.0
         
-        # Use ion diffusion coefficient scaled by gEe for electrons
-        gEe = self.params.get('gEe', 5/3)
+        # Use ion transport coefficients scaled by energy enhancement factors
+        # gEd for energy diffusion, gEv for advection (same as ions)
+        gEd = self.params.get('gEd', 5/3)
+        gEv = self.params.get('gEv', 5/3)
         
         if 'Hi' in self.transport.coefficients:
             D_ion = self.transport.get('Hi').D.x.array
+            V_ion = self.transport.get('Hi').V.x.array
         else:
             D_ion = np.ones_like(electrons.n.x.array) * 1.0
+            V_ion = np.zeros_like(electrons.n.x.array)
         
         D_energy = Function(self.state.V)
         V_energy = Function(self.state.V)
-        D_energy.x.array[:] = gEe * D_ion
-        V_energy.x.array[:] = 0.0  # No advection for electron energy
+        D_energy.x.array[:] = gEd * D_ion
+        V_energy.x.array[:] = gEv * V_ion  # Electrons advected with plasma flow
         
         # Update Robin BC for electron energy
         lambda_E = self.params.get('bc_ion_lambda_E', 0.01)

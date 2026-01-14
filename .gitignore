@@ -13,6 +13,7 @@ __pycache__/
 *.pyc
 *.pyo
 TomatorResults/
+input_files/
 # Test folders not to track
 other_tests/
 
