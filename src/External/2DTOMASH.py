@@ -96,9 +96,6 @@ angle = np.pi*10/180
 HP = []
 for r in R:
     HP.append(P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real*PowerScalingFactor)
-vtk = VTKOutput(mesh,coefs=[P.real*PowerScalingFactor],names=["Re(eP)"],filename="outputs/iPdepo"+prefix,subdivision=2)
-vtk.Do()
-
 
 # Compute electron heating
 TOMASe = System({"e":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn)
