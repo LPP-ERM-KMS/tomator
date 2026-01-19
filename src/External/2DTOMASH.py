@@ -26,7 +26,7 @@ Profiles = np.genfromtxt('/tmp/DensAndTemp.csv', delimiter=',',skip_header=1)
 #--------------------#
 # Machine definition #
 #--------------------#
-gasn = {"H":1e18,"H2":1e19}
+gasn = {"H":1e18,"H2":1e19} #moet nog gelezen worden
 r_ = Profiles[1:,0]*1e-2 #in cm
 ne = Profiles[1:,1]*1e6 #in cm^-3
 Te = Profiles[1:,2]
@@ -113,12 +113,3 @@ with open('/tmp/PowerDeposition.csv', 'w', newline='') as csvfile:
     spamwriter.writerow(['eP','HP'])
     for i in range(len(TP)):
         spamwriter.writerow([eP[i],HP[i]])
-
-plt.plot(R,HP,label="by hydrogen ions")
-plt.ylabel("Power per millimeter")
-plt.xlabel("radial distance (m)")
-plt.legend()
-plt.plot(R,eP,label="by electrons")
-plt.legend()
-plt.savefig("/tmp/powerplot.pdf")
-plt.clf
