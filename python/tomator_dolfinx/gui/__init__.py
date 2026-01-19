@@ -7,6 +7,7 @@ Provides:
 """
 
 from .plotter import launch_plotter, stop_plotter
-from .simulation_interface import SimulationInterface, main as launch_interface
+# from .simulation_interface import SimulationInterface, main as launch_interface
 
-__all__ = ['launch_plotter', 'stop_plotter', 'SimulationInterface', 'launch_interface']
+# __all__ = ['launch_plotter', 'stop_plotter', 'SimulationInterface', 'launch_interface']
+__all__ = ['launch_plotter', 'stop_plotter'] #, 'SimulationInterface', 'launch_interface']

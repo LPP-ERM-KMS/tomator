@@ -766,8 +766,8 @@ def scale_time_plots(ne_te_time_plot, concentration_time_plot, temperature_time_
     max_Te = df_slice['Te'].max() if 'Te' in df_slice else 10
     
     # Add 10% padding, but keep minimum at 0 for physical quantities
-    ne_range = max_ne - min_ne if max_ne > min_ne else max(max_ne * 0.1, 1e10)
-    Te_range = max_Te - min_Te if max_Te > min_Te else max(max_Te * 0.1, 1.0)
+    ne_range = max_ne - min_ne if max_ne > min_ne else max_ne * 0.1
+    Te_range = max_Te - min_Te if max_Te > min_Te else max_Te * 0.1
     
     # Ensure valid y-ranges (end > start)
     y_ne_start = max(0, min_ne - ne_range * 0.05)
