@@ -85,21 +85,21 @@
     "pppl":{},
     "diffusion": {
         "bDfix": false,
-        "Dfix": 10000.0,
+        "Dfix": 0.2,
         "bDbohm": false,
         "bDscaling": true,
-        "Dfact": 1.0,
+        "Dfact": 0.2,
         "bDfix_neutr": false
     },
     "convection": {
         "bVfix": false,
-        "Vfix": 333.0,
+        "Vfix": 4.0,
         "bVscaling": true,
         "veq": 8,
         "Vfact": 4.0
     },
     "tune_d_and_v": {
-        "btunedv": true,
+        "btunedv": false,
         "btunevleft": false,
         "il": 150,
         "nelfix": 3e10,
