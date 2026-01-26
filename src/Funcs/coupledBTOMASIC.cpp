@@ -17,7 +17,7 @@ void bTOMASIC_func(const double &freq) {
     //## open and initialize in /tmp
     std::ofstream csvwritefile;
     csvwritefile.open("/tmp/DensAndTemp.csv"); 
-    csvwritefile << "Ra,Ne,Te,nHi,THi,";
+    csvwritefile << "Ra,Ne,Te,nHi,THi,nH,nH2,freq";
     csvwritefile << freq;
     csvwritefile << "\n";
     //## write arrays
@@ -25,6 +25,7 @@ void bTOMASIC_func(const double &freq) {
         {
             csvwritefile << aR[i];
             csvwritefile << ",";
+            // e and H^+
             csvwritefile << nr.ne[i];
             csvwritefile << ",";
             csvwritefile << Tr.Te[i];
@@ -32,6 +33,10 @@ void bTOMASIC_func(const double &freq) {
             csvwritefile << nr.nHi[i];
             csvwritefile << ",";
             csvwritefile << Tr.THi[i];
+            // H and H2
+            csvwritefile << nH[i];
+            csvwritefile << ",";
+            csvwritefile << nH2[i];
             csvwritefile << "\n";
         }
     csvwritefile.close(); 
@@ -118,7 +123,7 @@ void bTOMASIC_func(const double &freq) {
     //## open and initialize in /tmp
     std::ofstream csvwritedebugfile;
     csvwritedebugfile.open("/tmp/TomatorArrays.csv"); 
-    csvwritedebugfile << "id,aR[id],PRFe,PRFHi\n";
+    csvwritedebugfile << "id,aR[id],PRFe,PRFHi,nH,nH_2\n";
     //## write arrays
     for (int i=0; i<NMESHP; i++)
         {
@@ -126,9 +131,15 @@ void bTOMASIC_func(const double &freq) {
             csvwritedebugfile << ",";
             csvwritedebugfile << aR[i];
             csvwritedebugfile << ",";
+            // e and H^+
             csvwritedebugfile << PRFe_array[i];
             csvwritedebugfile << ",";
             csvwritedebugfile << PRFHi_array[i];
+            csvwritedebugfile << ",";
+            // H and H2
+            csvwritedebugfile << nH[i];
+            csvwritedebugfile << ",";
+            csvwritedebugfile << nH2[i];
             csvwritedebugfile << "\n";
         }
     csvwritedebugfile.close(); 

@@ -26,15 +26,15 @@ Profiles = np.genfromtxt('/tmp/DensAndTemp.csv', delimiter=',',skip_header=1)
 #--------------------#
 # Machine definition #
 #--------------------#
-gasn = {"H":1e18,"H2":1e19} #moet nog gelezen worden
 r_ = Profiles[1:,0]*1e-2 #in cm
 ne = Profiles[1:,1]*1e6 #in cm^-3
 Te = Profiles[1:,2]
 ni = {"H":Profiles[1:,3]*1e6} #in cm^-3
 Ti = Profiles[1:,4]
+gasn = {"H":Profiles[1:,5]*1e6,"H2":Profiles[1:,6]*1e6} #moet nog gelezen worden
 
 I = 1600 #A
-Power = 6000 #6kW IC
+Power = 5000 #5kW IC
 R0 = 0.780 #major radius
 Ra = 0.260 #minor radius
 
