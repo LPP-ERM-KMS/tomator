@@ -1,5 +1,6 @@
 #include "coupledpower.h"
 #include "../Vars/simparam.h"
+#include "transport.h"
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
@@ -34,9 +35,9 @@ void bTOMASIC_func(const double &freq) {
             csvwritefile << ",";
             csvwritefile << Tr.THi[i];
             // H and H2
-            csvwritefile << nH[i];
+            csvwritefile << nr.nH[i];
             csvwritefile << ",";
-            csvwritefile << nH2[i];
+            csvwritefile << nr.nH2[i];
             csvwritefile << "\n";
         }
     csvwritefile.close(); 
@@ -137,9 +138,9 @@ void bTOMASIC_func(const double &freq) {
             csvwritedebugfile << PRFHi_array[i];
             csvwritedebugfile << ",";
             // H and H2
-            csvwritedebugfile << nH[i];
+            csvwritedebugfile << nr.nH[i];
             csvwritedebugfile << ",";
-            csvwritedebugfile << nH2[i];
+            csvwritedebugfile << nr.nH2[i];
             csvwritedebugfile << "\n";
         }
     csvwritedebugfile.close(); 
