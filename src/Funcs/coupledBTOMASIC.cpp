@@ -18,7 +18,7 @@ void bTOMASIC_func(const double &freq) {
     //## open and initialize in /tmp
     std::ofstream csvwritefile;
     csvwritefile.open("/tmp/DensAndTemp.csv"); 
-    csvwritefile << "Ra,Ne,Te,nHi,THi,nH,nH2,freq";
+    csvwritefile << "Ra,Ne,Te,nHi,THi,nH,nH2,";
     csvwritefile << freq;
     csvwritefile << "\n";
     //## write arrays
@@ -34,6 +34,7 @@ void bTOMASIC_func(const double &freq) {
             csvwritefile << nr.nHi[i];
             csvwritefile << ",";
             csvwritefile << Tr.THi[i];
+            csvwritefile << ",";
             // H and H2
             csvwritefile << nr.nH[i];
             csvwritefile << ",";
