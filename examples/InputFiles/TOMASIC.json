@@ -10,7 +10,7 @@
         "b": 26.0,
         "lHFS": 54.0,
         "lLFS": 104.0,
-        "nlimiters": 1,
+        "nlimiters": 2,
         "Vpl": 1.04081e6
     },
     "neutral_pressure": {
