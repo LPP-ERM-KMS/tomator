@@ -77,11 +77,13 @@ solution.GetSolution()
 P = solution.PowerDeposition2D()
 
 resolution = 301
-angle = np.pi*10/180
-TP = []
+nAngles = 10
+angles = np.pi*np.linspace(10/180,170/180,nAngles)
+TP = np.zeros(resolution)
 R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
-for r in R:
-    TP.append(P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real)
+for angle in angles:
+    for i,r in enumerate(R):
+        TP[i] += (P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real)/nAngles
 PowerScalingFactor = 6000/sum(TP)
 TP = [TP[i]*PowerScalingFactor for i,j in enumerate(TP)]
 R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
