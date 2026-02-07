@@ -8,7 +8,6 @@ from netgen.occ import *
 from ngsolve.webgui import Draw
 import netgen.geom2d as geom2d
 from netgen.geom2d import CSG2d, Circle, Rectangle
-import matplotlib.pyplot as plt
 
 with open('/tmp/DensAndTemp.csv') as f:
     info = str(f.readline().strip('\n'))
@@ -87,17 +86,17 @@ for angle in angles:
 PowerScalingFactor = 6000/sum(TP)
 TP = [TP[i]*PowerScalingFactor for i,j in enumerate(TP)]
 R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
-plt.plot(R,TP,linestyle="dashed",label="total absorbed power")
 
 # Compute ion heating
 TOMASH2 = System({"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn)
 TOMASH2.Epsilon2D(MAXH,temperature="CXD")
 H2diel = TOMASH2.eps
 P = solution.PowerDeposition2D(H2diel)
-angle = np.pi*10/180
-HP = []
-for r in R:
-    HP.append(P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real*PowerScalingFactor)
+HP = np.zeros(resolution)
+R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
+for angle in angles:
+    for i,r in enumerate(R):
+        HP[i] += (P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real)/nAngles
 
 # Compute electron heating
 TOMASe = System({"e":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn)
@@ -105,10 +104,11 @@ TOMASe.Epsilon2D(MAXH,temperature="CXD")
 ediel = TOMASe.eps
 P = solution.PowerDeposition2D(ediel)
 angle = np.pi*10/180
-eP = []
+eP = np.zeros(resolution)
 R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
-for r in R:
-    eP.append(P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real*PowerScalingFactor)
+for angle in angles:
+    for i,r in enumerate(R):
+        eP[i] += (P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real)/nAngles
 
 with open('/tmp/PowerDeposition.csv', 'w', newline='') as csvfile:
     spamwriter = csv.writer(csvfile, delimiter=',')
