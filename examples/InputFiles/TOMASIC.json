@@ -18,7 +18,7 @@
         "pH2": 7.5e-4
     },
     "rf_power": {
-        "Prf": 6.0,
+        "Prf": 5.0,
         "bselfcol": true,
         "freq": 11.44,
         "dtpramp": 0.0000000000001
@@ -84,17 +84,17 @@
     "erm":{},
     "pppl":{},
     "diffusion": {
-        "bDfix": false,
+        "bDfix": true,
         "Dfix": 0.2,
         "bDbohm": false,
-        "bDscaling": true,
+        "bDscaling": false,
         "Dfact": 0.2,
         "bDfix_neutr": false
     },
     "convection": {
-        "bVfix": false,
+        "bVfix": true,
         "Vfix": 4.0,
-        "bVscaling": true,
+        "bVscaling": false,
         "veq": 8,
         "Vfact": 4.0
     },

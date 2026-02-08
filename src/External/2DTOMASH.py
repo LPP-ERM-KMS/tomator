@@ -8,10 +8,12 @@ from netgen.occ import *
 from ngsolve.webgui import Draw
 import netgen.geom2d as geom2d
 from netgen.geom2d import CSG2d, Circle, Rectangle
+import matplotlib.pyplot as plt
 
 with open('/tmp/DensAndTemp.csv') as f:
     info = str(f.readline().strip('\n'))
 freqstr = info.split(",")[-1]
+infostring = info.split(",")
 freq = float(info.split(",")[-1])*1e6
 
 prefix = freqstr+'Mhz'
@@ -25,12 +27,12 @@ Profiles = np.genfromtxt('/tmp/DensAndTemp.csv', delimiter=',',skip_header=1)
 #--------------------#
 # Machine definition #
 #--------------------#
-r_ = Profiles[1:,0]*1e-2 #in cm
-ne = Profiles[1:,1]*1e6 #in cm^-3
-Te = Profiles[1:,2]
-ni = {"H":Profiles[1:,3]*1e6} #in cm^-3
-Ti = Profiles[1:,4]
-gasn = {"H":Profiles[1:,5]*1e6,"H2":Profiles[1:,6]*1e6} #moet nog gelezen worden
+r_ = Profiles[1:,infostring.index("Ra")]*1e-2 #in cm
+ne = Profiles[1:,infostring.index("Ne")]*1e6 #in cm^-3
+Te = Profiles[1:,infostring.index("Te")]
+ni = Profiles[1:,infostring.index("nHi")]*1e6 #in cm^-3
+Ti = Profiles[1:,infostring.index("THi")]
+gasn = {"H":Profiles[1:,infostring.index("nH")]*1e6,"H2":Profiles[1:,infostring.index("nH2")]*1e6} #moet nog gelezen worden
 
 I = 1600 #A
 Power = 5000 #5kW IC
