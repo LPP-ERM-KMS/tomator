@@ -8,7 +8,6 @@ from netgen.occ import *
 from ngsolve.webgui import Draw
 import netgen.geom2d as geom2d
 from netgen.geom2d import CSG2d, Circle, Rectangle
-import matplotlib.pyplot as plt
 
 with open('/tmp/DensAndTemp.csv') as f:
     info = str(f.readline().strip('\n'))
