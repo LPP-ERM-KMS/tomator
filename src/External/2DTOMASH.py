@@ -84,7 +84,7 @@ R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
 for angle in angles:
     for i,r in enumerate(R):
         TP[i] += (P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real)/nAngles
-PowerScalingFactor = 6000/sum(TP)
+PowerScalingFactor = Power/(26*2*sum(TP))
 TP = [TP[i]*PowerScalingFactor for i,j in enumerate(TP)]
 R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
 

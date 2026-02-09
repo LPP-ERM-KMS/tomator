@@ -15,7 +15,7 @@
     },
     "neutral_pressure": {
         "pHe": 1e-10,
-        "pH2": 7.5e-4
+        "pH2": 1e-3
     },
     "rf_power": {
         "Prf": 5.0,
@@ -85,7 +85,7 @@
     "pppl":{},
     "diffusion": {
         "bDfix": true,
-        "Dfix": 0.2,
+        "Dfix": 0.05,
         "bDbohm": false,
         "bDscaling": false,
         "Dfact": 0.2,
@@ -93,7 +93,7 @@
     },
     "convection": {
         "bVfix": true,
-        "Vfix": 4.0,
+        "Vfix": 0.5,
         "bVscaling": false,
         "veq": 8,
         "Vfact": 4.0
@@ -132,10 +132,10 @@
         "nebackgroundl": 1e-1,
         "nebackgroundr": 1e-1,
         "Ta0": 0.02587,
-        "Te0": 1.0,
+        "Te0": 5.0,
         "nevac": 1.0,
         "nH0": 1.0e12,
-        "nHi0": 1.0e10,
+        "nHi0": 2.0e10,
         "nH2i0": 1.0e5,
         "nH3i0": 1.0e1,
         "nHeII0": 1.0e1,
