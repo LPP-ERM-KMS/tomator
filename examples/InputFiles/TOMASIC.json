@@ -20,7 +20,7 @@
     "rf_power": {
         "Prf": 5.0,
         "bselfcol": true,
-        "freq": 11.44,
+        "freq": 11.44e6,
         "dtpramp": 0.0000000000001
     },
     "type": {
@@ -85,7 +85,7 @@
     "pppl":{},
     "diffusion": {
         "bDfix": true,
-        "Dfix": 0.05,
+        "Dfix": 100.0,
         "bDbohm": false,
         "bDscaling": false,
         "Dfact": 0.2,
@@ -93,7 +93,7 @@
     },
     "convection": {
         "bVfix": true,
-        "Vfix": 0.5,
+        "Vfix": 10.0,
         "bVscaling": false,
         "veq": 8,
         "Vfact": 4.0
@@ -170,7 +170,7 @@
     },
     "time_step_for_rf_coupling": {
         "bupdateRFstep": true,
-        "updateRF": 500,
+        "updateRF": 50,
         "dtRF": 1.0e-06,
         "dtRFvar": false,
         "dtRFmax": 5e-04,
