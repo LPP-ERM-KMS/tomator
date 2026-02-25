@@ -175,20 +175,35 @@ void collisions() {
         // Electron collisions with H and Hi (bH)
         /////////////////////
         if (bH) {
-            if (nH2 > 0.0) // Go through this only when Hydrogen is present
+            if (nH > 0.0) // Go through this only when atomic Hydrogen is present
             {
-                // 1.) Reaction 2.1.1-2.1.4b Excitation (H_exc)
-                if (Te > 0.6) {
-                    k = 9.70346e-8 * pow((10.2 / Te), 0.92457) * exp(-10.2 / Te) / (0.01351 + (10.2 / Te)); // ok 17/02/2010
-                    dEe += -k * ne * nH * 10.2;                                                             // ok 17/02/2010
+                // 0.) <sigma v>, obtained by integrating elastic cross section from CCC database (lxcat)
+                   float eH_a0=6.92456e-14;
+                   float eH_a1=3.32699e-13;
+                   float eH_a2=-6.22542e-16;
+                   float eH_b1=1.56481;
+                   float eH_b2=0.253842;
+                   k = (eH_a0+eH_a1*Te+eH_a2*pow(Te,2))/(1+eH_b1*Te+eH_b2*pow(Te,2))
+                   // copy paste from H2 (with H2 -> H), idk how acc this is but better than no 
+                   // transfer
+                   knn = k * ne * nH;
+                   L2 = 4.0 * me * (2.0 * mi) / pow(me + (2.0 * mi), 2.0); // Langevin’s energy loss parameter
+                   dEe += +knn * L2 * (TH - Te);                          // Yoon 2008
+                   dEH2 += +knn * L2 * (Te - TH);                         // corrected? 2016/04/19
+                   nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi)));   // almost no change in momentum for H2
+                   nue += +k * nH;
 
-                    nue += +k * nH;
+                // 1.) Reaction 2.1.1-2.1.4b Excitation (H_exc)
+                if (Te > 10.2) {
+                    k = 9.70346e-8 * pow((10.2 / Te), 0.92457) * exp(-10.2 / Te) / (0.01351 + (10.2 / Te)); // ok 17/02/2010 (This is <sigma v>) for a maxwellian v at Te
+                    dEe += -k * ne * nH * 10.2;  // change in electron energy, every second from ne electrons who collide with nH atomic hydrogen, 10.2 eV gets taken away                                                            // ok 17/02/2010
+                    nue += +k * nH; // Collision freq = <sigma v> n_target
                     if (nue < 0.0) {
                         cout << "nue 1 " << endl;
                     }
                 }
                 // 2.) Reaction 2.1.5-2.1.7 Ionization (H_ion)
-                if (Te > 0.6) {
+                if (Te > 13.6) { 
                     k = 2.91e-8 * pow((13.6 / Te), 0.39) * exp(-13.6 / Te) / (0.232 + 13.6 / Te) * ndamp(nH);
                     knn = k * ne * nH;
                     dnH += -knn;
