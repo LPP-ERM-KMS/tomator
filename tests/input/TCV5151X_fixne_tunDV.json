@@ -83,6 +83,7 @@
     },
     "diffusion": {
         "bDfix": false,
+        "bDfix_neutr": false,
         "Dfix": 3330.0,
         "bDbohm": false,
         "bDscaling": true,
@@ -121,7 +122,8 @@
         "bedge": true,
         "bpol": true,
         "vdrift": true,
-        "bcoll": true
+        "bcoll": true,
+        "bADAS": false
     },
     "initial_conditions": {
         "rmaxini": 91.85,
@@ -148,7 +150,8 @@
         "gEd": 1.6667,
         "gEv": 1.6667,
         "gEdn": 1.6667,
-        "gEe": 1.6667
+        "gEe": 1.6667,
+        "fixBCs": false
     },
     "simulation_grid": {
         "nmeshp": 161

@@ -1,6 +1,6 @@
 {
     "magnetic_field": {
-        "Bt": 0.125,
+        "Bt": 0.0912,
         "Bv": 0.0001,
         "Bh": 0.0001
     },
@@ -14,28 +14,23 @@
         "Vpl": 22400.0
     },
     "neutral_pressure": {
-        "pHe": 1e-08,
-        "pH2": 7.5e-05
+        "pHe": 0,
+        "pH2": 0.0007
     },
     "rf_power": {
-        "Prf": 2.0,
+        "Prf": 5.0,
         "bselfcol": false,
-        "freq": 25.0,
+        "freq": 11.44,
         "dtpramp": 0.0001
     },
     "type": {
-        "bgray": false,
-        "bram": false,
         "bfixpowerfrac": false,
         "bnefix": false,
         "bTOMAS": false,
-        "bTOMASIC": false,
+        "bTOMASIC": true,
         "bproptone": false,
-        "bnopower": false,
-        "bkipt": false,
-        "blhr": true,
-        "bmanuel": false,
-        "bICWC": false
+        "blhr": false,
+        "bmanuel": false
     },
     "general_ec": {
         "Rdep": 78.0,
@@ -45,8 +40,6 @@
         "harmonic": 2.0,
         "muw": 0.01
     },
-    "gray": {},
-    "ram": {},
     "necfix": {
         "ic": 86,
         "necfix": 10584000000000.0,
@@ -66,19 +59,15 @@
     "general_ic": {
         "Rant": 100.0,
         "bantlr": false,
-        "avlr": 0.23,
-        "alphalaw": 0.002,
-        "HtoHD": 1.0
+        "avlr": 0.23
     },
-    "kipt": {},
     "lhr": {
         "fracpne": 1.0,
         "fraclhr": 0.5,
         "widthlhr": 1.5,
-        "lhrbackground": 1e-07
+        "lhrbackground": 1e-07,
+        "HtoHD": 1.0
     },
-    "erm": {},
-    "pppl": {},
     "other": {
         "fixedTe": false
     },
@@ -111,7 +100,7 @@
     "physics_to_include": {
         "bH": true,
         "bH2": true,
-        "bHe": true,
+        "bHe": false,
         "bion": true,
         "bcx": true,
         "belas": true,
@@ -133,11 +122,11 @@
         "Te0": 3.0,
         "nevac": 1.0,
         "nH0": 200000000.0,
-        "nHi0": 5.0e10,
-        "nH2i0": 1000000000.0,
+        "nHi0": 1000000000.0,
+        "nH2i0": 100000000000000000.0,
         "nH3i0": 1000000.0,
-        "nHeII0": 2000000.0,
-        "nHeIII0": 2000000.0,
+        "nHeII0": 10.0,
+        "nHeIII0": 10.0,
         "nCII0": 10.0,
         "nCIII0": 10.0,
         "nCIV0": 10.0,
@@ -152,7 +141,7 @@
         "gEe": 1.6667
     },
     "simulation_grid": {
-        "nmeshp": 161
+        "nmeshp": 301
     },
     "input_file": {
         "bfinput": false

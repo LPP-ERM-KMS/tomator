@@ -39,6 +39,7 @@ double tauP = 0.00005;       // P tuning parameter
 double widthech = a / 15.0;  // width of resonance : R * exp(-pow((R - Rdep) / (widthech, 2.0)); AUG: a / 15.0, TCV: a / 30.0
 double echbackground = 1e-7; //                          + echbackground * R * exp(-pow((R - Rdep) / a, 2.0))
 bool bTOMAS = false;         // Johans bunch
+bool bTOMASIC = false;         // Arthurs
 double harmonic = 2.0;       // number of harmonic frequency
 double muw = 0.01;
 double Rdep1 = 86.1875;

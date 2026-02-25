@@ -6,6 +6,8 @@ file(GLOB_RECURSE EIGEN "Eigen/*.cpp" "Eigen/*.hpp")
 file(GLOB_RECURSE FUNCS "Funcs/*.cpp" "Funcs/*.hpp")
 file(GLOB_RECURSE VARS "Vars/*.cpp" "Vars/*.hpp" "Vars/*.c")
 
+
+#Required
 find_package(OpenMP REQUIRED)
 add_executable(${PROJECT_NAME} Tomator1D.cpp ${EIGEN} ${FUNCS} ${VARS})
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall ${OpenMP_CXX_FLAGS})

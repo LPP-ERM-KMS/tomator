@@ -334,6 +334,11 @@ int extract_type(const char *json) {
         returnv = -1;
     }
 
+    if (!extract_boolean_value(json_object, "bTOMASIC", &bTOMASIC)) {
+        printf("[Warning]: Parameter \"bTOMASIC\" not found on \"type\" \n");
+        returnv = -1;
+    }
+
     if (!extract_boolean_value(json_object, "bnopower", &bnopower)) {
         printf("[Warning]: Parameter \"bnopower\" not found on \"type\" \n");
         returnv = -1;
