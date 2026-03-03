@@ -183,7 +183,7 @@ void collisions() {
                    float eH_a2=-6.22542e-16;
                    float eH_b1=1.56481;
                    float eH_b2=0.253842;
-                   k = (eH_a0+eH_a1*Te+eH_a2*pow(Te,2))/(1+eH_b1*Te+eH_b2*pow(Te,2))
+                   k = (eH_a0+eH_a1*Te+eH_a2*pow(Te,2))/(1+eH_b1*Te+eH_b2*pow(Te,2));
                    // copy paste from H2 (with H2 -> H), idk how acc this is but better than no 
                    // transfer
                    knn = k * ne * nH;

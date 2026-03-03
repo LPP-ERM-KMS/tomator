@@ -1,4 +1,5 @@
 import csv
+import time
 import pickle
 import numpy as np
 from numpy import genfromtxt
@@ -8,20 +9,23 @@ from netgen.occ import *
 from ngsolve.webgui import Draw
 import netgen.geom2d as geom2d
 from netgen.geom2d import CSG2d, Circle, Rectangle
+import logging
 
 with open('/tmp/DensAndTemp.csv') as f:
     info = str(f.readline().strip('\n'))
 freqstr = info.split(",")[-1]
 infostring = info.split(",")
-freq = float(info.split(",")[-1])*1e6
-
-prefix = freqstr+'Mhz'
+freq = float(info.split(",")[-1])
 
 def movingaverage(interval, window_size):
     window = np.ones(int(window_size))/float(window_size)
     return np.convolve(interval, window, 'same')
 
 Profiles = np.genfromtxt('/tmp/DensAndTemp.csv', delimiter=',',skip_header=1)
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(filename='/tmp/pyrfplasma.log', level=logging.INFO)
+logger.info('Started')
 
 #--------------------#
 # Machine definition #
@@ -38,8 +42,9 @@ Power = 5000 #5kW IC
 R0 = 0.780 #major radius
 Ra = 0.260 #minor radius
 
-MAXH=0.01
-order_mesh = 4
+MAXH=0.05
+meshscalefactor=40 #determined through multiple simulations to be minimal with high accuracy
+order_mesh = 2
 
 try: 
     with open('/tmp/mesh.pkl', 'rb') as file:
@@ -61,17 +66,39 @@ except:
     mesh.Curve(5)
     with open('/tmp/mesh.pkl', 'wb') as file:
         pickle.dump(mesh, file)
+    logger.info(f'refining mesh around antenna')
+    for el in mesh.Elements():
+        for v in el.vertices:
+            if (mesh[v].point[0]>0) and (abs(mesh[v].point[1])<0.78):
+                mesh.SetRefinementFlag(el, True)
+            else:
+                mesh.SetRefinementFlag(el, False)
+    mesh.Refine()
+    logger.info(f'refining mesh around antenna')
+    for el in mesh.Elements():
+        for v in el.vertices:
+            if (mesh[v].point[0]>0) and (abs(mesh[v].point[1])<0.3):
+                mesh.SetRefinementFlag(el, True)
+            else:
+                mesh.SetRefinementFlag(el, False)
+    mesh.Refine()
+    toc = time.time()
+    logger.info(f'loading/creating mesh took {toc-tic}s')
 
 #pyRFplasma is my custom library
 from pyRFplasma.system import System 
 from pyRFplasma.solve import Solve
 from pyRFplasma.constants import Constants
 
+tic = time.time()
+logger.info(f'creating dielectric')
 TOMAS = System({"e":1,"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn,orientation="horizontal",ni=ni)
-TOMAS.Epsilon2D(MAXH,temperature="CXD")
+TOMAS.Epsilon2D(MAXH/meshscalefactor,temperature="CXD")
+toc = time.time()
+logger.info(f'creating dielectric took {toc-tic}s')
 
 solution = Solve(TOMAS)
-solution.GetSolution()
+solution.GetSolution(order_mesh=order_mesh)
 
 # Find scaling
 P = solution.PowerDeposition2D()
@@ -89,8 +116,9 @@ TP = [TP[i]*PowerScalingFactor for i,j in enumerate(TP)]
 R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
 
 # Compute ion heating
+tic = time.time()
 TOMASH2 = System({"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn)
-TOMASH2.Epsilon2D(MAXH,temperature="CXD")
+TOMASH2.Epsilon2D(MAXH/meshscalefactor,temperature="CXD")
 H2diel = TOMASH2.eps
 P = solution.PowerDeposition2D(H2diel)
 HP = np.zeros(resolution)
@@ -98,10 +126,13 @@ R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
 for angle in angles:
     for i,r in enumerate(R):
         HP[i] += (P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real)/nAngles
+toc = time.time()
+logger.info(f'ion power deposition calculation total took {toc-tic}s')
 
 # Compute electron heating
+tic = time.time()
 TOMASe = System({"e":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn)
-TOMASe.Epsilon2D(MAXH,temperature="CXD")
+TOMASe.Epsilon2D(MAXH/meshscalefactor,temperature="CXD")
 ediel = TOMASe.eps
 P = solution.PowerDeposition2D(ediel)
 angle = np.pi*10/180
@@ -110,6 +141,8 @@ R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
 for angle in angles:
     for i,r in enumerate(R):
         eP[i] += (P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real)/nAngles
+toc = time.time()
+logger.info(f'electron power deposition calculation total took {toc-tic}s')
 
 with open('/tmp/PowerDeposition.csv', 'w', newline='') as csvfile:
     spamwriter = csv.writer(csvfile, delimiter=',')
