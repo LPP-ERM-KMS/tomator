@@ -172,19 +172,19 @@ some file, here we're assuming meshgrid of 301 and saving to /tmp/result.csv::
 now run gnuplot, set the "," as separator and create a temperature axis as second axis::
     
     set datafile separator ","
-    set y2tics 0.5,0.5
+    set ytics 0.5,0.5
     set ytics nomirror
-    set ytics 5e15,5e15
+    set y2tics 5e15,5e15
 
 here the first argument of ytics is the minimum tic and the second the spacing
 (y2tics being for the second axis), now we may plot everything at once::
 
-    p "res.csv" u 2:($3*1e6) w lines title "ne", "res.csv" u 2:($4/$3) w lines title "Te" axis x1y2
+    p "res2.csv" u (($2-78)*10):($4/$3) w lines title "Te" axis x1y1 linecolor rgb "orange" lw 3, "res2.csv" u (($2-78)*10):($3*1e6) w lines title "ne" axis x1y2 linecolor rgb "red" lw 3
 
 Finally, adding some flair::
 
-    set y2label "temperature [eV]"
-    set ylabel "density [m^{-3}]"
+    set ylabel "temperature [eV]"
+    set y2label "density [m^{-3}]"
     replot
 
 This should yield a nice figure of temperature and density i.f.o radius.
@@ -192,13 +192,17 @@ Some adjustments that are useful to know:
 
 Changing the minimum and maximum of the left and right axis::
     
-    set yrange [1e16:4e16]
-    set y2range [0.5:4.5]
+    set y2range [1e16:4e16]
+    set yrange [0.5:4.5]
 
 Changing font sizes::
 
     set key font "Helvetica,12"
-    set ylabel "density [m^{-3}]" font "Helvetica, 12
+    set y2label "density [m^{-3}]" font "Helvetica, 12
     set tics font "Helvetica,12"
 
-The first changes the legend font, the second the label font and the third the tics font.
+The first changes the legend font, the second the label font and the third the tics font. If there is some spacing issue, 
+remember that you can add to the margin and give the labels an offset::
+
+    set lmargin 17
+    set ylabel "temperature [eV]" font "Helvetica, 14" off -4,0

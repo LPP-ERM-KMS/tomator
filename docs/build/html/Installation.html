@@ -8,14 +8,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Installation &mdash; tomator 1D 1.0.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="_static/documentation_options.js?v=8d563738"></script>
-      <script src="_static/doctools.js?v=9bcbadda"></script>
-      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -31,8 +31,8 @@
 
           
           
-          <a href="index.html">
-            
+          <a href="index.html" class="icon icon-home">
+            tomator 1D
               <img src="_static/logocolor.svg" class="logo" alt="Logo"/>
           </a>
 <div role="search">
@@ -133,6 +133,15 @@ before rebuilding:</p>
 clang, to fix this install llvm using homebrew and export the variables:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>export CC=$(brew --prefix llvm)/bin/clang
 export CXX=$(brew --prefix llvm)/bin/clang++
+</pre></div>
+</div>
+<p>If you receive the error:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>‘std::filesystem’ has not been declared
+</pre></div>
+</div>
+<p>This is due to your system compiling in an older C++ standard than C++17, to force your system to compile in a newer standard (like C++17) add the following to the CMakeLists.txt file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">set</span><span class="p">(</span><span class="n">CMAKE_CXX_STANDARD</span> <span class="mi">17</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="n">CMAKE_CXX_STANDARD_REQUIRED</span> <span class="n">ON</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>

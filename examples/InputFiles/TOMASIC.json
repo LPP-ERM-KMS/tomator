@@ -127,7 +127,7 @@
         "bcoll": true
     },
     "initial_conditions": {
-        "rmaxini": 80.0,
+        "rmaxini": 90.0,
         "widthini": 30.0,
         "nebackgroundl": 1e-1,
         "nebackgroundr": 1e-1,
