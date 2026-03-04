@@ -42,10 +42,11 @@ Power = 5000 #5kW IC
 R0 = 0.780 #major radius
 Ra = 0.260 #minor radius
 
-MAXH=0.05
-meshscalefactor=40 #determined through multiple simulations to be minimal with high accuracy
+MAXH=0.02
+meshscalefactor=20 #determined through multiple simulations to be minimal with high accuracy
 order_mesh = 2
 
+tic = time.time()
 try: 
     with open('/tmp/mesh.pkl', 'rb') as file:
         mesh = pickle.load(file)
@@ -82,8 +83,8 @@ except:
             else:
                 mesh.SetRefinementFlag(el, False)
     mesh.Refine()
-    toc = time.time()
-    logger.info(f'loading/creating mesh took {toc-tic}s')
+toc = time.time()
+logger.info(f'loading/creating mesh took {toc-tic}s')
 
 #pyRFplasma is my custom library
 from pyRFplasma.system import System 
@@ -105,15 +106,14 @@ P = solution.PowerDeposition2D()
 
 resolution = 301
 nAngles = 10
-angles = np.pi*np.linspace(10/180,170/180,nAngles)
+angles = np.pi*np.linspace(19/180,21/180,nAngles) #around LP
 TP = np.zeros(resolution)
-R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
+R = np.linspace(R0-Ra,R0+Ra,resolution)
 for angle in angles:
     for i,r in enumerate(R):
         TP[i] += (P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real)/nAngles
 PowerScalingFactor = (Power*26*2)/(sum(TP)*resolution)
 TP = [TP[i]*PowerScalingFactor for i,j in enumerate(TP)]
-R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
 
 # Compute ion heating
 tic = time.time()
@@ -122,7 +122,6 @@ TOMASH2.Epsilon2D(MAXH/meshscalefactor,temperature="CXD")
 H2diel = TOMASH2.eps
 P = solution.PowerDeposition2D(H2diel)
 HP = np.zeros(resolution)
-R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
 for angle in angles:
     for i,r in enumerate(R):
         HP[i] += (P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real)/nAngles
@@ -137,7 +136,6 @@ ediel = TOMASe.eps
 P = solution.PowerDeposition2D(ediel)
 angle = np.pi*10/180
 eP = np.zeros(resolution)
-R = np.linspace(R0-Ra+0.01,R0+Ra-0.01,resolution)
 for angle in angles:
     for i,r in enumerate(R):
         eP[i] += (P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real)/nAngles
