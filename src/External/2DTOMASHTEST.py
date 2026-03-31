@@ -9,6 +9,7 @@ from netgen.occ import *
 from ngsolve.webgui import Draw
 import netgen.geom2d as geom2d
 from netgen.geom2d import CSG2d, Circle, Rectangle
+import matplotlib.pyplot as plt
 import logging
 
 with open('/tmp/DensAndTemp.csv') as f:
@@ -153,6 +154,10 @@ for angle in angles:
         eP[indices[i]] += (P(mesh(r*np.cos(angle),r*np.sin(angle)))[0].real)/nAngles
 toc = time.time()
 logger.info(f'electron power deposition calculation total took {toc-tic}s')
+plt.plot(R,eP)
+plt.show()
+vtk = VTKOutput(mesh,coefs=[RPtot,IPtot,RPi,RPe],names=["Re(P)","Im(P)","Re(Pi)","Re(Pe)"],filename="outputs/P"+prefix,subdivision=2)
+vtk.Do()
 
 with open('/tmp/PowerDeposition.csv', 'w', newline='') as csvfile:
     spamwriter = csv.writer(csvfile, delimiter=',')
