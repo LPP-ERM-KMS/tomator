@@ -40,7 +40,7 @@ Ti = Profiles[1:,infostring.index("THi")]
 gasn = {"H":Profiles[1:,infostring.index("nH")]*1e6,"H2":Profiles[1:,infostring.index("nH2")]*1e6} #moet nog gelezen worden
 
 I = 1600 #A
-Power = 5000 #5kW IC
+Power = 4000 #5kW IC
 R0 = 0.780 #major radius
 Ra = 0.260 #minor radius
 
@@ -57,11 +57,33 @@ except:
     #        Mesh        #
     #--------------------#
     geo = CSG2d()
+    # Outer and inner
     wall = Circle( center=(0,0), radius=0.26+0.78, mat="Plasma", bc="Wall" )
     hole = Circle( center=(0,0), radius=0.78-0.26, mat="copper", bc="Wall" )
-    antenna = Rectangle( pmin=(0.21+0.78,-0.044), pmax=(0.21+0.78+0.0035,0.044), mat="copper", bc="Antenna" )
-    #NoLeftSide = Rectangle( pmin=(-0.27-0.78,-0.27), pmax=(0,0.27), mat="copper", bc="Wall" )
-    System = wall-hole-antenna#-NoLeftSide
+
+    # Antenna dimensions
+    x0 = 0.21 + 0.78
+    x1 = x0 + 0.0035
+    y0 = -0.044
+    y1 = 0.044
+
+    # --- Split antenna into two parts ---
+
+    # Main body (3 edges = Wall)
+    antenna_body = Rectangle(
+        pmin=(x0+1e-6, y0),
+        pmax=(x1, y1),   # slightly smaller to exclude top edge
+        bc="Wall"
+    )
+
+    # Thin left strip (this creates the "Antenna" boundary)
+    antenna_front = Rectangle(
+        pmin=(x0-1e-6, y0),
+        pmax=(x1-0.001, y1-1e-6),
+        bc="Antenna"
+    )
+
+    System = wall - hole - antenna_body - antenna_front
     geo.Add(System)
 
     with TaskManager():

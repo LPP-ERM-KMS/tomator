@@ -18,7 +18,7 @@
         "pH2": 1e-3
     },
     "rf_power": {
-        "Prf": 5.0,
+        "Prf": 4.0,
         "bselfcol": true,
         "freq": 11.44e6,
         "dtpramp": 0.0000000000001

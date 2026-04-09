@@ -177,77 +177,71 @@ void collisions() {
         if (bH) {
             if (nH > 0.0) // Go through this only when atomic Hydrogen is present
             {
-                // 0.) <sigma v>, obtained by integrating elastic cross section from CCC database (lxcat)
-                   float eH_a0=6.92456e-14;
-                   float eH_a1=3.32699e-13;
-                   float eH_a2=-6.22542e-16;
-                   float eH_b1=1.56481;
-                   float eH_b2=0.253842;
-                   k = (eH_a0+eH_a1*Te+eH_a2*pow(Te,2))/(1+eH_b1*Te+eH_b2*pow(Te,2));
-                   // copy paste from H2 (with H2 -> H), idk how acc this is but better than no 
-                   // transfer
-                   knn = k * ne * nH;
-                   L2 = 4.0 * me * (2.0 * mi) / pow(me + (2.0 * mi), 2.0); // Langevin’s energy loss parameter
-                   dEe += +knn * L2 * (TH - Te);                          // Yoon 2008
-                   dEH2 += +knn * L2 * (Te - TH);                         // corrected? 2016/04/19
-                   nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi)));   // almost no change in momentum for H2
-                   nue += +k * nH;
+               // 0.) <sigma v>, obtained by integrating elastic cross section from CCC database (lxcat)
+               float eH_a0=6.92456e-14;
+               float eH_a1=3.32699e-13;
+               float eH_a2=-6.22542e-16;
+               float eH_b1=1.56481;
+               float eH_b2=0.253842;
+               k = (eH_a0+eH_a1*Te+eH_a2*pow(Te,2))/(1+eH_b1*Te+eH_b2*pow(Te,2));
+               // copy paste from H2 (with H2 -> H), idk how acc this is but better than no 
+               // transfer
+               knn = k * ne * nH;
+               L2 = 4.0 * me * (2.0 * mi) / pow(me + (2.0 * mi), 2.0); // Langevin’s energy loss parameter
+               dEe += +knn * L2 * (TH - Te);                          // Yoon 2008
+               dEH2 += +knn * L2 * (Te - TH);                         // corrected? 2016/04/19
+               nuH2 += +k * ne * sqrt((2 * me) / (me + (2.0 * mi)));   // almost no change in momentum for H2
+               nue += +k * nH;
 
                 // 1.) Reaction 2.1.1-2.1.4b Excitation (H_exc)
-                if (Te > 10.2) {
-                    k = 9.70346e-8 * pow((10.2 / Te), 0.92457) * exp(-10.2 / Te) / (0.01351 + (10.2 / Te)); // ok 17/02/2010 (This is <sigma v>) for a maxwellian v at Te
-                    dEe += -k * ne * nH * 10.2;  // change in electron energy, every second from ne electrons who collide with nH atomic hydrogen, 10.2 eV gets taken away                                                            // ok 17/02/2010
-                    nue += +k * nH; // Collision freq = <sigma v> n_target
-                    if (nue < 0.0) {
-                        cout << "nue 1 " << endl;
-                    }
+                k = 9.70346e-8 * pow((10.2 / Te), 0.92457) * exp(-10.2 / Te) / (0.01351 + (10.2 / Te)); // ok 17/02/2010 (This is <sigma v>) for a maxwellian v at Te
+                dEe += -k * ne * nH * 10.2;  // change in electron energy, every second from ne electrons who collide with nH atomic hydrogen, 10.2 eV gets taken away                                                            // ok 17/02/2010
+                nue += +k * nH; // Collision freq = <sigma v> n_target
+                if (nue < 0.0) {
+                    cout << "nue 1 " << endl;
                 }
                 // 2.) Reaction 2.1.5-2.1.7 Ionization (H_ion)
-                if (Te > 13.6) { 
-                    k = 2.91e-8 * pow((13.6 / Te), 0.39) * exp(-13.6 / Te) / (0.232 + 13.6 / Te) * ndamp(nH);
-                    knn = k * ne * nH;
-                    dnH += -knn;
-                    dnHi += +knn;
-                    dne += +knn;
+                k = 2.91e-8 * pow((13.6 / Te), 0.39) * exp(-13.6 / Te) / (0.232 + 13.6 / Te) * ndamp(nH);
+                knn = k * ne * nH;
+                dnH += -knn;
+                dnHi += +knn;
+                dne += +knn;
 
-                    dEH += -knn * TH;
-                    dEHi += +knn * TH;
-                    dEe += -knn * 13.6;
+                dEH += -knn * TH;
+                dEHi += +knn * TH;
+                dEe += -knn * 13.6;
 
-                    nuH += +k * ne;
-                    nue += +k * nH; // if(nue < 0.0)     {cout << "nue 2 " << endl;}
-                    // 3 body recombination           [170.8160 = 4.0*3.14*13.6]
-                    k = 1.4804e-25 * pow((170.8160 / Te), 1.5) * exp(13.6 / Te) * k * ndamp(nHi);
-                    knn = k * ne * ne * nHi;
-                    dnHi += -knn;
-                    dnH += +knn;
-                    dne += -knn;
+                nuH += +k * ne;
+                nue += +k * nH; // if(nue < 0.0)     {cout << "nue 2 " << endl;}
+                // 3 body recombination           [170.8160 = 4.0*3.14*13.6]
+                k = 1.4804e-25 * pow((170.8160 / Te), 1.5) * exp(13.6 / Te) * k * ndamp(nHi);
+                knn = k * ne * ne * nHi;
+                dnHi += -knn;
+                dnH += +knn;
+                dne += -knn;
 
-                    dEHi += -knn * THi;
-                    dEH += +knn * THi;
-                    dEe += +knn * (13.6 - Te / 3.0);
+                dEHi += -knn * THi;
+                dEH += +knn * THi;
+                dEe += +knn * (13.6 - Te / 3.0);
 
-                    nuHi += +k * ne * ne;
-                    nue += +k * ne * nHi; // if(nue < 0.0)     {cout << "nue 3 " << endl;}
-                }
+                nuHi += +k * ne * ne;
+                nue += +k * ne * nHi; // if(nue < 0.0)     {cout << "nue 3 " << endl;}
                 // Reaction 2.1.8a Radiative recombination (H_rec)
-                if (Te < 1000.0) {
-                    k = 7.982e-11 / (sqrt(Te / 2.713e-4) * pow((1 + sqrt(Te / 2.713e-4)), (1.0 - 0.7480)) * pow((1 + sqrt(Te / 60.631)), (1.0 + 0.7480))) * ndamp(nHi);
-                    knn = k * ne * nHi;
-                    // k += 7.1e-20 * pow(Te/20,-15/3); // added 20/02/2014, estimated correction
-                    dnHi += -knn;
-                    dne += -knn;
-                    dnH += +knn;
+                k = 7.982e-11 / (sqrt(Te / 2.713e-4) * pow((1 + sqrt(Te / 2.713e-4)), (1.0 - 0.7480)) * pow((1 + sqrt(Te / 60.631)), (1.0 + 0.7480))) * ndamp(nHi);
+                knn = k * ne * nHi;
+                // k += 7.1e-20 * pow(Te/20,-15/3); // added 20/02/2014, estimated correction
+                dnHi += -knn;
+                dne += -knn;
+                dnH += +knn;
 
-                    dEHi += -knn * THi;
-                    dEH += +knn * THi;
-                    // dEe    +=   - knn*Te/3.0; //CHECK diff with realTe
-                    dEe += -knn * Te * 0.667 * (3.0 / 2.0 + // 20220530 hydhel -. Te * (3/2 + dln(k)/dnl(Te)) which is approximately Te for Te<10
-                                                (log(k) - log(7.982e-11 / (sqrt(Te * 0.99 / 2.713e-4) * pow((1 + sqrt(Te * 0.99 / 2.713e-4)), (1.0 - 0.7480)) * pow((1 + sqrt(Te * 0.99 / 60.631)), (1.0 + 0.7480))) * ndamp(nHi))) / (log(Te) - log(0.99 * Te)));
-                    nue += +k * nHi;
-                    if (nue < 0.0) {
-                        cout << "nue 4 " << endl;
-                    }
+                dEHi += -knn * THi;
+                dEH += +knn * THi;
+                // dEe    +=   - knn*Te/3.0; //CHECK diff with realTe
+                dEe += -knn * Te * 0.667 * (3.0 / 2.0 + // 20220530 hydhel -. Te * (3/2 + dln(k)/dnl(Te)) which is approximately Te for Te<10
+                                            (log(k) - log(7.982e-11 / (sqrt(Te * 0.99 / 2.713e-4) * pow((1 + sqrt(Te * 0.99 / 2.713e-4)), (1.0 - 0.7480)) * pow((1 + sqrt(Te * 0.99 / 60.631)), (1.0 + 0.7480))) * ndamp(nHi))) / (log(Te) - log(0.99 * Te)));
+                nue += +k * nHi;
+                if (nue < 0.0) {
+                    cout << "nue 4 " << endl;
                 }
             }
         }
