@@ -812,6 +812,9 @@ void timeStep() {
 
         if (isnan(nr.ne[0])) {
             cout << "\033[1;31m[ERROR] The electron density is nan\033[0m\n";
+            cout << drval << "\n";
+            cout << drval2 << "\n";
+            cout << drval3 << "\n";
             tmain = tmainend;
         }
     }

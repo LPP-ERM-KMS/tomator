@@ -45,7 +45,7 @@ void bTOMASIC_func(const double &freq) {
     //# Execute ngsolve sim and read result
     //## Form command
     std::string BaseFolder = std::getenv("TOMATORSOURCE");
-    std::string ScriptPosAdd = "/src/External/2DTOMASH.py";
+    std::string ScriptPosAdd = "/src/External/1DTOMAS.py";
     std::string ScriptPos = BaseFolder + ScriptPosAdd;
     std::string command = "python ";
     command += ScriptPos;
