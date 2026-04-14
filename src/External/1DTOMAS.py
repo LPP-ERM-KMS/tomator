@@ -57,7 +57,10 @@ maxn = 5
 neutral_temperature = 55
 mode_numbers = [i for i in range(maxn)]
 R = np.linspace(R0-Ra,R0+Rant,int(2*Ra/MAXH))
-R_ = np.linspace(R0-Ra,R0+Rant,resolution)
+R_ = np.linspace(R0-Ra,R0+Ra,resolution)
+# split at antenna
+#R1 = R_[R_ <= R0+Rant]
+#R2 = R_[R_ >= R0+Rant]
 
 try: 
     with open('/tmp/1Dmesh.pickle', 'rb') as file:
@@ -129,7 +132,10 @@ for i,mode_number in enumerate(mode_numbers):
 Ptot = solution.PowerDeposition1D()
 TP = np.zeros(len(R_))
 for i,r in enumerate(R_):
-   TP[i] = Ptot(mesh(r))[0].real
+    if r < R0+Rant:
+        TP[i] = Ptot(mesh(r))[0].real
+    else:
+        TP[i] = 0
 TP = [tp if tp>= 0 else 0 for tp in TP]
 
 PowerScalingFactor = (Power*26*2)/(sum(TP)*resolution)
@@ -138,7 +144,10 @@ TOMASe.Epsilon1D(MAXH/meshscale,temperature=TEMP)
 Pe = solution.PowerDeposition1D(TOMASe.eps)
 eP = np.zeros(len(R_))
 for i,r in enumerate(R_):
-   eP[i] = Pe(mesh(r))[0].real*PowerScalingFactor
+    if r < R0+Rant:
+        eP[i] = Pe(mesh(r))[0].real*PowerScalingFactor
+    else:
+        eP[i] = 0
 eP = [ep if ep>= 0 else 0 for ep in eP]
 
 TOMASi = System({"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn,neutral_temperature=neutral_temperature)
@@ -146,7 +155,10 @@ TOMASi.Epsilon1D(MAXH/meshscale,temperature=TEMP)
 Pi = solution.PowerDeposition1D(TOMASi.eps)
 HP = np.zeros(len(R_))
 for i,r in enumerate(R_):
-   HP[i] = Pi(mesh(r))[0].real*PowerScalingFactor
+    if r < R0+Rant:
+        HP[i] = Pi(mesh(r))[0].real*PowerScalingFactor
+    else:
+        HP[i] = 0
 HP = [hp if hp>= 0 else 0 for hp in HP]
 
 with open('/tmp/PowerDeposition.csv', 'w', newline='') as csvfile:
