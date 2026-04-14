@@ -18,7 +18,7 @@
         "pH2": 1e-3
     },
     "rf_power": {
-        "Prf": 2.0,
+        "Prf": 5.0,
         "bselfcol": true,
         "freq": 40e6,
         "dtpramp": 0.0000000000001
@@ -85,7 +85,7 @@
     "pppl":{},
     "diffusion": {
         "bDfix": true,
-        "Dfix": 30000.0,
+        "Dfix": 3,
         "bDbohm": false,
         "bDscaling": false,
         "Dfact": 0.2,
@@ -93,7 +93,7 @@
     },
     "convection": {
         "bVfix": true,
-        "Vfix": 20000.0,
+        "Vfix": 2,
         "bVscaling": false,
         "veq": 8,
         "Vfact": 4.0
@@ -101,14 +101,14 @@
     "tune_d_and_v": {
         "btunedv": false,
         "btunevleft": false,
-        "il": 150,
-        "nelfix": 3e10,
-        "ir": 211,
-        "nerfix": 5e10,
-        "Vini": 5.0,
-        "tauV": 0.005,
-        "Dini": 1.0,
-        "tauD": 0.0005
+        "il": 85,
+        "nelfix": 1e10,
+        "ir": 437,
+        "nerfix": 4.5e10,
+        "Vini": 2e4,
+        "tauV": 1e3,
+        "Dini": 3e4,
+        "tauD": 1e3
     },
     "physics_to_include": {
         "bH": true,

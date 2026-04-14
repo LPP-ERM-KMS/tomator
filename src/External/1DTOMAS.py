@@ -130,6 +130,8 @@ Ptot = solution.PowerDeposition1D()
 TP = np.zeros(len(R_))
 for i,r in enumerate(R_):
    TP[i] = Ptot(mesh(r))[0].real
+TP = [tp if tp>= 0 else 0 for tp in TP]
+
 PowerScalingFactor = (Power*26*2)/(sum(TP)*resolution)
 TOMASe = System({"e":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn,neutral_temperature=neutral_temperature)
 TOMASe.Epsilon1D(MAXH/meshscale,temperature=TEMP)
@@ -137,6 +139,7 @@ Pe = solution.PowerDeposition1D(TOMASe.eps)
 eP = np.zeros(len(R_))
 for i,r in enumerate(R_):
    eP[i] = Pe(mesh(r))[0].real*PowerScalingFactor
+eP = [ep if ep>= 0 else 0 for ep in eP]
 
 TOMASi = System({"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn,neutral_temperature=neutral_temperature)
 TOMASi.Epsilon1D(MAXH/meshscale,temperature=TEMP)
@@ -144,6 +147,7 @@ Pi = solution.PowerDeposition1D(TOMASi.eps)
 HP = np.zeros(len(R_))
 for i,r in enumerate(R_):
    HP[i] = Pi(mesh(r))[0].real*PowerScalingFactor
+HP = [hp if hp>= 0 else 0 for hp in HP]
 
 with open('/tmp/PowerDeposition.csv', 'w', newline='') as csvfile:
     spamwriter = csv.writer(csvfile, delimiter=',')
