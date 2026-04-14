@@ -155,7 +155,7 @@
         "fixBCs": false
     },
     "simulation_grid": {
-        "nmeshp": 501
+        "nmeshp": 1001
     },
     "input_file": {
         "bfinput": false
