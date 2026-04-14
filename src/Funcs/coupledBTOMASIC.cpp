@@ -20,6 +20,8 @@ void bTOMASIC_func(const double &freq) {
     csvwritefile.open("/tmp/DensAndTemp.csv"); 
     csvwritefile << "Ra,Ne,Te,nHi,THi,nH,nH2,";
     csvwritefile << freq;
+    csvwritefile << ",";
+    csvwritefile << Prf;
     csvwritefile << "\n";
     //## write arrays
     for (int i=0; i<NMESHP; i++)

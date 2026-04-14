@@ -11,9 +11,9 @@ import logging
 
 with open('/tmp/DensAndTemp.csv') as f:
     info = str(f.readline().strip('\n'))
-freqstr = info.split(",")[-1]
 infostring = info.split(",")
-freq = float(info.split(",")[-1])
+freq = float(info.split(",")[-2])
+Power = float(info.split(",")[-1])*1e3
 
 def movingaverage(interval, window_size):
     window = np.ones(int(window_size))/float(window_size)
@@ -46,7 +46,6 @@ logger.info('Started')
 tic = time.time()
 
 I = 1600 #A
-Power = 2000 #6kW IC
 R0 = 0.780 #major radius
 Ra = 0.260 #minor radius
 Rant = 0.210 #antenna
