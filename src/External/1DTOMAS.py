@@ -25,8 +25,6 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(filename='/tmp/pyrfplasma.log', level=logging.INFO)
 logger.info('Started')
 
-prefix = "TOMATORTEST"
-
 #--------------------#
 # Machine definition #
 #--------------------#
@@ -103,9 +101,15 @@ except:
 
     #%% Meshing
     mesh = ngs.Mesh(unit_cell)
+    meshw = open('/tmp/1Dmesh.pickle', 'wb')
+    pickle.dump(mesh,meshw)
+
+
 
 toc = time.time()
 logger.info(f'loading/creating mesh took {toc-tic}s')
+
+tic = time.time()
 
 from pyRFplasma.system import System
 from pyRFplasma.solve import Solve
@@ -114,6 +118,11 @@ from pyRFplasma.constants import Constants
 
 TOMAS = System({"e":1,"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn,neutral_temperature=neutral_temperature,mode_numbers=maxn)
 TOMAS.Epsilon1D(MAXH/meshscale,temperature=TEMP)
+
+toc = time.time()
+logger.info(f'Creating dielectric took {toc-tic}s')
+
+tic = time.time()
 
 for i,mode_number in enumerate(mode_numbers):
     solution = Solve(TOMAS)
@@ -129,16 +138,24 @@ for i,mode_number in enumerate(mode_numbers):
         Ey += gfy(mesh(R))
         Ez += gfz(mesh(R))
 
+toc = time.time()
+logger.info(f'Computing electric fields took {toc-tic}s')
+
+tic = time.time()
+
 Ptot = solution.PowerDeposition1D()
 TP = np.zeros(len(R_))
 for i,r in enumerate(R_):
     if r < R0+Rant:
         TP[i] = Ptot(mesh(r))[0].real
     else:
-        TP[i] = 0
+        TP[i] = 1e-12 #not zero for stability reasons
 TP = [tp if tp>= 0 else 0 for tp in TP]
 
-PowerScalingFactor = (Power*26*2)/(sum(TP)*resolution)
+toc = time.time()
+logger.info(f'Computing power deposition took {toc-tic}s')
+
+PowerScalingFactor = (Power)/(sum(TP)) #Watt per meshpoint
 TOMASe = System({"e":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn,neutral_temperature=neutral_temperature)
 TOMASe.Epsilon1D(MAXH/meshscale,temperature=TEMP)
 Pe = solution.PowerDeposition1D(TOMASe.eps)
@@ -147,7 +164,7 @@ for i,r in enumerate(R_):
     if r < R0+Rant:
         eP[i] = Pe(mesh(r))[0].real*PowerScalingFactor
     else:
-        eP[i] = 0
+        eP[i] = 1e-12
 eP = [ep if ep>= 0 else 0 for ep in eP]
 
 TOMASi = System({"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn,neutral_temperature=neutral_temperature)
@@ -158,7 +175,7 @@ for i,r in enumerate(R_):
     if r < R0+Rant:
         HP[i] = Pi(mesh(r))[0].real*PowerScalingFactor
     else:
-        HP[i] = 0
+        HP[i] = 1e-12
 HP = [hp if hp>= 0 else 0 for hp in HP]
 
 with open('/tmp/PowerDeposition.csv', 'w', newline='') as csvfile:

@@ -111,13 +111,14 @@ void bTOMASIC_func(const double &freq) {
     double b = 26.0;
     #pragma omp parallel for
     for (int i = 0; i < NMESHP-1; ++i) {
+	double FlatArea = pi*(pow(aR[i+1],2.0)-pow(aR[i],2.0));
         if ((78.0-24.0<aR[i]) && (aR[i]<78.0+24.0)) {
             CutCircleHeight = 2.0*b*sqrt(1.0-pow((aR[i]-78.0)/b,2.0));
         }
         else{
             CutCircleHeight = 2.0*b*sqrt(1.0-pow((26.0-1.0)/b,2.0));
         }
-        ScaleFactor[i] = 6.241509074461e18/(CutCircleHeight); //W per meshpoint to eV/cm^3s
+        ScaleFactor[i] = 6.241509074461e18/(CutCircleHeight*FlatArea); //W per meshpoint to eV/cm^3s
     }
     for (int id = 0; id < NMESHP; ++id) {
         PRFe_array[id] = ScaleFactor[id]*result.at(0).second[id];  //(eV/cm^3s)

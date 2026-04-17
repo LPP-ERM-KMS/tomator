@@ -18,10 +18,10 @@
         "pH2": 1e-3
     },
     "rf_power": {
-        "Prf": 5.0,
+        "Prf": 3.0,
         "bselfcol": true,
         "freq": 40e6,
-        "dtpramp": 0.0000000000001
+        "dtpramp": 1e-10
     },
     "type": {
         "bfixpowerfrac": false,
@@ -85,8 +85,8 @@
     "pppl":{},
     "diffusion": {
         "bDfix": true,
-        "Dfix": 3,
-        "bDbohm": false,
+        "Dfix": 30,
+        "bDbohm": true,
         "bDscaling": false,
         "Dfact": 0.2,
         "bDfix_neutr": false
@@ -171,11 +171,11 @@
     "time_step_for_rf_coupling": {
         "bupdateRFstep": false,
         "updateRF": 30,
-        "dtRF": 1.0e-06,
+        "dtRF": 1.0e-07,
         "dtRFvar": true,
-        "dtRFmax": 5e-04,
+        "dtRFmax": 1e-06,
         "dtRFmin": 1e-08,
-        "dtRFconv": false
+        "dtRFconv": true
     },
     "advanced_time_step_settings": {
         "dtsmooth": true,
