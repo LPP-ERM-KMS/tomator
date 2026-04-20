@@ -43,7 +43,7 @@ void timeStep() {
 
         drval = 0.0;
         drmax = 0.0;
-	#pragma omp parallel for
+	    #pragma omp parallel for
         for (int im = 0; im < NMESHP; ++im) { // The change of a state cannot be larger than accur
             drval = (dnr_cn.dne[im]) / max(nr.ne[im],1e-20);
             if (abs(drmax) < abs(drval)) {

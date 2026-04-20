@@ -52,7 +52,6 @@ void bTOMASIC_func(const double &freq) {
     std::string command = "python ";
     command += ScriptPos;
     //## Execution (also waits for the process to complete)
-    cout << "Executing python" << endl;
     system(command.c_str());
     //## read result
     //### Create a vector of <string, double vector> pairs to store the result
@@ -111,7 +110,7 @@ void bTOMASIC_func(const double &freq) {
     double b = 26.0;
     #pragma omp parallel for
     for (int i = 0; i < NMESHP-1; ++i) {
-	double FlatArea = pi*(pow(aR[i+1],2.0)-pow(aR[i],2.0));
+	    double FlatArea = pi*(pow(aR[i+1],2.0)-pow(aR[i],2.0));
         if ((78.0-24.0<aR[i]) && (aR[i]<78.0+24.0)) {
             CutCircleHeight = 2.0*b*sqrt(1.0-pow((aR[i]-78.0)/b,2.0));
         }

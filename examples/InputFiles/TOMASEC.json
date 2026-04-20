@@ -18,16 +18,16 @@
         "pH2": 1e-3
     },
     "rf_power": {
-        "Prf": 1.0,
+        "Prf": 2.0,
         "bselfcol": true,
-        "freq": 11.44e6,
+        "freq": 2.45e9,
         "dtpramp": 1e-12
     },
     "type": {
         "bfixpowerfrac": false,
         "bnefix": false,
-        "bTOMAS": false,
-        "bTOMASIC": true,
+        "bTOMAS": true,
+        "bTOMASIC": false,
         "bproptone": false,
         "blhr": false,
         "bmanuel": false,
@@ -85,7 +85,7 @@
     "pppl":{},
     "diffusion": {
         "bDfix": true,
-        "Dfix": 30000,
+        "Dfix": 3000,
         "bDbohm": false,
         "bDscaling": false,
         "Dfact": 0.2,
@@ -166,7 +166,7 @@
         "t0": 0.0,
         "tmainend": 0.1,
         "accur": 0.05,
-        "dtmax": 2e-07,
+        "dtmax": 2e-08,
         "dtmin": 2.5e-10,
         "dtinit": 2.5e-09
     },

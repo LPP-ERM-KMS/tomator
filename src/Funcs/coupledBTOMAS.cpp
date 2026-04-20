@@ -202,7 +202,7 @@ void bTOMAS_func() {
 
     // cout << "Rdep= " << Rdepvar << endl;
 
-    // #pragma omp parallel for
+    #pragma omp parallel for
     for (int id = 0; id < NMESHP; ++id) { // line integrated density
         //    eprof[id] = PRdep1*aR[id]*pow(1+pow((aR[id]-Rdep1)/(pow(2.0*a/100.0,0.5)*0.5),2.0),-(0.5+1.0)); // 20181016
         //	eprof[id] = PRdep1*(nemax*Temax/2.5e10)*aR[id]*pow(1.0+pow((aR[id]-Rdep1)/(pow(2.0*a/100.0,0.5)*0.5),2.0),-(0.5+1.0));
@@ -218,7 +218,7 @@ void bTOMAS_func() {
         inteprof2 += 2.0 * b * pi * 0.5 * (eprof2[id] + eprof2[id + 1]) * (pow(aR[id + 1], 2.0) - pow(aR[id], 2.0)); // 20181016
         inteprof3 += 2.0 * b * pi * 0.5 * (eprof3[id] + eprof3[id + 1]) * (pow(aR[id + 1], 2.0) - pow(aR[id], 2.0)); // 20181016
     }
-    // #pragma omp parallel for
+    #pragma omp parallel for
     for (int id = 0; id < NMESHP; ++id) { // line integrated density
         eprof1[id] = eprof1[id] / inteprof1;
         eprof2[id] = eprof2[id] / inteprof2;
@@ -226,7 +226,7 @@ void bTOMAS_func() {
 
         // cout << id << "  " << eprof[id]*(pow(aR[NMESHP-1],2.0)-pow(aR[0],2.0))/(pow(aR[id+1],2.0)-pow(aR[id],2.0)) << endl;
     }
-    // #pragma omp parallel for
+    #pragma omp parallel for
     for (int id = 0; id < NMESHP; ++id) {
         // PRFe[id] =  6.24e18 * (PRdep1*Pabs*eprof1[id]+ PRdep2*eprof2[id] +PRdep3*eprof3[id] ) *(Prf*1e3);  // 20181016
 

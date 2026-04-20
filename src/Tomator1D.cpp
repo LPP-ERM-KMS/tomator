@@ -55,10 +55,16 @@ int main(int argc, char *argv[]) {
 
     printf("Start time: %s\n", timestamp);
 
-    omp_set_dynamic(1);
+    omp_set_dynamic(0);
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            std::cout << "Running on " << omp_get_num_threads() << " threads" << std::endl;
+        }
+    }
     // #pragma omp parallel num_threads(ISCAN)
     {
-
         ofstream outFile;
         string fullfilename = sOutputfolder;
 
@@ -142,11 +148,6 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             Tr.THeII[im] = Er.EHeII[im] / (ENERGY_FACTOR * nr.nHeII[im]);
             Tr.THeIII[im] = Er.EHeIII[im] / (ENERGY_FACTOR * nr.nHeIII[im]);
             // cout << im << " " << Tr.Te[im] << endl;
-        }
-
-        // Reset dnr, dEr and colrate
-        #pragma omp parallel for
-        for (int im = 0; im < NMESHP; ++im) {
             dnr.dne[im] = dnr.dnH[im] = dnr.dnH2[im] = dnr.dnHi[im] = dnr.dnH2i[im] = dnr.dnH3i[im] = 0.0;
             dnr.dnHeI[im] = dnr.dnHeII[im] = dnr.dnHeIII[im] = 0.0;
             dnr.dnCI[im] = dnr.dnCII[im] = dnr.dnCIII[im] = dnr.dnCIV[im] = dnr.dnCV[im] = 0.0;
