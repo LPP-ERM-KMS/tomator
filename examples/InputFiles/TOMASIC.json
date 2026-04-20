@@ -18,9 +18,9 @@
         "pH2": 1e-3
     },
     "rf_power": {
-        "Prf": 3.0,
+        "Prf": 2.0,
         "bselfcol": true,
-        "freq": 40e6,
+        "freq": 11.44e6,
         "dtpramp": 1e-10
     },
     "type": {
@@ -85,15 +85,15 @@
     "pppl":{},
     "diffusion": {
         "bDfix": true,
-        "Dfix": 30,
-        "bDbohm": true,
+        "Dfix": 3000,
+        "bDbohm": false,
         "bDscaling": false,
         "Dfact": 0.2,
         "bDfix_neutr": false
     },
     "convection": {
         "bVfix": true,
-        "Vfix": 2,
+        "Vfix": 200,
         "bVscaling": false,
         "veq": 8,
         "Vfact": 4.0
@@ -118,10 +118,10 @@
         "bcx": true,
         "belas": true,
         "bcoulomb": true,
-        "bimpur": false,
+        "bimpur": true,
         "btranspions": true,
         "btranspneut": true,
-        "bedge": false,
+        "bedge": true,
         "bpol": false,
         "vdrift": true,
         "bcoll": true
@@ -148,11 +148,13 @@
     "edge_conditions": {
         "RH": 0.5,
         "REH": 0.9,
-        "gEd": 1.0,
+        "gEd": 2.0,
         "gEv": 1.0,
         "gEdn": 3.0,
-        "gEe": 1.0,
-        "fixBCs": false
+        "gEe": 3.0,
+        "fixBCs": false,
+        lam_dec_length_ions: 1.0,
+        lam_dec_length_energy: 1.0
     },
     "simulation_grid": {
         "nmeshp": 1001
@@ -169,13 +171,13 @@
         "dtinit": 2.5e-07
     },
     "time_step_for_rf_coupling": {
-        "bupdateRFstep": false,
-        "updateRF": 30,
+        "bupdateRFstep": true,
+        "updateRF": 10,
         "dtRF": 1.0e-07,
-        "dtRFvar": true,
+        "dtRFvar": false,
         "dtRFmax": 1e-06,
         "dtRFmin": 1e-08,
-        "dtRFconv": true
+        "dtRFconv": false
     },
     "advanced_time_step_settings": {
         "dtsmooth": true,

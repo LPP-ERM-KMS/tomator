@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.13.0)
-set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "-O3 -fopenmp -Wall -Wextra")
 project (Tomator1D)
 
 file(GLOB_RECURSE EIGEN "Eigen/*.cpp" "Eigen/*.hpp")

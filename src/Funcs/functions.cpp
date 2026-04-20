@@ -470,7 +470,7 @@ void limiters() {
 	    #ifdef debug
 	    	cout << "H+ losses = " << -nr.nHeII[im]/Tauion << " [1/s]" << endl;
 	    	cout << "EH+ losses = " << -Er.EHeII[im]/(Tauion/gEe) << " [J/s]" << endl;
-		cout << "e- losses = " << -Z*nr.nHeII[im]/Tauion << " [1/s]" << endl;
+		    cout << "e- losses = " << -Z*nr.nHeII[im]/Tauion << " [1/s]" << endl;
 	    	cout << "Ee- losses = " << -Z*nr.nHeII[im]/(Tauion/gEe)*Tr.Te[im]*3.0/2.0 << " [J/s]" << endl;
 	    	cout << "H2 gain = " << nr.nHeII[im]/Tauion << " [1/s]" << endl;
 	    	cout << "EH2 gain = " << nr.nHeII[im]/Tauion*3.0/2.0*Ta0 << " [J/s]" << endl;
