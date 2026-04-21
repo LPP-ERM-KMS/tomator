@@ -138,15 +138,16 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
         for (int im = 0; im < NMESHP; ++im) {
             // if (im == cc)
             //     cout << "BEFORE Te " << Tr.Te[im] << " Ee = " << Er.Ee[im] << endl;
-            Tr.Te[im] = Er.Ee[im] / (ENERGY_FACTOR * nr.ne[im]);
-            Tr.TH[im] = Er.EH[im] / (ENERGY_FACTOR * nr.nH[im]);
-            Tr.TH2[im] = Er.EH2[im] / (ENERGY_FACTOR * nr.nH2[im]);
-            Tr.THi[im] = Er.EHi[im] / (ENERGY_FACTOR * nr.nHi[im]);
-            Tr.TH2i[im] = Er.EH2i[im] / (ENERGY_FACTOR * nr.nH2i[im]);
-            Tr.TH3i[im] = Er.EH3i[im] / (ENERGY_FACTOR * nr.nH3i[im]);
-            Tr.THeI[im] = Er.EHeI[im] / (ENERGY_FACTOR * nr.nHeI[im]);
-            Tr.THeII[im] = Er.EHeII[im] / (ENERGY_FACTOR * nr.nHeII[im]);
-            Tr.THeIII[im] = Er.EHeIII[im] / (ENERGY_FACTOR * nr.nHeIII[im]);
+            const double invEF = 1.0/ENERGY_FACTOR;
+            Tr.Te[im]     = Er.Ee[im]     * invEF / (nr.ne[im]);
+            Tr.TH[im]     = Er.EH[im]     * invEF / (nr.nH[im]);
+            Tr.TH2[im]    = Er.EH2[im]    * invEF / (nr.nH2[im]);
+            Tr.THi[im]    = Er.EHi[im]    * invEF / (nr.nHi[im]);
+            Tr.TH2i[im]   = Er.EH2i[im]   * invEF / (nr.nH2i[im]);
+            Tr.TH3i[im]   = Er.EH3i[im]   * invEF / (nr.nH3i[im]);
+            Tr.THeI[im]   = Er.EHeI[im]   * invEF / (nr.nHeI[im]);
+            Tr.THeII[im]  = Er.EHeII[im]  * invEF / (nr.nHeII[im]);
+            Tr.THeIII[im] = Er.EHeIII[im] * invEF / (nr.nHeIII[im]);
             // cout << im << " " << Tr.Te[im] << endl;
             dnr.dne[im] = dnr.dnH[im] = dnr.dnH2[im] = dnr.dnHi[im] = dnr.dnH2i[im] = dnr.dnH3i[im] = 0.0;
             dnr.dnHeI[im] = dnr.dnHeII[im] = dnr.dnHeIII[im] = 0.0;
@@ -214,66 +215,29 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             if (dtRFvar) {
                 Rfdifmax = 0;
                 Rfdif = 0;
-                double ampfactor = 1.0;
+                #pragma omp parallel for
                 for (int im = 0; im < NMESHP; ++im) {
-                    if ((aR[im] < lHFS) | (aR[im] > lLFS)) {
-                        ampfactor = 2.0;
-                    } else {
-                        ampfactor = 1;
-                    }
-                    Rfdif = ampfactor * (nRF_save.ne[im] - nr.ne[im]) / nRF_save.ne[im];
-                    if (abs(Rfdifmax) < abs(Rfdif)) {
-                        Rfdifmax = Rfdif;
-                    }
+                    double ampfactor = ((aR[im] < lHFS) || (aR[im] > lLFS)) ? 2.0 : 1.0;
+                    double Rfdif = ampfactor * (nRF_save.ne[im] - nr.ne[im]) / nRF_save.ne[im];
+                    Rfdifmax = std::max(Rfdifmax, std::abs(Rfdif)); 
                     Rfdif = ampfactor * (nRF_save.nH[im] - nr.nH[im]) / nRF_save.nH[im];
-                    if (abs(Rfdifmax) < abs(Rfdif)) {
-                        Rfdifmax = Rfdif;
-                    }
+                    Rfdifmax = std::max(Rfdifmax, std::abs(Rfdif)); 
                     Rfdif = ampfactor * (nRF_save.nH2[im] - nr.nH2[im]) / nRF_save.nH2[im];
-                    if (abs(Rfdifmax) < abs(Rfdif)) {
-                        Rfdifmax = Rfdif;
-                    }
+                    Rfdifmax = std::max(Rfdifmax, std::abs(Rfdif)); 
                     Rfdif = ampfactor * (nRF_save.nHi[im] - nr.nHi[im]) / nRF_save.nHi[im];
-                    if (abs(Rfdifmax) < abs(Rfdif)) {
-                        Rfdifmax = Rfdif;
-                    }
+                    Rfdifmax = std::max(Rfdifmax, std::abs(Rfdif)); 
                     Rfdif = ampfactor * (nRF_save.nH2i[im] - nr.nH2i[im]) / nRF_save.nH2i[im];
-                    if (abs(Rfdifmax) < abs(Rfdif)) {
-                        Rfdifmax = Rfdif;
-                    }
+                    Rfdifmax = std::max(Rfdifmax, std::abs(Rfdif)); 
                     Rfdif = ampfactor * (nRF_save.nH3i[im] - nr.nH3i[im]) / nRF_save.nH3i[im];
-                    if (abs(Rfdifmax) < abs(Rfdif)) {
-                        Rfdifmax = Rfdif;
-                    }
+                    Rfdifmax = std::max(Rfdifmax, std::abs(Rfdif)); 
                     Rfdif = ampfactor * (nRF_save.nHeI[im] - nr.nHeI[im]) / nRF_save.nHeI[im];
-                    if (abs(Rfdifmax) < abs(Rfdif)) {
-                        Rfdifmax = Rfdif;
-                    }
+                    Rfdifmax = std::max(Rfdifmax, std::abs(Rfdif)); 
                     Rfdif = ampfactor * (nRF_save.nHeII[im] - nr.nHeII[im]) / nRF_save.nHeII[im];
-                    if (abs(Rfdifmax) < abs(Rfdif)) {
-                        Rfdifmax = Rfdif;
-                    }
+                    Rfdifmax = std::max(Rfdifmax, std::abs(Rfdif)); 
                     Rfdif = ampfactor * (nRF_save.nHeIII[im] - nr.nHeIII[im]) / nRF_save.nHeIII[im];
-                    if (abs(Rfdifmax) < abs(Rfdif)) {
-                        Rfdifmax = Rfdif;
-                    }
-                    // Rfdif =  	ampfactor*(nRF_save.nCI[im]				- nr.nCI[im])/nRF_save.nCI[im]; 	     	if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
-                    // Rfdif =  	ampfactor*(nRF_save.nCII[im]			- nr.nCII[im])/nRF_save.nCII[im];       if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
-                    // Rfdif =  	ampfactor*(nRF_save.nCIII[im]			- nr.nCIII[im])/nRF_save.nCIII[im];     if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
-                    // Rfdif =  	ampfactor*(nRF_save.nCIV[im]			- nr.nCIV[im])/nRF_save.nCIV[im];       if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
-                    // Rfdif =  	ampfactor*(nRF_save.nCV[im]				- nr.nCV[im])/nRF_save.nCV[im];        	if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
+                    Rfdifmax = std::max(Rfdifmax, std::abs(Rfdif)); 
                     Rfdif = ampfactor * (ERF_save.Ee[im] - Er.Ee[im]) / ERF_save.Ee[im];
-                    if (abs(Rfdifmax) < abs(Rfdif)) {
-                        Rfdifmax = Rfdif;
-                    }
-                    // Rfdif = 	ampfactor*(ERF_save.EH[im]      	- Er.EH[im])/ERF_save.EH[im];        		if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
-                    // Rfdif = 	ampfactor*(ERF_save.EH2[im]    		- Er.EH2[im])/ERF_save.EH2[im];       	if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
-                    // Rfdif = 	ampfactor*(ERF_save.EHi[im]     	- Er.EHi[im])/ERF_save.EHi[im];        	if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
-                    // Rfdif = 	ampfactor*(ERF_save.EH2i[im]   	 	- Er.EH2i[im])/ERF_save.EH2i[im];      	if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
-                    // Rfdif = 	ampfactor*(ERF_save.EH3i[im]    	- Er.EH3i[im])/ERF_save.EH3i[im];      	if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
-                    // Rfdif = 	ampfactor*(ERF_save.EHeI[im]    	- Er.EHeI[im])/ERF_save.EHeI[im];      	if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
-                    // Rfdif = 	ampfactor*(ERF_save.EHeII[im]   	- Er.EHeII[im])/ERF_save.EHeII[im];     if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
-                    // Rfdif = 	ampfactor*(ERF_save.EHeIII[im]  	- Er.EHeIII[im])/ERF_save.EHeIII[im];   if(abs(Rfdifmax) < abs(Rfdif)) { Rfdifmax = Rfdif; }
+                    Rfdifmax = std::max(Rfdifmax, std::abs(Rfdif)); 
                 }
                 Rfdifmax = abs(Rfdifmax);
                 // cout << scientific << setprecision(5) << "Rfdifmax = " << Rfdifmax << endl;
@@ -366,7 +330,6 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             for (int id = 0; id < NMESHP - 1; ++id) {
                 lne += 0.5 * (nr.ne[id] * aR[id] + nr.ne[id + 1] * aR[id + 1]) * (aR[id + 1] - aR[id]);
                 lnn += 0.5 * ((nr.nH[id] + nr.nH2[id] + nr.nHeI[id] + nr.ne[id]) * aR[id] + (nr.nH[id + 1] + nr.nH2[id + 1] + nr.nHeI[id + 1] + nr.ne[id + 1]) * aR[id + 1]) * (aR[id + 1] - aR[id]);
-                // mTe += 0.5*(Tr.Te[id]*aR[id]+Tr.Te[id+1]*aR[id+1])*(aR[id+1]-aR[id])/(pow(aR[NMESHP-1],2.0)-pow(aR[0],2.0)); // some average Te...
             }
             alphaval = lne / lnn;
             for (int im = 0; im < NMESHP; ++im) {
@@ -401,7 +364,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
 
         StepTimer[6] = omp_get_wtime();
 
-        if (((cnt_save == 0) & !(isnan(nr.ne[0]))) || (timeSteps > 0 && Nit >= timeSteps)) {
+        if (((cnt_save == 0) && !(isnan(nr.ne[0]))) || (timeSteps > 0 && Nit >= timeSteps)) {
             writePhysicalStates(outFile);
             if (timeSteps > 0 && Nit >= timeSteps) {
                 return;
@@ -422,7 +385,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
                  << ",   last dt = " << dtnew
                  << ",   ne[cc] = " << nr.ne[cc]
                  << ",   Te[cc] = " << Tr.Te[cc];
-            if (bgray | bram | bnefix ){
+            if (bgray || bram || bnefix ){
             cout << ",   Pecabs = " << pecabs;
             }
             cout << ",   D[cc] = " << Dion[cc]
@@ -507,7 +470,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
         }
         // Output to screen
 
-        if ((cnt_save == 0) & !(isnan(nr.ne[0]))) {
+        if ((cnt_save == 0) && !(isnan(nr.ne[0]))) {
             // if (bOutdt) {
             //     cout << scientific << setprecision(5)
             //          << "N = " << Nit

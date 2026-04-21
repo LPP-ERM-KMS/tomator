@@ -184,7 +184,7 @@ void collisions() {
         /////////////////////
         // Electron collisions with H2, H2i and H3i (bH2)
         /////////////////////
-        if ((bH2) and (nH2 > 0.0)) {
+        if ((bH2) && (nH2 > 0.0)) {
             // cout << "  " << dEe ;
             k = RRH2(ELAS, ne, Te); // 2016/02/24
             knn = k * ne * nH2;
@@ -981,8 +981,10 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             double qeCGS = 4.8032e-10; // esu
 
             if (ne >= 1.0e1) {
-                lambdaee = 23.5 - log(sqrt(ne) * pow(Te, -1.25)) - pow(1e-5 + pow(log(Te) - 2.0, 2.0) / 16.0, 0.5);
-                vee = 2.91e-6 * ne * lambdaee * pow(Te, -3.0 / 2.0);
+                const double sqrt_ne = sqrt(ne);
+                const double inv_Te_3_2 = pow(Te, -1.5);
+                lambdaee = 23.5 - log(sqrt_ne * pow(Te, -1.25)) - pow(1e-5 + pow(log(Te) - 2.0, 2.0) / 16.0, 0.5);
+                vee = 2.91e-6 * ne * lambdaee * inv_Te_3_2;
                 nue = nue + vee;
                 if (!bselfcol) {
                     colrateRF.nue[im] = -vee;
@@ -991,7 +993,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
                 // {   lambdaei = (24.0 - log( sqrt(ne) * pow(Te,-1.0)));  }
                 // else if (Te>=THi*Z1*me/mi/mu1)
                 // {
-                lambdaei = (23.0 - log(sqrt(ne) * Z1 * pow(Te, -3.0 / 2.0)));
+                lambdaei = (23.0 - log(sqrt_ne * Z1 * inv_Te_3_2));
                 // }
                 // else if (Te<THi*Z1*me/mi/mu1)
                 // {   lambdaei = (30.0 - log( sqrt(nHi) * pow(THi,-3.0/2.0) * pow(Z1,2.0) / mu1 ));	}
@@ -1012,7 +1014,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
                 // {   lambdaei = (24.0 - log( sqrt(ne) * pow(Te,-1.0)));  }
                 // else if (Te>=TH2i*Z2*me/mi/mu2)
                 // {
-                lambdaei = (23.0 - log(sqrt(ne) * Z2 * pow(Te, -3.0 / 2.0)));
+                lambdaei = (23.0 - log(sqrt_ne * Z2 * inv_Te_3_2));
                 // }
                 // else if (Te<TH2i*Z2*me/mi/mu2)
                 // {   lambdaei = (30.0 - log( sqrt(nH2i) * pow(TH2i,-3.0/2.0) * pow(Z2,2.0) / mu2 ));	}
@@ -1033,7 +1035,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
                 // {   lambdaei = (24.0 - log( sqrt(ne) * pow(Te,-1.0)));  }
                 // else if (Te>=TH3i*Z3*me/mi/mu3)
                 // {
-                lambdaei = (23.0 - log(sqrt(ne) * Z3 * pow(Te, -3.0 / 2.0)));
+                lambdaei = (23.0 - log(sqrt_ne * Z3 * inv_Te_3_2));
                 // }
                 // else if (Te<TH3i*Z3*me/mi/mu3)
                 // {   lambdaei = (30.0 - log( sqrt(nH3i) * pow(TH3i,-3.0/2.0) * pow(Z3,2.0) / mu3 ));	}
@@ -1054,7 +1056,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
                 // {   lambdaei = (24.0 - log( sqrt(ne) * pow(Te,-1.0)));  }
                 // else if (Te>=THeII*Z4*me/mi/mu4)
                 // {
-                lambdaei = (23.0 - log(sqrt(ne) * Z4 * pow(Te, -3.0 / 2.0)));
+                lambdaei = (23.0 - log(sqrt_ne * Z4 * inv_Te_3_2));
                 // }
                 // else if (Te<THeII*Z4*me/mi/mu4)
                 // {   lambdaei = (30.0 - log( sqrt(nHeII) * pow(THeII,-3.0/2.0) * pow(Z4,2.0) / mu4 ));	}
@@ -1075,7 +1077,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
                 // {   lambdaei = (24.0 - log( sqrt(ne) * pow(Te,-1.0)));  }
                 // else if (Te>=THeIII*Z5*me/mi/mu5)
                 // {
-                lambdaei = (23.0 - log(sqrt(ne) * Z5 * pow(Te, -3.0 / 2.0)));
+                lambdaei = (23.0 - log(sqrt_ne * Z5 * inv_Te_3_2));
                 // }
                 // else if (Te<THeIII*Z5*me/mi/mu5)
                 // {   lambdaei = (30.0 - log( sqrt(nHeIII) * pow(THeIII,-3.0/2.0) * pow(Z5,2.0) / mu5 ));	}
@@ -1096,7 +1098,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
                 // {   lambdaei = (24.0 - log( sqrt(ne) * pow(Te,-1.0)));  }
                 // else if (Te>=1.0*1.0*me/mi/12.0)
                 // {
-                lambdaei = (23.0 - log(sqrt(ne) * 1.0 * pow(Te, -3.0 / 2.0)));
+                lambdaei = (23.0 - log(sqrt_ne * 1.0 * inv_Te_3_2));
                 // 	}
                 // else if (Te<1.0*1.0*me/mi/12.0)
                 // {   lambdaei = (30.0 - log( sqrt(nCII) * pow(1.0,-3.0/2.0) * pow(1.0,2.0) / 12.0 ));	}
@@ -1116,7 +1118,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
                 // {   lambdaei = (24.0 - log( sqrt(ne) * pow(Te,-1.0)));  }
                 // else if (Te>=1.0*2.0*me/mi/12.0)
                 // {
-                lambdaei = (23.0 - log(sqrt(ne) * 2.0 * pow(Te, -3.0 / 2.0)));
+                lambdaei = (23.0 - log(sqrt_ne * 2.0 * inv_Te_3_2));
                 // }
                 // else if (Te<1.0*2.0*me/mi/12.0)
                 // {   lambdaei = (30.0 - log( sqrt(nCIII) * pow(1.0,-3.0/2.0) * pow(2.0,2.0) / 12.0 ));	}
@@ -1136,7 +1138,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
                 // {   lambdaei = (24.0 - log( sqrt(ne) * pow(Te,-1.0)));  }
                 // else if (Te>=1.0*3.0*me/mi/12.0)
                 // {
-                lambdaei = (23.0 - log(sqrt(ne) * 3.0 * pow(Te, -3.0 / 2.0)));
+                lambdaei = (23.0 - log(sqrt_ne * 3.0 * inv_Te_3_2));
                 // }
                 // else if (Te<1.0*3.0*me/mi/12.0)
                 // {   lambdaei = (30.0 - log( sqrt(nCIV) * pow(1.0,-3.0/2.0) * pow(3.0,2.0) / 12.0 ));	}
@@ -1156,7 +1158,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
                 // {   lambdaei = (24.0 - log( sqrt(ne) * pow(Te,-1.0)));  }
                 // else if (Te>=1.0*4.0*me/mi/12.0)
                 // {
-                lambdaei = (23.0 - log(sqrt(ne) * 4.0 * pow(Te, -3.0 / 2.0)));
+                lambdaei = (23.0 - log(sqrt_ne * 4.0 * inv_Te_3_2));
                 // }
                 // else if (Te<1.0*4.0*me/mi/12.0)
                 // {   lambdaei = (30.0 - log( sqrt(nCV) * pow(1.0,-3.0/2.0) * pow(4.0,2.0) / 12.0 ));	}
@@ -1193,27 +1195,27 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
              cout << "QeCIII  " << QeCIII << endl;*/
 
             if ((nHi * nHi) != 0.0) {
-                lambda11 = 23.0 - log(Z1 * Z1 * (mu1 + mu1) / (mu1 * THi + mu1 * THi) * pow(pow(Z1, 2.0) * nHi / THi + pow(Z1, 2.0) * nHi / THi, 0.5));
+                lambda11 = 23.0 - log(Z1 * Z1 * (mu1 + mu1) / (mu1 * THi + mu1 * THi) * pow( (Z1*Z1) * nHi / THi + (Z1*Z1) * nHi / THi, 0.5));
                 v11 = nHi * pow(qeCGS, 4.0) * 8.0 * sqrt(2.0 * pi) * lambda11 / (3.0 * mmHi * mmHi * pow((TTHi / mmHi + TTHi / mmHi), 1.5));
                 nuHi = nuHi + v11;
             }
             if ((nH2i * nH2i) != 0.0) {
-                lambda11 = 23.0 - log(Z2 * Z2 * (mu2 + mu2) / (mu2 * TH2i + mu2 * TH2i) * pow(pow(Z2, 2.0) * nH2i / TH2i + pow(Z2, 2.0) * nH2i / TH2i, 0.5));
+                lambda11 = 23.0 - log(Z2 * Z2 * (mu2 + mu2) / (mu2 * TH2i + mu2 * TH2i) * pow((Z2*Z2) * nH2i / TH2i + (Z2*Z2) * nH2i / TH2i, 0.5));
                 v22 = nH2i * pow(qeCGS, 4.0) * 8.0 * sqrt(2.0 * pi) * lambda11 / (3.0 * mmH2i * mmH2i * pow((TTH2i / mmH2i + TTH2i / mmH2i), 1.5));
                 nuH2i = nuH2i + v22;
             }
             if ((nH3i * nH3i) != 0.0) {
-                lambda11 = 23.0 - log(Z3 * Z3 * (mu3 + mu3) / (mu3 * TH3i + mu3 * TH3i) * pow(pow(Z3, 2.0) * nH3i / TH3i + pow(Z3, 2.0) * nH3i / TH3i, 0.5));
+                lambda11 = 23.0 - log(Z3 * Z3 * (mu3 + mu3) / (mu3 * TH3i + mu3 * TH3i) * pow((Z3*Z3) * nH3i / TH3i + (Z3*Z3) * nH3i / TH3i, 0.5));
                 v33 = nH3i * pow(qeCGS, 4.0) * 8.0 * sqrt(2.0 * pi) * lambda11 / (3.0 * mmH3i * mmH3i * pow((TTH3i / mmH3i + TTH3i / mmH3i), 1.5));
                 nuH3i = nuH3i + v33;
             }
             if ((nHeII * nHeII) != 0.0) {
-                lambda11 = 23.0 - log(Z4 * Z4 * (mu4 + mu4) / (mu4 * THeII + mu4 * THeII) * pow(pow(Z4, 2.0) * nHeII / THeII + pow(Z4, 2.0) * nHeII / THeII, 0.5));
+                lambda11 = 23.0 - log(Z4 * Z4 * (mu4 + mu4) / (mu4 * THeII + mu4 * THeII) * pow((Z4*Z4) * nHeII / THeII + (Z4*Z4) * nHeII / THeII, 0.5));
                 v44 = nHeII * pow(qeCGS, 4.0) * 8.0 * sqrt(2.0 * pi) * lambda11 / (3.0 * mmHe * mmHe * pow((TTHeII / mmHe + TTHeII / mmHe), 1.5));
                 nuHeII = nuHeII + v44;
             }
             if ((nHeIII * nHeIII) != 0.0) {
-                lambda11 = 23.0 - log(Z5 * Z5 * (mu5 + mu5) / (mu5 * THeIII + mu5 * THeIII) * pow(pow(Z5, 2.0) * nHeIII / THeIII + pow(Z5, 2.0) * nHeIII / THeIII, 0.5));
+                lambda11 = 23.0 - log(Z5 * Z5 * (mu5 + mu5) / (mu5 * THeIII + mu5 * THeIII) * pow((Z5*Z5) * nHeIII / THeIII + (Z5*Z5) * nHeIII / THeIII, 0.5));
                 v55 = nHeIII * pow(qeCGS, 4.0) * 8.0 * sqrt(2.0 * pi) * lambda11 / (3.0 * mmHe * mmHe * pow((TTHeIII / mmHe + TTHeIII / mmHe), 1.5));
                 nuHeIII = nuHeIII + v55;
             }
@@ -1226,7 +1228,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             }
             //////
             if ((nHi * nH2i) != 0.0) {
-                lambda12 = 23.0 - log(Z1 * Z2 * (mu1 + mu2) / (mu1 * TH2i + mu2 * THi) * pow(pow(Z1, 2.0) * nHi / THi + pow(Z2, 2.0) * nH2i / TH2i, 0.5));
+                lambda12 = 23.0 - log(Z1 * Z2 * (mu1 + mu2) / (mu1 * TH2i + mu2 * THi) * pow((Z1*Z1) * nHi / THi + (Z2*Z2) * nH2i / TH2i, 0.5));
                 v12 = nH2i * pow(qeCGS, 4.0) * 8.0 * sqrt(2.0 * pi) * lambda12 / (3.0 * mmHi * mmH2i * pow((TTHi / mmHi + TTH2i / mmH2i), 1.5));
                 Q12 = (THi - TH2i) * v12 * nHi; // 3/2 *
                 nuHi = nuHi + v12;
@@ -1236,7 +1238,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             }
 
             if ((nHi * nH3i) != 0.0) {
-                lambda13 = 23.0 - log(Z1 * Z3 * (mu1 + mu3) / (mu1 * TH3i + mu3 * THi) * pow(pow(Z1, 2.0) * nHi / THi + pow(Z3, 2.0) * nH3i / TH3i, 0.5));
+                lambda13 = 23.0 - log(Z1 * Z3 * (mu1 + mu3) / (mu1 * TH3i + mu3 * THi) * pow((Z1*Z1) * nHi / THi + (Z3*Z3) * nH3i / TH3i, 0.5));
                 v13 = nH3i * pow(qeCGS, 4.0) * 8.0 * sqrt(2.0 * pi) * lambda13 / (3.0 * mmHi * mmH3i * pow((TTHi / mmHi + TTH3i / mmH3i), 1.5));
                 Q13 = (THi - TH3i) * v13 * nHi; // 3/2 *
                 nuHi = nuHi + v13;
@@ -1246,7 +1248,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             }
 
             if ((nHi * nHeII) != 0.0) {
-                lambda14 = 23.0 - log(Z1 * Z4 * (mu1 + mu4) / (mu1 * THeII + mu4 * THi) * pow(pow(Z1, 2.0) * nHi / THi + pow(Z4, 2.0) * nHeII / THeII, 0.5));
+                lambda14 = 23.0 - log(Z1 * Z4 * (mu1 + mu4) / (mu1 * THeII + mu4 * THi) * pow((Z1*Z1) * nHi / THi + (Z4*Z4) * nHeII / THeII, 0.5));
                 v14 = nHeII * pow(qeCGS, 4.0) * 8.0 * sqrt(2.0 * pi) * lambda14 / (3.0 * mmHi * mmHe * pow((TTHi / mmHi + TTHeII / mmHe), 1.5));
                 Q14 = (THi - THeII) * v14 * nHi; // 3/2 *
                 nuHi = nuHi + v14;
@@ -1256,7 +1258,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             }
 
             if ((nHi * nHeIII) != 0.0) {
-                lambda15 = 23.0 - log(Z1 * Z5 * (mu1 + mu5) / (mu1 * THeIII + mu5 * THi) * pow(pow(Z1, 2.0) * nHi / THi + pow(Z5, 2.0) * nHeIII / THeIII, 0.5));
+                lambda15 = 23.0 - log(Z1 * Z5 * (mu1 + mu5) / (mu1 * THeIII + mu5 * THi) * pow((Z1*Z1) * nHi / THi + (Z5*Z5) * nHeIII / THeIII, 0.5));
                 v15 = nHeIII * pow(qeCGS, 4.0) * 4.0 * 8.0 * sqrt(2.0 * pi) * lambda15 / (3.0 * mmHi * mmHe * pow((TTHi / mmHi + TTHeIII / mmHe), 1.5));
                 Q15 = (THi - THeIII) * v15 * nHi; // 3/2 *
                 nuHi = nuHi + v15;
@@ -1266,7 +1268,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             }
 
             if ((nH2i * nH3i) != 0.0) {
-                lambda23 = 23.0 - log(Z2 * Z3 * (mu2 + mu3) / (mu2 * TH3i + mu3 * TH2i) * pow(pow(Z2, 2.0) * nH2i / TH2i + pow(Z3, 2.0) * nH3i / TH3i, 0.5));
+                lambda23 = 23.0 - log(Z2 * Z3 * (mu2 + mu3) / (mu2 * TH3i + mu3 * TH2i) * pow((Z2*Z2) * nH2i / TH2i + (Z3*Z3) * nH3i / TH3i, 0.5));
                 v23 = nH3i * pow(qeCGS, 4.0) * 8.0 * sqrt(2.0 * pi) * lambda23 / (3.0 * mmH2i * mmH3i * pow((TTH2i / mmH2i + TTH3i / mmH3i), 1.5));
                 Q23 = (TH2i - TH3i) * v23 * nH2i; // 3/2 *
                 nuH2i = nuH2i + v23;
@@ -1276,7 +1278,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             }
 
             if ((nH2i * nHeII) != 0.0) {
-                lambda24 = 23.0 - log(Z2 * Z4 * (mu2 + mu4) / (mu2 * THeII + mu4 * TH2i) * pow(pow(Z2, 2.0) * nH2i / TH2i + pow(Z4, 2.0) * nHeII / THeII, 0.5));
+                lambda24 = 23.0 - log(Z2 * Z4 * (mu2 + mu4) / (mu2 * THeII + mu4 * TH2i) * pow((Z2*Z2) * nH2i / TH2i + (Z4*Z4) * nHeII / THeII, 0.5));
                 v24 = nHeII * pow(qeCGS, 4.0) * 8.0 * sqrt(2.0 * pi) * lambda24 / (3.0 * mmH2i * mmHe * pow((TTH2i / mmH2i + TTHeII / mmHe), 1.5));
                 Q24 = (TH2i - THeII) * v24 * nH2i; // 3/2 *
                 nuH2i = nuH2i + v24;
@@ -1286,7 +1288,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             }
 
             if ((nH2i * nHeIII) != 0.0) {
-                lambda25 = 23.0 - log(Z2 * Z5 * (mu2 + mu5) / (mu2 * THeIII + mu5 * TH2i) * pow(pow(Z2, 2.0) * nH2i / TH2i + pow(Z5, 2.0) * nHeIII / THeIII, 0.5));
+                lambda25 = 23.0 - log(Z2 * Z5 * (mu2 + mu5) / (mu2 * THeIII + mu5 * TH2i) * pow((Z2*Z2) * nH2i / TH2i + (Z5*Z5) * nHeIII / THeIII, 0.5));
                 v25 = nHeIII * pow(qeCGS, 4.0) * 4.0 * 8.0 * sqrt(2.0 * pi) * lambda25 / (3.0 * mmH2i * mmHe * pow((TTH2i / mmH2i + TTHeIII / mmHe), 1.5));
                 Q25 = (TH2i - THeIII) * v25 * nH2i; // 3/2 *
                 nuH2i = nuH2i + v25;
@@ -1296,7 +1298,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             }
 
             if ((nH3i * nHeII) != 0.0) {
-                lambda34 = 23.0 - log(Z3 * Z4 * (mu3 + mu4) / (mu3 * THeII + mu4 * TH3i) * pow(pow(Z3, 2.0) * nH3i / TH3i + pow(Z4, 2.0) * nHeII / THeII, 0.5));
+                lambda34 = 23.0 - log(Z3 * Z4 * (mu3 + mu4) / (mu3 * THeII + mu4 * TH3i) * pow((Z3*Z3) * nH3i / TH3i + (Z4*Z4) * nHeII / THeII, 0.5));
                 v34 = nHeII * pow(qeCGS, 4.0) * 8.0 * sqrt(2.0 * pi) * lambda34 / (3.0 * mmH3i * mmHe * pow((TTH3i / mmH3i + TTHeII / mmHe), 1.5));
                 Q34 = (TH3i - THeII) * v34 * nH3i; // 3/2 *
                 nuH3i = nuH3i + v34;
@@ -1306,7 +1308,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             }
 
             if ((nH3i * nHeIII) != 0.0) {
-                lambda35 = 23.0 - log(Z3 * Z5 * (mu3 + mu5) / (mu3 * THeIII + mu5 * TH3i) * pow(pow(Z3, 2.0) * nH3i / TH3i + pow(Z5, 2.0) * nHeIII / THeIII, 0.5));
+                lambda35 = 23.0 - log(Z3 * Z5 * (mu3 + mu5) / (mu3 * THeIII + mu5 * TH3i) * pow((Z3*Z3) * nH3i / TH3i + (Z5*Z5) * nHeIII / THeIII, 0.5));
                 v35 = nHeIII * pow(qeCGS, 4.0) * 4.0 * 8.0 * sqrt(2.0 * pi) * lambda35 / (3.0 * mmH3i * mmHe * pow((TTH3i / mmH3i + TTHeIII / mmHe), 1.5));
                 Q35 = (TH3i - THeIII) * v35 * nH3i; // 3/2 *
                 nuH3i = nuH3i + v35;
@@ -1316,7 +1318,7 @@ exp3=( HeIIIa1*pow(Tx,HeIIIa2)+HeIIIa3*pow(Tx,HeIIIa4)+HeIIIa5*pow(Tx,HeIIIa6) )
             }
 
             if ((nHeII * nHeIII) != 0.0) {
-                lambda45 = 23.0 - log(Z4 * Z5 * (mu4 + mu5) / (mu4 * THeIII + mu5 * THeII) * pow(pow(Z4, 2.0) * nHeII / THeII + pow(Z5, 2.0) * nHeIII / THeIII, 0.5));
+                lambda45 = 23.0 - log(Z4 * Z5 * (mu4 + mu5) / (mu4 * THeIII + mu5 * THeII) * pow((Z4*Z4) * nHeII / THeII + (Z5*Z5) * nHeIII / THeIII, 0.5));
                 v45 = nHeIII * pow(qeCGS, 4.0) * 4.0 * 8.0 * sqrt(2.0 * pi) * lambda45 / (3.0 * mmHe * mmHe * pow((TTHeII / mmHe + TTHeIII / mmHe), 1.5));
                 Q45 = (THeII - THeIII) * v45 * nHeII; // 3/2 *
                 nuHeII = nuHeII + v45;
