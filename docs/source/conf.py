@@ -27,6 +27,13 @@ exclude_patterns = []
 html_theme = 'sphinx_rtd_theme'
 #html_static_path = ['_static']
 html_logo = "../../logo/logocolor.svg"
-html_theme_options = {
-    'logo_only': True,
-}
+#html_theme_options = {
+#    #'logo_only': True,
+#    "logo": "../../logo/logocolor.svg",
+#}
+#html_theme_options = {
+#    "logo": {
+#        "alt_text": "My awesome documentation - Home",
+#        "image_light": "../../logo/logocolor.svg", "image_dark": "../../logo/logocolor.svg",
+#    }
+#}

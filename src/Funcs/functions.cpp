@@ -304,6 +304,10 @@ void initAuxiliarPos() {
 }
 
 double computeN(double p, double Ta) {
+    // ideal gas law
+    // Ta in eV*11600 -> K
+    // p in mbar*100 -> Pa
+    // returns density in 1/cm^3
     return p * 100.0 / (Ta * 11600.0 * kb) / 1.0e6;
 }
 
@@ -416,14 +420,14 @@ void limiters() {
             dEr.dEe[im] -= Z * nr.nHi[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
             dnr.dnH2[im] += 0.5 * nr.nHi[im] / Tauion;
             dEr.dEH2[im] += 0.5 * nr.nHi[im] / Tauion * 3.0 / 2.0 * Ta0;
-	    #ifdef debug
+	        #ifdef debug
 	    	cout << "H+ losses = " << -nr.nHi[im]/Tauion << " [1/s]" << endl;
 	    	cout << "EH+ losses = " << -Er.EHi[im]/(Tauion/gEe) << " [J/s]" << endl;
-		cout << "e- losses = " << -Z*nr.nHi[im]/Tauion << " [1/s]" << endl;
+		    cout << "e- losses = " << -Z*nr.nHi[im]/Tauion << " [1/s]" << endl;
 	    	cout << "Ee- losses = " << -Z*nr.nHi[im]/(Tauion/gEe)*Tr.Te[im]*3.0/2.0 << " [J/s]" << endl;
 	    	cout << "H2 gain = " << 0.5*nr.nHi[im]/Tauion << " [1/s]" << endl;
 	    	cout << "EH2 gain = " << 0.5*nr.nHi[im]/Tauion*3.0/2.0*Ta0 << " [J/s]" << endl;
-	    #endif
+	        #endif
 
             // Z=1.0;
             mu = 2.0;
@@ -466,7 +470,7 @@ void limiters() {
 	    #ifdef debug
 	    	cout << "H+ losses = " << -nr.nHeII[im]/Tauion << " [1/s]" << endl;
 	    	cout << "EH+ losses = " << -Er.EHeII[im]/(Tauion/gEe) << " [J/s]" << endl;
-		cout << "e- losses = " << -Z*nr.nHeII[im]/Tauion << " [1/s]" << endl;
+		    cout << "e- losses = " << -Z*nr.nHeII[im]/Tauion << " [1/s]" << endl;
 	    	cout << "Ee- losses = " << -Z*nr.nHeII[im]/(Tauion/gEe)*Tr.Te[im]*3.0/2.0 << " [J/s]" << endl;
 	    	cout << "H2 gain = " << nr.nHeII[im]/Tauion << " [1/s]" << endl;
 	    	cout << "EH2 gain = " << nr.nHeII[im]/Tauion*3.0/2.0*Ta0 << " [J/s]" << endl;
@@ -507,7 +511,7 @@ void limiters() {
                 Z = 3.0;
                 // mu=12.0;
                 Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * Tr.Te[im]) * ndamp(nr.ne[im]) * ndamp(nr.nCIV[im]));
-		// if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+		        // if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
                 dnr.dnCIV[im] -= nr.nCIV[im] / Tauion;
                 dnr.dne[im] -= Z * nr.nCIV[im] / Tauion;
                 dEr.dEe[im] -= Z * nr.nCIV[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;
@@ -516,7 +520,7 @@ void limiters() {
                 Z = 4.0;
                 // mu=12.0;
                 Tauion = 0.66 * 2.0 * pi * aR[im] / nlimiters / (9.79e5 * sqrt(Z / mu * Tr.Te[im]) * ndamp(nr.ne[im]) * ndamp(nr.nCV[im]));
-		// if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
+		        // if (nr.ne[im]<1.0e4) {Tauion=Tauion*1.0e4/nr.ne[im];}
                 dnr.dnCV[im] -= nr.nCV[im] / Tauion;
                 dnr.dne[im] -= Z * nr.nCV[im] / Tauion;
                 dEr.dEe[im] -= Z * nr.nCV[im] / (Tauion / gEe) * Tr.Te[im] * 3.0 / 2.0;

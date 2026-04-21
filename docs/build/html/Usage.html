@@ -8,14 +8,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Usage &mdash; tomator 1D 1.0.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="_static/documentation_options.js?v=8d563738"></script>
-      <script src="_static/doctools.js?v=9bcbadda"></script>
-      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -31,8 +31,8 @@
 
           
           
-          <a href="index.html">
-            
+          <a href="index.html" class="icon icon-home">
+            tomator 1D
               <img src="_static/logocolor.svg" class="logo" alt="Logo"/>
           </a>
 <div role="search">
@@ -49,6 +49,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#defining-and-running-a-simulation-simulationinterface-py">Defining and running a simulation: SimulationInterface.py</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#running-a-simulation-using-the-binary-directly">Running a simulation: using the binary directly</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#overview-of-the-simulation-plotterinterface-py">Overview of the simulation: PlotterInterface.py</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#result-of-a-simulation-look-at-final-density-and-temperature-using-gnuplot-and-tail">Result of a simulation: Look at final density and temperature using gnuplot and tail</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="RF%20power.html">Coupled Power Functions</a></li>
@@ -338,6 +339,53 @@ was developed, which also has a video introduciton: <a class="reference external
 Data/yourjsonfilename/, having done this a browser will open showing the current status of your
 simulation, to terminate this plotting server click on “Terminate Server”, whereby you are
 given a list of active servers you may terminate.</p>
+</section>
+<section id="result-of-a-simulation-look-at-final-density-and-temperature-using-gnuplot-and-tail">
+<h2>Result of a simulation: Look at final density and temperature using gnuplot and tail<a class="headerlink" href="#result-of-a-simulation-look-at-final-density-and-temperature-using-gnuplot-and-tail" title="Link to this heading"></a></h2>
+<p>A simulation csv file is quite big and parsing it takes up a lot of ram and cpu
+power which is wasted if we are only interested in the final result, luckily
+tail and gnuplot exists, first get the final n mesh points and save them to
+some file, here we’re assuming meshgrid of 301 and saving to /tmp/result.csv:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">tail</span> <span class="o">-</span><span class="n">n</span> <span class="mi">301</span> <span class="n">Res_20260303_102649</span><span class="o">.</span><span class="n">csv</span> <span class="o">&gt;</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">result</span><span class="o">.</span><span class="n">csv</span>
+</pre></div>
+</div>
+<p>now run gnuplot, set the “,” as separator and create a temperature axis as second axis:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">set</span> <span class="n">datafile</span> <span class="n">separator</span> <span class="s2">&quot;,&quot;</span>
+<span class="nb">set</span> <span class="n">ytics</span> <span class="mf">0.5</span><span class="p">,</span><span class="mf">0.5</span>
+<span class="nb">set</span> <span class="n">ytics</span> <span class="n">nomirror</span>
+<span class="nb">set</span> <span class="n">y2tics</span> <span class="mf">5e15</span><span class="p">,</span><span class="mf">5e15</span>
+</pre></div>
+</div>
+<p>here the first argument of ytics is the minimum tic and the second the spacing
+(y2tics being for the second axis), now we may plot everything at once:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>p &quot;res2.csv&quot; u (($2-78)*10):($4/$3) w lines title &quot;Te&quot; axis x1y1 linecolor rgb &quot;orange&quot; lw 3, &quot;res2.csv&quot; u (($2-78)*10):($3*1e6) w lines title &quot;ne&quot; axis x1y2 linecolor rgb &quot;red&quot; lw 3
+</pre></div>
+</div>
+<p>Finally, adding some flair:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">set</span> <span class="n">ylabel</span> <span class="s2">&quot;temperature [eV]&quot;</span>
+<span class="nb">set</span> <span class="n">y2label</span> <span class="s2">&quot;density [m^{-3}]&quot;</span>
+<span class="n">replot</span>
+</pre></div>
+</div>
+<p>This should yield a nice figure of temperature and density i.f.o radius.
+Some adjustments that are useful to know:</p>
+<p>Changing the minimum and maximum of the left and right axis:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">set</span> <span class="n">y2range</span> <span class="p">[</span><span class="mf">1e16</span><span class="p">:</span><span class="mf">4e16</span><span class="p">]</span>
+<span class="nb">set</span> <span class="n">yrange</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">:</span><span class="mf">4.5</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Changing font sizes:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">set</span> <span class="n">key</span> <span class="n">font</span> <span class="s2">&quot;Helvetica,12&quot;</span>
+<span class="nb">set</span> <span class="n">y2label</span> <span class="s2">&quot;density [m^{-3}]&quot;</span> <span class="n">font</span> <span class="s2">&quot;Helvetica, 12</span>
+<span class="nb">set</span> <span class="n">tics</span> <span class="n">font</span> <span class="s2">&quot;Helvetica,12&quot;</span>
+</pre></div>
+</div>
+<p>The first changes the legend font, the second the label font and the third the tics font. If there is some spacing issue,
+remember that you can add to the margin and give the labels an offset:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">set</span> <span class="n">lmargin</span> <span class="mi">17</span>
+<span class="nb">set</span> <span class="n">ylabel</span> <span class="s2">&quot;temperature [eV]&quot;</span> <span class="n">font</span> <span class="s2">&quot;Helvetica, 14&quot;</span> <span class="n">off</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span><span class="mi">0</span>
+</pre></div>
+</div>
 </section>
 </section>
 

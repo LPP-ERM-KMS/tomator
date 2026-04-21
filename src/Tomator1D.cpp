@@ -55,10 +55,16 @@ int main(int argc, char *argv[]) {
 
     printf("Start time: %s\n", timestamp);
 
-    omp_set_dynamic(1);
+    omp_set_dynamic(0);
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            std::cout << "Running on " << omp_get_num_threads() << " threads" << std::endl;
+        }
+    }
     // #pragma omp parallel num_threads(ISCAN)
     {
-
         ofstream outFile;
         string fullfilename = sOutputfolder;
 
@@ -74,6 +80,7 @@ int main(int argc, char *argv[]) {
         cout << "He0 fixed density is: " << nHeI0*1e6 << " 1/m3" << endl;
         cout << "H2 fixed density is: " << nH20*1e6 << " 1/m3" << endl;
         nCI0 = 0.001 * (pH2 + pHe) * 100.0 / (Ta0 * 11600.0 * kb) / 1.0e6;
+        //https://open.adas.ac.uk/about-adas
         if (bADAS) cout << "ADAS database will be used." << endl;
 
         if (bfinput == false) {
@@ -89,6 +96,12 @@ int main(int argc, char *argv[]) {
         Er1 = Er;
         tstartloop = omp_get_wtime();
 
+        if (!std::getenv("TOMATORSOURCE"))
+        {
+            cout << "\033[1;31m [ERROR] environmental variable TOMATORSOURCE not set\033[0m\n";
+            throw std::exception();
+            exit(EXIT_FAILURE);
+        }
         string basefolder = std::getenv("TOMATORSOURCE");
         string filename_ = basefolder + "/src/SimParams/Public/hydhel.tex";
         int n = filename_.length();
@@ -105,7 +118,7 @@ int main(int argc, char *argv[]) {
 
         simulationLoop(tstartloop, &outFile, timeSteps);
 
-	cout << "Simulation loop ended." << endl;
+	    cout << "Simulation loop ended." << endl;
 
         if (timeSteps <= 0) {
             writeLast(&outFile, tstartcalculation, omp_get_wtime());
@@ -135,11 +148,6 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
             Tr.THeII[im] = Er.EHeII[im] / (ENERGY_FACTOR * nr.nHeII[im]);
             Tr.THeIII[im] = Er.EHeIII[im] / (ENERGY_FACTOR * nr.nHeIII[im]);
             // cout << im << " " << Tr.Te[im] << endl;
-        }
-
-        // Reset dnr, dEr and colrate
-        #pragma omp parallel for
-        for (int im = 0; im < NMESHP; ++im) {
             dnr.dne[im] = dnr.dnH[im] = dnr.dnH2[im] = dnr.dnHi[im] = dnr.dnH2i[im] = dnr.dnH3i[im] = 0.0;
             dnr.dnHeI[im] = dnr.dnHeII[im] = dnr.dnHeIII[im] = 0.0;
             dnr.dnCI[im] = dnr.dnCII[im] = dnr.dnCIII[im] = dnr.dnCIV[im] = dnr.dnCV[im] = 0.0;
@@ -311,7 +319,7 @@ void simulationLoop(double tstartloop, ofstream *outFile, int timeSteps) { // ca
                 ERF_save = Er;
             }
 
-#pragma omp parallel for
+            #pragma omp parallel for
             for (int im = 0; im < NMESHP; ++im) {
                 if ((bkipt == true) && (bantlr == true)) // use antenna resistance
                 {
@@ -652,6 +660,12 @@ void getSimParams(const char *json_file, int timeSteps) {
     }
 
     // Use std::filesystem::path for safer path operations
+    if (!std::getenv("TOMATORRESULTS"))
+    {
+        cout << "\033[1;31m [ERROR] environmental variable TOMATORRESULTS not set\033[0m\n";
+        throw std::exception();
+        exit(EXIT_FAILURE);
+    }
     string basefolder = std::getenv("TOMATORRESULTS");
     std::filesystem::path basePath(basefolder);
     std::filesystem::path dataFolderPath = basePath / folderName;

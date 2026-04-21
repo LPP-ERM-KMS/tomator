@@ -34,9 +34,9 @@ void bnefix_func();
 void bfixpowerfrac_func();
 void bnopower_func();
 void bTOMAS_func();
+void bTOMASIC_func(const double &freq);
 void bicatlhr_func();
 void bmanuel_func(bool);
 void bICWC_func();
-
 
 #endif // COUPLEDPOWER_H

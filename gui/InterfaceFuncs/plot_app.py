@@ -233,7 +233,7 @@ def initialize_interactive_elements(ne_ee_plot, electron_max_vs_timestamp):
 
     # Add a circle glyph for the movable point
     movable_point_source = ColumnDataSource(data=dict(x=[90], y=[0]))
-    ne_ee_plot.circle(
+    ne_ee_plot.scatter(
         "x",
         "y",
         source=movable_point_source,
@@ -243,7 +243,7 @@ def initialize_interactive_elements(ne_ee_plot, electron_max_vs_timestamp):
     )
 
     movable_point_source_timestamp = ColumnDataSource(data=dict(x=[0], y=[0]))
-    electron_max_vs_timestamp.circle(
+    electron_max_vs_timestamp.scatter(
         "x",
         "y",
         source=movable_point_source_timestamp,

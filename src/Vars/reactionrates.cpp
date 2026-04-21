@@ -74,7 +74,7 @@ void extractData(ReactionData *reaction, FILE *texFile) {
 void initReactionDataMap(char *fileName) {
     FILE *texFile = fopen(fileName, "r");
     if (texFile == NULL) {
-        printf("Unable to open file\n");
+        printf("\033[1;31m[ERROR] TOMATORSOURCE not set\n");
         exit(EXIT_FAILURE);
     }
 

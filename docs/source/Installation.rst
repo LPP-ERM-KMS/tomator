@@ -58,3 +58,12 @@ clang, to fix this install llvm using homebrew and export the variables::
 
     export CC=$(brew --prefix llvm)/bin/clang
     export CXX=$(brew --prefix llvm)/bin/clang++
+
+If you receive the error::
+
+    ‘std::filesystem’ has not been declared
+
+This is due to your system compiling in an older C++ standard than C++17, to force your system to compile in a newer standard (like C++17) add the following to the CMakeLists.txt file::
+
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
