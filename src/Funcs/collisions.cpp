@@ -184,7 +184,7 @@ void collisions() {
         /////////////////////
         // Electron collisions with H2, H2i and H3i (bH2)
         /////////////////////
-        if ((bH2) and (nH2 > 0.0)) {
+        if ((bH2) && (nH2 > 0.0)) {
             // cout << "  " << dEe ;
             k = RRH2(ELAS, ne, Te); // 2016/02/24
             knn = k * ne * nH2;
