@@ -429,11 +429,11 @@ void timeStep() {
         if (daccur < accur) { // calculation was accurate enough
             success = 1;
             if (oldtstep / dtnew * daccur / olddaccur > shokparam && TimeStepCounter == 0 && dtnew > oldtstep) {
-                dt = 0.1 * min(dt, dtnew);
+                dt = 0.1 * std::min(dt, dtnew);
                 // cout << "!!!!!!!!!!!!!!shock incoming...!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
             }
             if (dt > dtnew) {
-                dt = min(dt, maxtstepincrement * dtnew);
+                dt = std::min(dt, maxtstepincrement * dtnew);
                 // dt = (dt + dtnew) / 2.0;
             }
         }
@@ -469,7 +469,7 @@ void timeStep() {
                 else {
                     dth1 = (nr.ne[im] * accur) / abs(dnr_cn.dne[im] * dtnew) * dtnew;
                     dth2 = (Er.Ee[im] * accur) / abs(dEr_cn.dEe[im] * dtnew) * dtnew;
-                    dth1 = min(dth1, dth2);
+                    dth1 = std::min(dth1, dth2);
                     nr.ne[im] += (dnr_cn.dne[im]) * dth1;
                     if (fixedTe) {
                         Er.Ee[im] += 3.0 / 2.0 * dnr_cn.dne[im] * Tr.Te[im] * dth1;
@@ -501,7 +501,7 @@ void timeStep() {
                 else {
                     dth1 = (nr.nH[im] * accur) / abs(dnr_cn.dnH[im] * dtnew) * dtnew;
                     dth2 = (Er.EH[im] * accur) / abs(dEr_cn.dEH[im] * dtnew) * dtnew;
-                    dth1 = min(dth1, dth2);
+                    dth1 = std::min(dth1, dth2);
                     tempr = nr.nH[im];
                     tempr += (dnr_cn.dnH[im]) * dth1;
                     if (tempr < 0.0) {
@@ -524,7 +524,7 @@ void timeStep() {
                 else {
                     dth1 = (nr.nH2[im] * accur) / abs(dnr_cn.dnH2[im] * dtnew) * dtnew;
                     dth2 = (Er.EH2[im] * accur) / abs(dEr_cn.dEH2[im] * dtnew) * dtnew;
-                    dth1 = min(dth1, dth2);
+                    dth1 = std::min(dth1, dth2);
                     nr.nH2[im] += (dnr_cn.dnH2[im]) * dth1;
                     Er.EH2[im] += (dEr_cn.dEH2[im]) * dth1;
                     nr.xnH2[im] += (dnr_cn.dxnH2[im]) * dth1;
@@ -540,7 +540,7 @@ void timeStep() {
                 else {
                     dth1 = (nr.nHi[im] * accur) / abs(dnr_cn.dnHi[im] * dtnew) * dtnew;
                     dth2 = (Er.EHi[im] * accur) / abs(dEr_cn.dEHi[im] * dtnew) * dtnew;
-                    dth1 = min(dth1, dth2);
+                    dth1 = std::min(dth1, dth2);
                     nr.nHi[im] += (dnr_cn.dnHi[im]) * dth1;
                     Er.EHi[im] += (dEr_cn.dEHi[im]) * dth1;
                     nr.xnHi[im] += (dnr_cn.dxnHi[im]) * dth1;
@@ -556,7 +556,7 @@ void timeStep() {
                 else {
                     dth1 = (nr.nH2i[im] * accur) / abs(dnr_cn.dnH2i[im] * dtnew) * dtnew;
                     dth2 = (Er.EH2i[im] * accur) / abs(dEr_cn.dEH2i[im] * dtnew) * dtnew;
-                    dth1 = min(dth1, dth2);
+                    dth1 = std::min(dth1, dth2);
                     nr.nH2i[im] += (dnr_cn.dnH2i[im]) * dth1;
                     Er.EH2i[im] += (dEr_cn.dEH2i[im]) * dth1;
                     nr.xnH2i[im] += (dnr_cn.dxnH2i[im]) * dth1;
@@ -572,7 +572,7 @@ void timeStep() {
                 else {
                     dth1 = (nr.nH3i[im] * accur) / abs(dnr_cn.dnH3i[im] * dtnew) * dtnew;
                     dth2 = (Er.EH3i[im] * accur) / abs(dEr_cn.dEH3i[im] * dtnew) * dtnew;
-                    dth1 = min(dth1, dth2);
+                    dth1 = std::min(dth1, dth2);
                     nr.nH3i[im] += (dnr_cn.dnH3i[im]) * dth1;
                     Er.EH3i[im] += (dEr_cn.dEH3i[im]) * dth1;
                     nr.xnH3i[im] += (dnr_cn.dxnH3i[im]) * dth1;
@@ -588,7 +588,7 @@ void timeStep() {
                 else {
                     dth1 = (nr.nHeI[im] * accur) / abs(dnr_cn.dnHeI[im] * dtnew) * dtnew;
                     dth2 = (Er.EHeI[im] * accur) / abs(dEr_cn.dEHeI[im] * dtnew) * dtnew;
-                    dth1 = min(dth1, dth2);
+                    dth1 = std::min(dth1, dth2);
                     nr.nHeI[im] += (dnr_cn.dnHeI[im]) * dth1;
                     Er.EHeI[im] += (dEr_cn.dEHeI[im]) * dth1;
                     nr.xnHeI[im] += (dnr_cn.dxnHeI[im]) * dth1;
@@ -604,7 +604,7 @@ void timeStep() {
                 else {
                     dth1 = (nr.nHeII[im] * accur) / abs(dnr_cn.dnHeII[im] * dtnew) * dtnew;
                     dth2 = (Er.EHeII[im] * accur) / abs(dEr_cn.dEHeII[im] * dtnew) * dtnew;
-                    dth1 = min(dth1, dth2);
+                    dth1 = std::min(dth1, dth2);
                     nr.nHeII[im] += (dnr_cn.dnHeII[im]) * dth1;
                     Er.EHeII[im] += (dEr_cn.dEHeII[im]) * dth1;
                     nr.xnHeII[im] += (dnr_cn.dxnHeII[im]) * dth1;
@@ -620,7 +620,7 @@ void timeStep() {
                 else {
                     dth1 = (nr.nHeIII[im] * accur) / abs(dnr_cn.dnHeIII[im] * dtnew) * dtnew;
                     dth2 = (Er.EHeIII[im] * accur) / abs(dEr_cn.dEHeIII[im] * dtnew) * dtnew;
-                    dth1 = min(dth1, dth2);
+                    dth1 = std::min(dth1, dth2);
                     nr.nHeIII[im] += (dnr_cn.dnHeIII[im]) * dth1;
                     Er.EHeIII[im] += (dEr_cn.dEHeIII[im]) * dth1;
                     nr.xnHeIII[im] += (dnr_cn.dxnHeIII[im]) * dth1;
