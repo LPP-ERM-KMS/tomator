@@ -288,101 +288,111 @@ void timeStep() {
                 drmax4 = drval4; /*cout << "   nH2i   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dnr_cn.dxnH3i[im] * dr * dtnew / max(nr.nH3i[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   nH3i   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dnr_cn.dxnHeI[im] * dr * dtnew / max(nr.nHeI[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   nHeI   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dnr_cn.dxnHeII[im] * dr * dtnew / max(nr.nHeII[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   nHeII   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dnr_cn.dxnHeIII[im] * dr * dtnew / max(nr.nHeIII[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4;
             }
             if (bimpur) {
-                drval4 = abs(asin(dnr_cn.dxnCI[im] * dr * dtnew / nr.nCI[im])) / (pi / 2.0) / dtnew;
+                arg = dnr_cn.dxnCI[im] * dr * dtnew / max(nr.nCI[im],1e-20);
+	            arg = std::max(-1.0, std::min(1.0, arg));
+                drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
                 if (abs(drmax4) < abs(drval4)) {
                     drmax4 = drval4; /*cout << "   nCI   dt = " << accur/abs(drmax4) << endl; */
                 }
-                drval4 = abs(asin(dnr_cn.dxnCII[im] * dr * dtnew / nr.nCII[im])) / (pi / 2.0) / dtnew;
+                arg = dnr_cn.dxnCII[im] * dr * dtnew / max(nr.nCII[im],1e-20);
+                arg = std::max(-1.0, std::min(1.0, arg));
+                drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
                 if (abs(drmax4) < abs(drval4)) {
                     drmax4 = drval4; /*cout << "   nCII   dt = " << accur/abs(drmax4) << endl; */
                 }
-                drval4 = abs(asin(dnr_cn.dxnCIII[im] * dr * dtnew / nr.nCIII[im])) / (pi / 2.0) / dtnew;
+                arg = dnr_cn.dxnCIII[im] * dr * dtnew / max(nr.nCIII[im],1e-20);
+                arg = std::max(-1.0, std::min(1.0, arg));
+                drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
                 if (abs(drmax4) < abs(drval4)) {
                     drmax4 = drval4; /*cout << "   nCIII   dt = " << accur/abs(drmax4) << endl; */
                 }
-                drval4 = abs(asin(dnr_cn.dxnCIV[im] * dr * dtnew / nr.nCIV[im])) / (pi / 2.0) / dtnew;
+                arg = dnr_cn.dxnCIV[im] * dr * dtnew / max(nr.nCIV[im],1e-20);
+                arg = std::max(-1.0, std::min(1.0, arg));
+                drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
                 if (abs(drmax4) < abs(drval4)) {
                     drmax4 = drval4; /*cout << "   nCIII   dt = " << accur/abs(drmax4) << endl; */
                 }
-                drval4 = abs(asin(dnr_cn.dxnCV[im] * dr * dtnew / nr.nCV[im])) / (pi / 2.0) / dtnew;
+                arg = dnr_cn.dxnCV[im] * dr * dtnew / max(nr.nCV[im],1e-20);
+                arg = std::max(-1.0, std::min(1.0, arg));
+                drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
                 if (abs(drmax4) < abs(drval4)) {
                     drmax4 = drval4; /*cout << "   nCIII   dt = " << accur/abs(drmax4) << endl; */
                 }
             }
             arg = dEr_cn.dxEe[im] * dr * dtnew / max(Er.Ee[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   Ee   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dEr_cn.dxEH[im] * dr * dtnew / max(Er.EH[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   EH   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dEr_cn.dxEH2[im] * dr * dtnew / max(Er.EH2[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   EH2   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dEr_cn.dxEHi[im] * dr * dtnew / max(Er.EHi[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   EHi   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dEr_cn.dxEH2i[im] * dr * dtnew / max(Er.EH2i[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   EH2i   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dEr_cn.dxEH3i[im] * dr * dtnew / max(Er.EH3i[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   EH3i   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dEr_cn.dxEHeI[im] * dr * dtnew / max(Er.EHeI[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   EHeI   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dEr_cn.dxEHeII[im] * dr * dtnew / max(Er.EHeII[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   EHeII   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dEr_cn.dxEHeIII[im] * dr * dtnew / max(Er.EHeIII[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   EHeIII   dt = " << accur/abs(drmax4) << endl; */
