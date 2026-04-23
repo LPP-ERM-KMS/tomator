@@ -439,7 +439,7 @@ void timeStep() {
             for (int im = 0; im < NMESHP; ++im) {
                 // Do time step, take smaller step if accur is not good enough.
 
-                if (((abs(dnr_cn.dne[im] * dtnew) / nr.ne[im]) <= accur) | ((abs(dEr_cn.dEe[im] * dtnew) / Er.Ee[im]) <= accur)) {
+                if (((abs(dnr_cn.dne[im] * dtnew) / nr.ne[im]) <= accur) || ((abs(dEr_cn.dEe[im] * dtnew) / Er.Ee[im]) <= accur)) {
                     nr.ne[im] += (dnr_cn.dne[im]) * dtnew;
 
                     if (fixedTe) {
@@ -505,7 +505,7 @@ void timeStep() {
                     Er.xEH[im] += (dEr_cn.dxEH[im]) * dth1;
                 }
 
-                if (((abs(dnr_cn.dnH2[im] * dtnew) / nr.nH2[im]) <= accur) | ((abs(dEr_cn.dEH2[im] * dtnew) / Er.EH2[im]) <= accur)) {
+                if (((abs(dnr_cn.dnH2[im] * dtnew) / nr.nH2[im]) <= accur) || ((abs(dEr_cn.dEH2[im] * dtnew) / Er.EH2[im]) <= accur)) {
                     nr.nH2[im] += (dnr_cn.dnH2[im]) * dtnew;
                     Er.EH2[im] += (dEr_cn.dEH2[im]) * dtnew;
                     nr.xnH2[im] += (dnr_cn.dxnH2[im]) * dtnew;
@@ -521,7 +521,7 @@ void timeStep() {
                     Er.xEH2[im] += (dEr_cn.dxEH2[im]) * dth1;
                 }
 
-                if (((abs(dnr_cn.dnHi[im] * dtnew) / nr.nHi[im]) <= accur) | ((abs(dEr_cn.dEHi[im] * dtnew) / Er.EHi[im]) <= accur)) {
+                if (((abs(dnr_cn.dnHi[im] * dtnew) / nr.nHi[im]) <= accur) || ((abs(dEr_cn.dEHi[im] * dtnew) / Er.EHi[im]) <= accur)) {
                     nr.nHi[im] += (dnr_cn.dnHi[im]) * dtnew;
                     Er.EHi[im] += (dEr_cn.dEHi[im]) * dtnew;
                     nr.xnHi[im] += (dnr_cn.dxnHi[im]) * dtnew;
@@ -537,7 +537,7 @@ void timeStep() {
                     Er.xEHi[im] += (dEr_cn.dxEHi[im]) * dth1;
                 }
 
-                if (((abs(dnr_cn.dnH2i[im] * dtnew) / nr.nH2i[im]) <= accur) | ((abs(dEr_cn.dEH2i[im] * dtnew) / Er.EH2i[im]) <= accur)) {
+                if (((abs(dnr_cn.dnH2i[im] * dtnew) / nr.nH2i[im]) <= accur) || ((abs(dEr_cn.dEH2i[im] * dtnew) / Er.EH2i[im]) <= accur)) {
                     nr.nH2i[im] += (dnr_cn.dnH2i[im]) * dtnew;
                     Er.EH2i[im] += (dEr_cn.dEH2i[im]) * dtnew;
                     nr.xnH2i[im] += (dnr_cn.dxnH2i[im]) * dtnew;
@@ -553,7 +553,7 @@ void timeStep() {
                     Er.xEH2i[im] += (dEr_cn.dxEH2i[im]) * dth1;
                 }
 
-                if (((abs(dnr_cn.dnH3i[im] * dtnew) / nr.nH3i[im]) <= accur) | ((abs(dEr_cn.dEH3i[im] * dtnew) / Er.EH3i[im]) <= accur)) {
+                if (((abs(dnr_cn.dnH3i[im] * dtnew) / nr.nH3i[im]) <= accur) || ((abs(dEr_cn.dEH3i[im] * dtnew) / Er.EH3i[im]) <= accur)) {
                     nr.nH3i[im] += (dnr_cn.dnH3i[im]) * dtnew;
                     Er.EH3i[im] += (dEr_cn.dEH3i[im]) * dtnew;
                     nr.xnH3i[im] += (dnr_cn.dxnH3i[im]) * dtnew;
@@ -569,7 +569,7 @@ void timeStep() {
                     Er.xEH3i[im] += (dEr_cn.dxEH3i[im]) * dth1;
                 }
 
-                if (((abs(dnr_cn.dnHeI[im] * dtnew) / nr.nHeI[im]) <= accur) | ((abs(dEr_cn.dEHeI[im] * dtnew) / Er.EHeI[im]) <= accur)) {
+                if (((abs(dnr_cn.dnHeI[im] * dtnew) / nr.nHeI[im]) <= accur) || ((abs(dEr_cn.dEHeI[im] * dtnew) / Er.EHeI[im]) <= accur)) {
                     nr.nHeI[im] += (dnr_cn.dnHeI[im]) * dtnew;
                     Er.EHeI[im] += (dEr_cn.dEHeI[im]) * dtnew;
                     nr.xnHeI[im] += (dnr_cn.dxnHeI[im]) * dtnew;
@@ -585,7 +585,7 @@ void timeStep() {
                     Er.xEHeI[im] += (dEr_cn.dxEHeI[im]) * dth1;
                 }
 
-                if (((abs(dnr_cn.dnHeII[im] * dtnew) / nr.nHeII[im]) <= accur) | ((abs(dEr_cn.dEHeII[im] * dtnew) / Er.EHeII[im]) <= accur)) {
+                if (((abs(dnr_cn.dnHeII[im] * dtnew) / nr.nHeII[im]) <= accur) || ((abs(dEr_cn.dEHeII[im] * dtnew) / Er.EHeII[im]) <= accur)) {
                     nr.nHeII[im] += (dnr_cn.dnHeII[im]) * dtnew;
                     Er.EHeII[im] += (dEr_cn.dEHeII[im]) * dtnew;
                     nr.xnHeII[im] += (dnr_cn.dxnHeII[im]) * dtnew;
@@ -601,7 +601,7 @@ void timeStep() {
                     Er.xEHeII[im] += (dEr_cn.dxEHeII[im]) * dth1;
                 }
 
-                if (((abs(dnr_cn.dnHeIII[im] * dtnew) / nr.nHeIII[im]) <= accur) | ((abs(dEr_cn.dEHeIII[im] * dtnew) / Er.EHeIII[im]) <= accur)) {
+                if (((abs(dnr_cn.dnHeIII[im] * dtnew) / nr.nHeIII[im]) <= accur) || ((abs(dEr_cn.dEHeIII[im] * dtnew) / Er.EHeIII[im]) <= accur)) {
                     nr.nHeIII[im] += (dnr_cn.dnHeIII[im]) * dtnew;
                     Er.EHeIII[im] += (dEr_cn.dEHeIII[im]) * dtnew;
                     nr.xnHeIII[im] += (dnr_cn.dxnHeIII[im]) * dtnew;
