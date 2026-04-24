@@ -85,7 +85,7 @@
     "pppl":{},
     "diffusion": {
         "bDfix": true,
-        "Dfix": 10000,
+        "Dfix": 40000,
         "bDbohm": false,
         "bDscaling": false,
         "Dfact": 0.2,
@@ -93,7 +93,7 @@
     },
     "convection": {
         "bVfix": true,
-        "Vfix": 50,
+        "Vfix": 5,
         "bVscaling": false,
         "veq": 8,
         "Vfact": 4.0
@@ -132,7 +132,7 @@
         "nebackgroundl": 1e-1,
         "nebackgroundr": 1e-1,
         "Ta0": 0.02587,
-        "Te0": 10.0,
+        "Te0": 15.0,
         "nevac": 1.0,
         "nH0": 1.0e11,
         "nHi0": 5.0e10,

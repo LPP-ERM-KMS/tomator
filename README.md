@@ -36,13 +36,13 @@ the j flag if in doubt)
 
 If you hit the error that eigen is not found after running "cmake .." you need to install it on your system
 ### ubuntu users:
-    ```console
-    LPP@ERM/KMS:~$ sudo apt install libeigen3-dev
-    ```
+```console
+LPP@ERM/KMS:~$ sudo apt install libeigen3-dev
+```
 ### macos users:
-    ```console
-    LPP@ERM/KMS:~$ brew install eigen
-    ```
+```console
+LPP@ERM/KMS:~$ brew install eigen
+```
 
 This will have built an executable called 'Tomator1D' which is the primary
 binary. Optionally you may install the software:
