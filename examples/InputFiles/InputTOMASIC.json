@@ -1,0 +1,190 @@
+{
+    "file_input": {
+        "input_file_path": "../v"
+    },
+    "magnetic_field": {
+        "Bt": 0.0912,
+        "Bv": 1e-07,
+        "Bh": 1e-07
+    },
+    "toroidal_machine_geometry": {
+        "R": 78.0,
+        "a": 26.0,
+        "b": 26.0,
+        "lHFS": 54.0,
+        "lLFS": 99.0,
+        "nlimiters": 2,
+        "Vpl": 1040810.0
+    },
+    "neutral_pressure": {
+        "pHe": 1e-10,
+        "pH2": 0.001
+    },
+    "rf_power": {
+        "Prf": 1.0,
+        "bselfcol": true,
+        "freq": 11440000.0,
+        "dtpramp": 1e-12
+    },
+    "type": {
+        "bfixpowerfrac": false,
+        "bnefix": false,
+        "bTOMAS": false,
+        "bTOMASIC": true,
+        "bproptone": false,
+        "blhr": false,
+        "bmanuel": false
+    },
+    "general_ec": {
+        "Rdep": 78.0,
+        "pecabs0": 0.1,
+        "widthech": 1.87,
+        "echbackground": 1e-07,
+        "harmonic": 2.0,
+        "muw": 0.01
+    },
+    "necfix": {
+        "ic": 81,
+        "necfix": 10584000000000.0,
+        "Pini": 3.0,
+        "tauP": 5e-05
+    },
+    "tomas": {
+        "Rdep1": 66.1875,
+        "PRdep1": 0.0,
+        "Rdep2": 87.65,
+        "PRdep2": 1.0,
+        "Rdep3": 42.4325,
+        "PRdep3": 0.0,
+        "Rdep4": 72.4325,
+        "PRdep4": 0.0
+    },
+    "general_ic": {
+        "Rant": 100.0,
+        "bantlr": false,
+        "avlr": 0.23
+    },
+    "lhr": {
+        "fracpne": 1.0,
+        "fraclhr": 0.5,
+        "widthlhr": 1.5,
+        "lhrbackground": 1e-07,
+        "HtoHD": 1.0
+    },
+    "other": {
+        "fixedTe": false
+    },
+    "diffusion": {
+        "bDfix": true,
+        "Dfix": 30000.0,
+        "bDbohm": false,
+        "bDscaling": false,
+        "Dfact": 0.2
+    },
+    "convection": {
+        "bVfix": true,
+        "Vfix": 200.0,
+        "bVscaling": false,
+        "veq": 8,
+        "Vfact": 4.0
+    },
+    "tune_d_and_v": {
+        "btunedv": false,
+        "btunevleft": false,
+        "il": 85,
+        "nelfix": 10000000000.0,
+        "ir": 437,
+        "nerfix": 45000000000.0,
+        "Vini": 20000.0,
+        "tauV": 1000.0,
+        "Dini": 30000.0,
+        "tauD": 1000.0
+    },
+    "physics_to_include": {
+        "bH": true,
+        "bH2": true,
+        "bHe": false,
+        "bion": true,
+        "bcx": true,
+        "belas": true,
+        "bcoulomb": true,
+        "bimpur": true,
+        "btranspions": true,
+        "btranspneut": true,
+        "bedge": true,
+        "bpol": false,
+        "vdrift": true,
+        "bcoll": true
+    },
+    "initial_conditions": {
+        "rmaxini": 90.0,
+        "widthini": 30.0,
+        "nebackgroundl": 0.1,
+        "nebackgroundr": 0.1,
+        "Ta0": 0.02587,
+        "Te0": 5.0,
+        "nevac": 1.0,
+        "nH0": 1000000000000.0,
+        "nHi0": 20000000000.0,
+        "nH2i0": 100000.0,
+        "nH3i0": 10.0,
+        "nHeII0": 10.0,
+        "nHeIII0": 20.0,
+        "nCII0": 10.0,
+        "nCIII0": 10.0,
+        "nCIV0": 10.0,
+        "nCV0": 10.0
+    },
+    "edge_conditions": {
+        "RH": 0.5,
+        "REH": 0.9,
+        "gEd": 2.0,
+        "gEv": 1.0,
+        "gEdn": 3.0,
+        "gEe": 3.0
+    },
+    "simulation_grid": {
+        "nmeshp": 1001
+    },
+    "input_file": {
+        "bfinput": true
+    },
+    "time_step": {
+        "t0": 0.0,
+        "tmainend": 0.1,
+        "accur": 0.05,
+        "dtmax": 2e-07,
+        "dtmin": 2.5e-10,
+        "dtinit": 2.5e-09
+    },
+    "time_step_for_rf_coupling": {
+        "bupdateRFstep": false,
+        "updateRF": 10,
+        "dtRF": 1e-07,
+        "dtRFvar": true,
+        "dtRFmax": 1e-06,
+        "dtRFmin": 1e-09,
+        "dtRFconv": true
+    },
+    "advanced_time_step_settings": {
+        "dtsmooth": true,
+        "shokparam": 2.0,
+        "maxtstepincrement": 1.5,
+        "btendvar": false,
+        "convcrit": 100.0,
+        "convsavetime": 0.01,
+        "baccurvar": true,
+        "accurcrit": 500.0,
+        "minaccur": 0.05
+    },
+    "output_parameters": {
+        "Nlog": 1000,
+        "cc": 91,
+        "Nloopsave": 100,
+        "bOutdt": false,
+        "dtsave": 1e-06
+    },
+    "solver_parameters": {
+        "solvertolerance": 1e-10
+    }
+}
