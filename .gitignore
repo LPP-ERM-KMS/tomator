@@ -6,6 +6,7 @@
 *.pkl
 *.vtu
 *.swp
+*.swo
 src/build
 tests/*.txt
 *aux.txt
