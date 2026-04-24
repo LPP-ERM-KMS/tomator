@@ -9,7 +9,7 @@
         "a": 26.0,
         "b": 26.0,
         "lHFS": 54.0,
-        "lLFS": 99.0,
+        "lLFS": 104.0,
         "nlimiters": 2,
         "Vpl": 1.04081e6
     },
@@ -18,7 +18,7 @@
         "pH2": 1e-3
     },
     "rf_power": {
-        "Prf": 2.0,
+        "Prf": 3.0,
         "bselfcol": true,
         "freq": 2.45e9,
         "dtpramp": 1e-12
@@ -26,8 +26,8 @@
     "type": {
         "bfixpowerfrac": false,
         "bnefix": false,
-        "bTOMAS": true,
-        "bTOMASIC": false,
+        "bTOMAS": false,
+        "bTOMASIC": true,
         "bproptone": false,
         "blhr": false,
         "bmanuel": false,
@@ -127,15 +127,15 @@
         "bcoll": true
     },
     "initial_conditions": {
-        "rmaxini": 90.0,
-        "widthini": 30.0,
+        "rmaxini": 95.0,
+        "widthini": 15.0,
         "nebackgroundl": 1e-1,
         "nebackgroundr": 1e-1,
         "Ta0": 0.02587,
-        "Te0": 5.0,
+        "Te0": 10.0,
         "nevac": 1.0,
-        "nH0": 1.0e12,
-        "nHi0": 2.0e10,
+        "nH0": 1.0e11,
+        "nHi0": 5.0e10,
         "nH2i0": 1.0e5,
         "nH3i0": 1.0e1,
         "nHeII0": 1.0e1,

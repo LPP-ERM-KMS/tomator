@@ -18,6 +18,9 @@ quick start guide is found below
 
 ## Building & **Installation** 
 
+To start you will need to have a c++ compiler with openmp and the libeigen library (if you are not sure
+cmake will throw an error indicating what is missing), 
+
 The build steps are the same as other cmake software:
 
 ```console
@@ -30,6 +33,16 @@ LPP@ERM/KMS:~/tomator/src/build$ make -jX
 ```
 Where X is the amount of threads your cpu has (use nproc to find out or omit
 the j flag if in doubt)
+
+If you hit the error that eigen is not found after running "cmake .." you need to install it on your system
+### ubuntu users:
+    ```console
+    LPP@ERM/KMS:~$ sudo apt install libeigen3-dev
+    ```
+### macos users:
+    ```console
+    LPP@ERM/KMS:~$ brew install eigen
+    ```
 
 This will have built an executable called 'Tomator1D' which is the primary
 binary. Optionally you may install the software:
