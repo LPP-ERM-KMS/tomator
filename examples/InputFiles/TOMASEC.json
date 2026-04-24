@@ -153,8 +153,8 @@
         "gEdn": 3.0,
         "gEe": 3.0,
         "fixBCs": false,
-        lam_dec_length_ions: 1.0,
-        lam_dec_length_energy: 1.0
+        "lam_dec_length_ions": 1.0,
+        "lam_dec_length_energy": 1.0
     },
     "simulation_grid": {
         "nmeshp": 1001

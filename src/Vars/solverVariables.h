@@ -3,7 +3,7 @@
 
 #include "datastructures.h"
 #include "simparam.h"
-#include "../Eigen/Sparse"
+#include <Eigen/Sparse>
 
 extern DENS nsend;
 extern ENER Esend;

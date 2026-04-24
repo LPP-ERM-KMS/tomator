@@ -2,7 +2,7 @@
 #define POSITIONS_H
 
 #include "simparam.h"
-#include "../Eigen/Sparse"
+#include <Eigen/Sparse>
 
 extern double TLfa[NMESHP], TLfb[NMESHP], TLdfa[NMESHP], TLdfb[NMESHP];
 extern double TRfb[NMESHP], TRfc[NMESHP], TRdfb[NMESHP], TRdfc[NMESHP];

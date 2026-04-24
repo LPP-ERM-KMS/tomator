@@ -142,7 +142,7 @@ void timeStep() {
         }
         drval2 = 0.0;
         drmax2 = 0.0;
-	#pragma omp parallel for
+	    #pragma omp parallel for
         for (int im = 1; im < NMESHP - 1; ++im) { // The change of difference between two neighbouring states cannot be larger than accur
             double dr;
             if (im != NMESHP - 1) {
@@ -248,7 +248,7 @@ void timeStep() {
         }
         drval4 = 0.0;
         drmax4 = 0.0;
-	#pragma omp parallel for
+	    #pragma omp parallel for
         for (int im = 0; im < NMESHP; ++im) {
             double dr;
             if (im != NMESHP - 1) {
@@ -258,31 +258,31 @@ void timeStep() {
                 dr = aR[NMESHP - 1] - aR[NMESHP - 2];
             } // cout << dr << endl;
             double arg = dnr_cn.dxne[im] * dr * dtnew / max(nr.ne[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   ne   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dnr_cn.dxnH[im] * dr * dtnew / max(nr.nH[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   nH   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dnr_cn.dxnH2[im] * dr * dtnew / max(nr.nH2[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   nH2   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dnr_cn.dxnHi[im] * dr * dtnew / max(nr.nHi[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   nHi   dt = " << accur/abs(drmax4) << endl; */
             }
             arg = dnr_cn.dxnH2i[im] * dr * dtnew / max(nr.nH2i[im],1e-20);
-	    arg = std::max(-1.0, std::min(1.0, arg));
+	        arg = std::max(-1.0, std::min(1.0, arg));
             drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
             if (abs(drmax4) < abs(drval4)) {
                 drmax4 = drval4; /*cout << "   nH2i   dt = " << accur/abs(drmax4) << endl; */

@@ -1,7 +1,7 @@
 #ifndef GLOBALVARIABLES_H
 #define GLOBALVARIABLES_H
 
-#include "../Eigen/Sparse"
+#include <Eigen/Sparse>
 #include "datastructures.h"
 #include "simparam.h"
 
