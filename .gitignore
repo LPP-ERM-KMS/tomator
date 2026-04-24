@@ -4,6 +4,8 @@
 *.log
 *.mod
 *.pkl
+*.vtu
+*.swp
 src/build
 tests/*.txt
 *aux.txt
