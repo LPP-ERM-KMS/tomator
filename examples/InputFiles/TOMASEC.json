@@ -85,7 +85,7 @@
     "pppl":{},
     "diffusion": {
         "bDfix": true,
-        "Dfix": 3000,
+        "Dfix": 10000,
         "bDbohm": false,
         "bDscaling": false,
         "Dfact": 0.2,
@@ -93,7 +93,7 @@
     },
     "convection": {
         "bVfix": true,
-        "Vfix": 200,
+        "Vfix": 50,
         "bVscaling": false,
         "veq": 8,
         "Vfact": 4.0
