@@ -49,7 +49,6 @@ int main(int argc, char *argv[]) {
 
     double tstartloop;
     double tstartcalculation = omp_get_wtime();
-    Eigen::initParallel();
     time_t now = time(0);
     char *timestamp = ctime(&now);
 
