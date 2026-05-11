@@ -85,7 +85,7 @@
     "pppl":{},
     "diffusion": {
         "bDfix": true,
-        "Dfix": 40000,
+        "Dfix": 1000,
         "bDbohm": false,
         "bDscaling": false,
         "Dfact": 0.2,
@@ -93,7 +93,7 @@
     },
     "convection": {
         "bVfix": true,
-        "Vfix": 5,
+        "Vfix": 10,
         "bVscaling": false,
         "veq": 8,
         "Vfact": 4.0
@@ -118,7 +118,7 @@
         "bcx": true,
         "belas": true,
         "bcoulomb": true,
-        "bimpur": true,
+        "bimpur": false,
         "btranspions": true,
         "btranspneut": true,
         "bedge": true,
@@ -166,17 +166,17 @@
         "t0": 0.0,
         "tmainend": 0.1,
         "accur": 0.05,
-        "dtmax": 2e-08,
-        "dtmin": 2.5e-10,
-        "dtinit": 2.5e-09
+        "dtmax": 1e-06,
+        "dtmin": 1e-10,
+        "dtinit": 1e-09
     },
     "time_step_for_rf_coupling": {
         "bupdateRFstep": false,
         "updateRF": 10,
-        "dtRF": 1.0e-07,
+        "dtRF": 1.0e-06,
         "dtRFvar": true,
-        "dtRFmax": 1e-06,
-        "dtRFmin": 1e-09,
+        "dtRFmax": 1e-05,
+        "dtRFmin": 1e-08,
         "dtRFconv": true
     },
     "advanced_time_step_settings": {
@@ -194,7 +194,7 @@
         "Nlog": 1000,
         "cc": 91,
         "Nloopsave": 100,
-        "bOutdt": false,
+        "bOutdt": true,
         "dtsave": 1.0e-6
     },
     "solver_parameters": {
