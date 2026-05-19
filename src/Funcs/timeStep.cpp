@@ -41,362 +41,172 @@ void timeStep() {
         // #include "../Phys/solve_Ab=x_v3.03.h" // solve a first time with the previous time step
         solverAb_x();
 
-        drval = 0.0;
-        drmax = 0.0;
-	    #pragma omp parallel for
-        for (int im = 0; im < NMESHP; ++im) { // The change of a state cannot be larger than accur
-            drval = (dnr_cn.dne[im]) / max(nr.ne[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dnr_cn.dnH[im]) / max(nr.nH[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dnr_cn.dnH2[im]) / max(nr.nH2[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dnr_cn.dnHi[im]) / max(nr.nHi[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dnr_cn.dnH2i[im]) / max(nr.nH2i[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dnr_cn.dnH3i[im]) / max(nr.nH3i[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dnr_cn.dnHeI[im]) / max(nr.nHeI[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dnr_cn.dnHeII[im]) / max(nr.nHeII[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dnr_cn.dnHeIII[im]) / max(nr.nHeIII[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            if (bimpur) {
-                drval = (dnr_cn.dnCI[im]) / max(nr.nCI[im],1e-20);
-                if (abs(drmax) < abs(drval)) {
-                    drmax = drval;
-                }
-                drval = (dnr_cn.dnCII[im]) / max(nr.nCII[im],1e-20);
-                if (abs(drmax) < abs(drval)) {
-                    drmax = drval;
-                }
-                drval = (dnr_cn.dnCIII[im]) / max(nr.nCIII[im],1e-20);
-                if (abs(drmax) < abs(drval)) {
-                    drmax = drval;
-                }
-                drval = (dnr_cn.dnCIV[im]) / max(nr.nCIV[im],1e-20);
-                if (abs(drmax) < abs(drval)) {
-                    drmax = drval;
-                }
-                drval = (dnr_cn.dnCV[im]) / max(nr.nCV[im],1e-20);
-                if (abs(drmax) < abs(drval)) {
-                    drmax = drval;
-                }
-            }
-            drval = (dEr_cn.dEe[im]) / max(Er.Ee[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dEr_cn.dEH[im]) / max(Er.EH[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dEr_cn.dEH2[im]) / max(Er.EH2[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dEr_cn.dEHi[im]) / max(Er.EHi[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dEr_cn.dEH2i[im]) / max(Er.EH2i[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dEr_cn.dEH3i[im]) / max(Er.EH3i[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dEr_cn.dEHeI[im]) / max(Er.EHeI[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dEr_cn.dEHeII[im]) / max(Er.EHeII[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-            drval = (dEr_cn.dEHeIII[im]) / max(Er.EHeIII[im],1e-20);
-            if (abs(drmax) < abs(drval)) {
-                drmax = drval;
-            }
-        }
-        drval2 = 0.0;
-        drmax2 = 0.0;
-	    #pragma omp parallel for
-        for (int im = 1; im < NMESHP - 1; ++im) { // The change of difference between two neighbouring states cannot be larger than accur
-            double dr;
-            if (im != NMESHP - 1) {
-                dr = aR[im + 1] - aR[im];
-            }
-            else {
-                dr = aR[NMESHP - 1] - aR[NMESHP - 2];
-            } // cout << dr << endl;
-            drval2 = abs((dnr_cn.dxne[im] * dr / max(nr.ne[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   ne   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dnr_cn.dxnH[im] * dr / max(nr.nH[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   nH   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dnr_cn.dxnH2[im] * dr / max(nr.nH2[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   nH2   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dnr_cn.dxnHi[im] * dr / max(nr.nHi[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   nHi   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dnr_cn.dxnH2i[im] * dr / max(nr.nH2i[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   nH2i   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dnr_cn.dxnH3i[im] * dr / max(nr.nH3i[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   nH3i   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dnr_cn.dxnHeI[im] * dr / max(nr.nHeI[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   nHeI   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dnr_cn.dxnHeII[im] * dr / max(nr.nHeII[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   nHeII   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dnr_cn.dxnHeIII[im] * dr / max(nr.nHeIII[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2;
-            }
-            if (bimpur) {
-                drval2 = abs(dnr_cn.dxnCI[im] * dr / max(nr.nCI[im],1e-20));
-                if (abs(drmax2) < abs(drval2)) {
-                    drmax2 = drval2; /*cout << "   nCI   dt = " << accur/abs(drmax2) << endl; */
-                }
-                drval2 = abs(dnr_cn.dxnCII[im] * dr / max(nr.nCII[im],1e-20));
-                if (abs(drmax2) < abs(drval2)) {
-                    drmax2 = drval2; /*cout << "   nCII   dt = " << accur/abs(drmax2) << endl; */
-                }
-                drval2 = abs(dnr_cn.dxnCIII[im] * dr / max(nr.nCIII[im],1e-20));
-                if (abs(drmax2) < abs(drval2)) {
-                    drmax2 = drval2; /*cout << "   nCIII   dt = " << accur/abs(drmax2) << endl; */
-                }
-                drval2 = abs(dnr_cn.dxnCIV[im] * dr / max(nr.nCIV[im],1e-20));
-                if (abs(drmax2) < abs(drval2)) {
-                    drmax2 = drval2; /*cout << "   nCIII   dt = " << accur/abs(drmax2) << endl; */
-                }
-                drval2 = abs(dnr_cn.dxnCV[im] * dr / max(nr.nCV[im],1e-20));
-                if (abs(drmax2) < abs(drval2)) {
-                    drmax2 = drval2; /*cout << "   nCIII   dt = " << accur/abs(drmax2) << endl; */
-                }
-            }
-            drval2 = abs((dEr_cn.dxEe[im] * dr / max(Er.Ee[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   Ee   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dEr_cn.dxEH[im] * dr / max(Er.EH[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   EH   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dEr_cn.dxEH2[im] * dr / max(Er.EH2[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   EH2   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dEr_cn.dxEHi[im] * dr / max(Er.EHi[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   EHi   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dEr_cn.dxEH2i[im] * dr / max(Er.EH2i[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   EH2i   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dEr_cn.dxEH3i[im] * dr / max(Er.EH3i[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   EH3i   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dEr_cn.dxEHeI[im] * dr / max(Er.EHeI[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   EHeI   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dEr_cn.dxEHeII[im] * dr / max(Er.EHeII[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   EHeII   dt = " << accur/abs(drmax2) << endl; */
-            }
-            drval2 = abs((dEr_cn.dxEHeIII[im] * dr / max(Er.EHeIII[im],1e-20)));
-            if (abs(drmax2) < abs(drval2)) {
-                drmax2 = drval2; /*cout << "   EHeIII   dt = " << accur/abs(drmax2) << endl; */
-            }
-        }
-        drval4 = 0.0;
-        drmax4 = 0.0;
-	    #pragma omp parallel for
+        double drmax = 0.0;
+        #pragma omp parallel for reduction(max:drmax) //thread safe calculation
         for (int im = 0; im < NMESHP; ++im) {
-            double dr;
-            if (im != NMESHP - 1) {
-                dr = aR[im + 1] - aR[im];
-            }
-            else {
-                dr = aR[NMESHP - 1] - aR[NMESHP - 2];
-            } // cout << dr << endl;
-            double arg = dnr_cn.dxne[im] * dr * dtnew / max(nr.ne[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   ne   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dnr_cn.dxnH[im] * dr * dtnew / max(nr.nH[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   nH   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dnr_cn.dxnH2[im] * dr * dtnew / max(nr.nH2[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   nH2   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dnr_cn.dxnHi[im] * dr * dtnew / max(nr.nHi[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   nHi   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dnr_cn.dxnH2i[im] * dr * dtnew / max(nr.nH2i[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   nH2i   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dnr_cn.dxnH3i[im] * dr * dtnew / max(nr.nH3i[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   nH3i   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dnr_cn.dxnHeI[im] * dr * dtnew / max(nr.nHeI[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   nHeI   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dnr_cn.dxnHeII[im] * dr * dtnew / max(nr.nHeII[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   nHeII   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dnr_cn.dxnHeIII[im] * dr * dtnew / max(nr.nHeIII[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4;
-            }
+            // Thread-local maximum for this mesh point
+            double local_max = 0.0;
+            auto update_max = [&](double num, double den) {
+                // Protect against NaN or tiny/negative denominators
+                double safe_den =
+                    std::isfinite(den) ? std::max(std::fabs(den), 1e-20) : 1e-20;
+                double val = std::fabs(num / safe_den);
+                // Ignore NaN and Inf
+                if (std::isfinite(val)) {
+                    local_max = std::max(local_max, val);
+                }
+            };
+            // --- Number densities ---
+            update_max(dnr_cn.dne[im],    nr.ne[im]);
+            update_max(dnr_cn.dnH[im],    nr.nH[im]);
+            update_max(dnr_cn.dnH2[im],   nr.nH2[im]);
+            update_max(dnr_cn.dnHi[im],   nr.nHi[im]);
+            update_max(dnr_cn.dnH2i[im],  nr.nH2i[im]);
+            update_max(dnr_cn.dnH3i[im],  nr.nH3i[im]);
+            update_max(dnr_cn.dnHeI[im],  nr.nHeI[im]);
+            update_max(dnr_cn.dnHeII[im], nr.nHeII[im]);
+            update_max(dnr_cn.dnHeIII[im], nr.nHeIII[im]);
+            // --- Impurities ---
             if (bimpur) {
-                arg = dnr_cn.dxnCI[im] * dr * dtnew / max(nr.nCI[im],1e-20);
-	            arg = std::max(-1.0, std::min(1.0, arg));
-                drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-                if (abs(drmax4) < abs(drval4)) {
-                    drmax4 = drval4; /*cout << "   nCI   dt = " << accur/abs(drmax4) << endl; */
+                update_max(dnr_cn.dnCI[im],   nr.nCI[im]);
+                update_max(dnr_cn.dnCII[im],  nr.nCII[im]);
+                update_max(dnr_cn.dnCIII[im], nr.nCIII[im]);
+                update_max(dnr_cn.dnCIV[im],  nr.nCIV[im]);
+                update_max(dnr_cn.dnCV[im],   nr.nCV[im]);
+            }
+            // --- Energies ---
+            update_max(dEr_cn.dEe[im],      Er.Ee[im]);
+            update_max(dEr_cn.dEH[im],      Er.EH[im]);
+            update_max(dEr_cn.dEH2[im],     Er.EH2[im]);
+            update_max(dEr_cn.dEHi[im],     Er.EHi[im]);
+            update_max(dEr_cn.dEH2i[im],    Er.EH2i[im]);
+            update_max(dEr_cn.dEH3i[im],    Er.EH3i[im]);
+            update_max(dEr_cn.dEHeI[im],    Er.EHeI[im]);
+            update_max(dEr_cn.dEHeII[im],   Er.EHeII[im]);
+            update_max(dEr_cn.dEHeIII[im],  Er.EHeIII[im]);
+            // Contribute this iteration's maximum to the OpenMP reduction variable
+            drmax = std::max(drmax, local_max);
+        }
+
+        double drmax2 = 0.0;
+        #pragma omp parallel for reduction(max:drmax2)
+        for (int im = 1; im < NMESHP - 1; ++im) {
+            // The change of the difference between two neighbouring states
+            // cannot be larger than accur.
+            // Grid spacing
+            double dr = aR[im + 1] - aR[im];
+            // Local maximum for this mesh point
+            double local_max = 0.0;
+            auto update_max = [&](double num, double den) {
+                // Ensure denominator is finite and nonzero
+                double safe_den =
+                    std::isfinite(den) ? std::max(std::fabs(den), 1e-20) : 1e-20;
+
+                // Compute candidate value
+                double val = std::fabs(num * dr / safe_den);
+
+                // Ignore NaN/Inf
+                if (std::isfinite(val)) {
+                    local_max = std::max(local_max, val);
                 }
-                arg = dnr_cn.dxnCII[im] * dr * dtnew / max(nr.nCII[im],1e-20);
-                arg = std::max(-1.0, std::min(1.0, arg));
-                drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-                if (abs(drmax4) < abs(drval4)) {
-                    drmax4 = drval4; /*cout << "   nCII   dt = " << accur/abs(drmax4) << endl; */
+            };
+
+            // --- Number density gradients ---
+            update_max(dnr_cn.dxne[im],     nr.ne[im]);
+            update_max(dnr_cn.dxnH[im],     nr.nH[im]);
+            update_max(dnr_cn.dxnH2[im],    nr.nH2[im]);
+            update_max(dnr_cn.dxnHi[im],    nr.nHi[im]);
+            update_max(dnr_cn.dxnH2i[im],   nr.nH2i[im]);
+            update_max(dnr_cn.dxnH3i[im],   nr.nH3i[im]);
+            update_max(dnr_cn.dxnHeI[im],   nr.nHeI[im]);
+            update_max(dnr_cn.dxnHeII[im],  nr.nHeII[im]);
+            update_max(dnr_cn.dxnHeIII[im], nr.nHeIII[im]);
+
+            // --- Impurities ---
+            if (bimpur) {
+                update_max(dnr_cn.dxnCI[im],   nr.nCI[im]);
+                update_max(dnr_cn.dxnCII[im],  nr.nCII[im]);
+                update_max(dnr_cn.dxnCIII[im], nr.nCIII[im]);
+                update_max(dnr_cn.dxnCIV[im],  nr.nCIV[im]);
+                update_max(dnr_cn.dxnCV[im],   nr.nCV[im]);
+            }
+
+            // --- Energy gradients ---
+            update_max(dEr_cn.dxEe[im],      Er.Ee[im]);
+            update_max(dEr_cn.dxEH[im],      Er.EH[im]);
+            update_max(dEr_cn.dxEH2[im],     Er.EH2[im]);
+            update_max(dEr_cn.dxEHi[im],     Er.EHi[im]);
+            update_max(dEr_cn.dxEH2i[im],    Er.EH2i[im]);
+            update_max(dEr_cn.dxEH3i[im],    Er.EH3i[im]);
+            update_max(dEr_cn.dxEHeI[im],    Er.EHeI[im]);
+            update_max(dEr_cn.dxEHeII[im],   Er.EHeII[im]);
+            update_max(dEr_cn.dxEHeIII[im],  Er.EHeIII[im]);
+
+            // Contribute this mesh point's maximum to the OpenMP reduction
+            drmax2 = std::max(drmax2, local_max);
+        }
+        drmax4 = 0.0;
+        #pragma omp parallel for reduction(max:drmax4)
+        for (int im = 0; im < NMESHP; ++im) {
+            // Thread-local maximum for this mesh point
+            double local_max = 0.0;
+
+            // Radial cell width
+            const double dr =
+                (im < NMESHP - 1)
+                    ? (aR[im + 1] - aR[im])
+                    : (aR[NMESHP - 1] - aR[NMESHP - 2]);
+
+            // Safe update for asin-based timestep criterion
+            auto update_max = [&](double numerator, double denominator) {
+                denominator = std::max(denominator, 1e-20);
+
+                double arg = numerator * dr * dtnew / denominator;
+
+                // Ignore NaN/Inf before clamping
+                if (!std::isfinite(arg)) return;
+
+                double value = std::abs(arg) * (2.0 / pi) / dtnew; //used to be asin(arg) but asin(arg) approx arg which safes a lot of computation time
+
+                // Ignore NaN/Inf
+                if (std::isfinite(value)) {
+                    local_max = std::max(local_max, value);
                 }
-                arg = dnr_cn.dxnCIII[im] * dr * dtnew / max(nr.nCIII[im],1e-20);
-                arg = std::max(-1.0, std::min(1.0, arg));
-                drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-                if (abs(drmax4) < abs(drval4)) {
-                    drmax4 = drval4; /*cout << "   nCIII   dt = " << accur/abs(drmax4) << endl; */
-                }
-                arg = dnr_cn.dxnCIV[im] * dr * dtnew / max(nr.nCIV[im],1e-20);
-                arg = std::max(-1.0, std::min(1.0, arg));
-                drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-                if (abs(drmax4) < abs(drval4)) {
-                    drmax4 = drval4; /*cout << "   nCIII   dt = " << accur/abs(drmax4) << endl; */
-                }
-                arg = dnr_cn.dxnCV[im] * dr * dtnew / max(nr.nCV[im],1e-20);
-                arg = std::max(-1.0, std::min(1.0, arg));
-                drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-                if (abs(drmax4) < abs(drval4)) {
-                    drmax4 = drval4; /*cout << "   nCIII   dt = " << accur/abs(drmax4) << endl; */
-                }
+            };
+
+            // --- Particle densities ---
+            update_max(dnr_cn.dxne[im],   nr.ne[im]);
+            update_max(dnr_cn.dxnH[im],   nr.nH[im]);
+            update_max(dnr_cn.dxnH2[im],  nr.nH2[im]);
+            update_max(dnr_cn.dxnHi[im],  nr.nHi[im]);
+            update_max(dnr_cn.dxnH2i[im], nr.nH2i[im]);
+            update_max(dnr_cn.dxnH3i[im], nr.nH3i[im]);
+            update_max(dnr_cn.dxnHeI[im], nr.nHeI[im]);
+            update_max(dnr_cn.dxnHeII[im], nr.nHeII[im]);
+            update_max(dnr_cn.dxnHeIII[im], nr.nHeIII[im]);
+
+            // --- Impurities ---
+            if (bimpur) {
+                update_max(dnr_cn.dxnCI[im],   nr.nCI[im]);
+                update_max(dnr_cn.dxnCII[im],  nr.nCII[im]);
+                update_max(dnr_cn.dxnCIII[im], nr.nCIII[im]);
+                update_max(dnr_cn.dxnCIV[im],  nr.nCIV[im]);
+                update_max(dnr_cn.dxnCV[im],   nr.nCV[im]);
             }
-            arg = dEr_cn.dxEe[im] * dr * dtnew / max(Er.Ee[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   Ee   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dEr_cn.dxEH[im] * dr * dtnew / max(Er.EH[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   EH   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dEr_cn.dxEH2[im] * dr * dtnew / max(Er.EH2[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   EH2   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dEr_cn.dxEHi[im] * dr * dtnew / max(Er.EHi[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   EHi   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dEr_cn.dxEH2i[im] * dr * dtnew / max(Er.EH2i[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   EH2i   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dEr_cn.dxEH3i[im] * dr * dtnew / max(Er.EH3i[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   EH3i   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dEr_cn.dxEHeI[im] * dr * dtnew / max(Er.EHeI[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   EHeI   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dEr_cn.dxEHeII[im] * dr * dtnew / max(Er.EHeII[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   EHeII   dt = " << accur/abs(drmax4) << endl; */
-            }
-            arg = dEr_cn.dxEHeIII[im] * dr * dtnew / max(Er.EHeIII[im],1e-20);
-	        arg = std::max(-1.0, std::min(1.0, arg));
-            drval4 = abs(asin(arg)) / (pi / 2.0) / dtnew;
-            if (abs(drmax4) < abs(drval4)) {
-                drmax4 = drval4; /*cout << "   EHeIII   dt = " << accur/abs(drmax4) << endl; */
-            }
+
+            // --- Energies ---
+            update_max(dEr_cn.dxEe[im],      Er.Ee[im]);
+            update_max(dEr_cn.dxEH[im],      Er.EH[im]);
+            update_max(dEr_cn.dxEH2[im],     Er.EH2[im]);
+            update_max(dEr_cn.dxEHi[im],     Er.EHi[im]);
+            update_max(dEr_cn.dxEH2i[im],    Er.EH2i[im]);
+            update_max(dEr_cn.dxEH3i[im],    Er.EH3i[im]);
+            update_max(dEr_cn.dxEHeI[im],    Er.EHeI[im]);
+            update_max(dEr_cn.dxEHeII[im],   Er.EHeII[im]);
+            update_max(dEr_cn.dxEHeIII[im],  Er.EHeIII[im]);
+
+            // Contribute this thread's maximum to the OpenMP reduction
+            drmax4 = std::max(drmax4, local_max);
         }
         drmax4 = drmax4 / 2.0;
         if (dtnew > dtmin * tfact) {
@@ -485,7 +295,7 @@ void timeStep() {
                         Er.xEe[im] += (dEr_cn.dxEe[im]) * dth1;
                     }
                 }
-                if (((abs(dnr_cn.dnH[im] * dtnew) / nr.nH[im]) <= accur) && ((abs(dEr_cn.dEH[im] * dtnew) / Er.EH[im]) <= accur)) {
+                if (((abs(dnr_cn.dnH[im] * dtnew) / nr.nH[im]) <= accur) || ((abs(dEr_cn.dEH[im] * dtnew) / Er.EH[im]) <= accur)) {
                     tempr = nr.nH[im];
                     tempr += (dnr_cn.dnH[im]) * dtnew;
                     if (tempr < 0.0) {
