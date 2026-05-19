@@ -390,11 +390,16 @@ def modify_doc(doc):
 
         timestamps = df[df["RadialPositions"] == selected_radius]["tmain"].tolist()
 
-        for column in sources_time:
-            sources_time[column].data = {
-                "x": timestamps,
-                "y": df[df["RadialPositions"] == selected_radius][column].tolist(),
-            }
+        # Get the dataframe corresponding to the selected timestamp
+        df_last = df[df["tmain"] == selected_time]
+
+        # Update sources_rad
+        for column in sources_rad:
+            if column in df_last.columns:
+                sources_rad[column].data = dict(
+                    x=RADIAL_POSITIONS,
+                    y=df_last[column].tolist(),
+                )
 
         electron_max_vs_timestamp.title.text = (
             f"ne & Te vs Time Stamp at Radius: {selected_radius:.2f}"
@@ -408,7 +413,8 @@ def modify_doc(doc):
             f"Temperature vs Time Stamp at Radius: {selected_radius:.2f}"
         )
         scale_plot_radial(electron_max_vs_timestamp, selected_radius)
-        scale_plot_time(ne_ee_plot, selected_time)
+        if selected_time is not None:
+            scale_plot_time(ne_ee_plot, selected_time)
         
         
 
@@ -470,14 +476,47 @@ def modify_doc(doc):
         """,
     )
 
+    def get_closest_value(array, value):
+        if value is None:
+            return None
 
+        if len(array) == 0:
+            return None
+
+        closest_distance = float("inf")
+        closest_value = None
+
+        for v in array:
+            if pd.isna(v):
+                continue
+
+            distance = abs(v - value)
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_value = v
+
+        return closest_value
     def print_timestamp(attr, old, new):
         global x_value, df, selected_time, selected_radius
-        x_value = selected_timestamp_source.data["timestamp"][0]
+
+        timestamps = selected_timestamp_source.data.get("timestamp", [])
+
+        if not timestamps:
+            return
+
+        x_value = timestamps[0]
+
+        if x_value is None:
+            return
+
         selected_time = x_value
-        df_last = df[df["tmain"] == selected_time]
-        
-        
+
+        closest_time = get_closest_value(df["tmain"].unique(), selected_time)
+
+        if closest_time is None:
+            return
+
+        selected_time = closest_time
 
         # Update the title of each plot to include the current timestamp
         ne_ee_plot.title.text = (
@@ -489,12 +528,16 @@ def modify_doc(doc):
         energy_plot.title.text = (
             f"Temperature vs Radial Position at {round(selected_time*1000)}ms"
         )
+        # Get the dataframe corresponding to the selected timestamp
+        df_last = df[df["tmain"] == selected_time]
 
         # Update sources_rad
         for column in sources_rad:
-            sources_rad[column].data = dict(
-                x=RADIAL_POSITIONS, y=df_last[column].tolist()
-            )
+            if column in df_last.columns:
+                sources_rad[column].data = dict(
+                    x=RADIAL_POSITIONS,
+                    y=df_last[column].tolist(),
+                )
         scale_plot_time(ne_ee_plot, selected_time)
         scale_plot_radial(electron_max_vs_timestamp, selected_radius)
         
@@ -538,6 +581,9 @@ def scale_plot_time(te_plot, time=None):
     if time is None:
         time = original_df['tmain'].max()
     
+    if time is None or pd.isna(time):
+        return
+
     latest_df = original_df[original_df['tmain'] == time].copy()
     latest_df["Te"] = (2 / 3) * (latest_df["Ee"] / latest_df["ne"])
     
@@ -560,7 +606,8 @@ def scale_plot_time(te_plot, time=None):
 def scale_plot_radial(te_plot, radius=90.0):
     #print(f"Scaling plot for radius: {radius}")
     original_df = pd.read_csv(DATA_FILE)
-    
+    if radius is None:
+        return
     # Find closest radius in the DataFrame to the selected radius
     closest_radius = get_closest_value(original_df["RadialPositions"].unique(), radius)
     
