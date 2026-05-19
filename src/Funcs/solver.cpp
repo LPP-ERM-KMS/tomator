@@ -1,211 +1,51 @@
 #include "solver.h"
 
-void solverInit() {
+// Insert a 2x2 block of zeros into a sparse matrix at block position (i, j)
+template <typename SparseMatrixType>
+inline void insertBlock(SparseMatrixType& M, int i, int j)
+{
+    M.insert(2 * i,     2 * j)     = 0.0;
+    M.insert(2 * i + 1, 2 * j)     = 0.0;
+    M.insert(2 * i,     2 * j + 1) = 0.0;
+    M.insert(2 * i + 1, 2 * j + 1) = 0.0;
+}
+
+// Initialize the sparsity pattern for one matrix.
+// Each mesh point couples only to itself and its immediate neighbors.
+template <typename SparseMatrixType>
+void initializeMatrix(SparseMatrixType& M)
+{
+    // Optional but highly recommended for Eigen sparse matrices:
+    // each row contains at most 3 neighboring blocks,
+    // each block has 2 columns, so up to 6 nonzeros per row.
+    M.reserve(Eigen::VectorXi::Constant(2 * NMESHP, 6));
+
+    for (int i = 0; i < NMESHP; ++i) {
+        const int jmin = std::max(0, i - 1);
+        const int jmax = std::min(NMESHP - 1, i + 1);
+
+        for (int j = jmin; j <= jmax; ++j) {
+            insertBlock(M, i, j);
+        }
+    }
+
+    // Finalize the sparse structure for efficient future coefficient updates.
+    M.makeCompressed();
+}
+
+void solverInit()
+{
+    // Set solver tolerances
     solver.setTolerance(solvertolerance);
     solver2.setTolerance(solvertolerance);
     solver3.setTolerance(solvertolerance);
     solver4.setTolerance(solvertolerance);
 
-    for (int i = 1; i < NMESHP - 1; ++i) { // row
-        for (int j = 0; j < NMESHP; ++j) { // column
-            if (i == j) {
-                Ds.insert(2 * i, 2 * j) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j) = 0.0;
-                Ds.insert(2 * i, 2 * j + 1) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i - 1) {
-                Ds.insert(2 * i, 2 * j) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j) = 0.0;
-                Ds.insert(2 * i, 2 * j + 1) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i + 1) {
-                Ds.insert(2 * i, 2 * j) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j) = 0.0;
-                Ds.insert(2 * i, 2 * j + 1) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            }
-        }
-    }
-    for (int i = 0; i < 1; ++i) {     // row
-        for (int j = 0; j < 2; ++j) { // column
-            if (i == j) {
-                Ds.insert(2 * i, 2 * j) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j) = 0.0;
-                Ds.insert(2 * i, 2 * j + 1) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i + 1) {
-                Ds.insert(2 * i, 2 * j) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j) = 0.0;
-                Ds.insert(2 * i, 2 * j + 1) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            }
-        }
-    }
-    for (int i = NMESHP - 1; i < NMESHP; ++i) {     // row
-        for (int j = NMESHP - 2; j < NMESHP; ++j) { // column
-            if (i == j) {
-                Ds.insert(2 * i, 2 * j) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j) = 0.0;
-                Ds.insert(2 * i, 2 * j + 1) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i - 1) {
-                Ds.insert(2 * i, 2 * j) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j) = 0.0;
-                Ds.insert(2 * i, 2 * j + 1) = 0.0;
-                Ds.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            }
-        }
-    }
-    for (int i = 1; i < NMESHP - 1; ++i) { // row
-        for (int j = 0; j < NMESHP; ++j) { // column
-            if (i == j) {
-                Vs.insert(2 * i, 2 * j) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j) = 0.0;
-                Vs.insert(2 * i, 2 * j + 1) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i - 1) {
-                Vs.insert(2 * i, 2 * j) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j) = 0.0;
-                Vs.insert(2 * i, 2 * j + 1) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i + 1) {
-                Vs.insert(2 * i, 2 * j) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j) = 0.0;
-                Vs.insert(2 * i, 2 * j + 1) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            }
-        }
-    }
-    for (int i = 0; i < 1; ++i) {     // row
-        for (int j = 0; j < 2; ++j) { // column
-            if (i == j) {
-                Vs.insert(2 * i, 2 * j) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j) = 0.0;
-                Vs.insert(2 * i, 2 * j + 1) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i + 1) {
-                Vs.insert(2 * i, 2 * j) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j) = 0.0;
-                Vs.insert(2 * i, 2 * j + 1) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            }
-        }
-    }
-    for (int i = NMESHP - 1; i < NMESHP; ++i) {     // row
-        for (int j = NMESHP - 2; j < NMESHP; ++j) { // column
-            if (i == j) {
-                Vs.insert(2 * i, 2 * j) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j) = 0.0;
-                Vs.insert(2 * i, 2 * j + 1) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i - 1) {
-                Vs.insert(2 * i, 2 * j) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j) = 0.0;
-                Vs.insert(2 * i, 2 * j + 1) = 0.0;
-                Vs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            }
-        }
-    }
-    for (int i = 1; i < NMESHP - 1; ++i) { // row
-        for (int j = 0; j < NMESHP; ++j) { // column
-            if (i == j) {
-                DHs.insert(2 * i, 2 * j) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j) = 0.0;
-                DHs.insert(2 * i, 2 * j + 1) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i - 1) {
-                DHs.insert(2 * i, 2 * j) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j) = 0.0;
-                DHs.insert(2 * i, 2 * j + 1) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i + 1) {
-                DHs.insert(2 * i, 2 * j) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j) = 0.0;
-                DHs.insert(2 * i, 2 * j + 1) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            }
-        }
-    }
-    for (int i = 0; i < 1; ++i) {     // row
-        for (int j = 0; j < 2; ++j) { // column
-            if (i == j) {
-                DHs.insert(2 * i, 2 * j) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j) = 0.0;
-                DHs.insert(2 * i, 2 * j + 1) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i + 1) {
-                DHs.insert(2 * i, 2 * j) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j) = 0.0;
-                DHs.insert(2 * i, 2 * j + 1) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            }
-        }
-    }
-    for (int i = NMESHP - 1; i < NMESHP; ++i) {     // row
-        for (int j = NMESHP - 2; j < NMESHP; ++j) { // column
-            if (i == j) {
-                DHs.insert(2 * i, 2 * j) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j) = 0.0;
-                DHs.insert(2 * i, 2 * j + 1) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i - 1) {
-                DHs.insert(2 * i, 2 * j) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j) = 0.0;
-                DHs.insert(2 * i, 2 * j + 1) = 0.0;
-                DHs.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            }
-        }
-    }
-    for (int i = 1; i < NMESHP - 1; ++i) { // row
-        for (int j = 0; j < NMESHP; ++j) { // column
-            if (i == j) {
-                DH2s.insert(2 * i, 2 * j) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j) = 0.0;
-                DH2s.insert(2 * i, 2 * j + 1) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i - 1) {
-                DH2s.insert(2 * i, 2 * j) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j) = 0.0;
-                DH2s.insert(2 * i, 2 * j + 1) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i + 1) {
-                DH2s.insert(2 * i, 2 * j) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j) = 0.0;
-                DH2s.insert(2 * i, 2 * j + 1) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            }
-        }
-    }
-    for (int i = 0; i < 1; ++i) {     // row
-        for (int j = 0; j < 2; ++j) { // column
-            if (i == j) {
-                DH2s.insert(2 * i, 2 * j) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j) = 0.0;
-                DH2s.insert(2 * i, 2 * j + 1) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i + 1) {
-                DH2s.insert(2 * i, 2 * j) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j) = 0.0;
-                DH2s.insert(2 * i, 2 * j + 1) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            }
-        }
-    }
-    for (int i = NMESHP - 1; i < NMESHP; ++i) {     // row
-        for (int j = NMESHP - 2; j < NMESHP; ++j) { // column
-            if (i == j) {
-                DH2s.insert(2 * i, 2 * j) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j) = 0.0;
-                DH2s.insert(2 * i, 2 * j + 1) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            } else if (j == i - 1) {
-                DH2s.insert(2 * i, 2 * j) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j) = 0.0;
-                DH2s.insert(2 * i, 2 * j + 1) = 0.0;
-                DH2s.insert(2 * i + 1, 2 * j + 1) = 0.0;
-            }
-        }
-    }
+    // Build sparse matrix structures
+    initializeMatrix(Ds);
+    initializeMatrix(Vs);
+    initializeMatrix(DHs);
+    initializeMatrix(DH2s);
 }
 
 void solverAb_x() {
