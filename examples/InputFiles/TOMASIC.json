@@ -85,7 +85,7 @@
     "pppl":{},
     "diffusion": {
         "bDfix": true,
-        "Dfix": 60000,
+        "Dfix": 30000,
         "bDbohm": false,
         "bDscaling": false,
         "Dfact": 0.2,
@@ -93,7 +93,7 @@
     },
     "convection": {
         "bVfix": true,
-        "Vfix": 300,
+        "Vfix": 20,
         "bVscaling": false,
         "veq": 8,
         "Vfact": 4.0
@@ -195,7 +195,7 @@
         "cc": 91,
         "Nloopsave": 100,
         "bOutdt": true,
-        "dtsave": 1.0e-6
+        "dtsave": 1.0e-5
     },
     "solver_parameters": {
         "solvertolerance": 1e-10

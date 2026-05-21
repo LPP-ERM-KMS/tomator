@@ -51,7 +51,7 @@ MAXH=0.0008
 resolution = 1001 #for tomator
 meshscale = 2
 order_mesh = 3
-maxn = 10
+maxn = 50
 neutral_temperature = 55
 mode_numbers = [i for i in range(maxn)]
 R = np.linspace(R0-Ra,R0+Rant,int(2*Ra/MAXH))
@@ -126,24 +126,24 @@ tic = time.time()
 
 for i,mode_number in enumerate(mode_numbers):
     solution = Solve(TOMAS)
-    solution.GetSolution1D(mode_number=mode_number)
+    solution.GetSolution1D(order_mesh=order_mesh,mode_number=mode_number)
     gfx,gfy,gfz = solution.result
 
     if i == 0:
-        Ex = gfx(mesh(R))
-        Ey = gfy(mesh(R))
-        Ez = gfz(mesh(R))
+        Ex = gfx
+        Ey = gfy
+        Ez = gfz
     else:
-        Ex += gfx(mesh(R))
-        Ey += gfy(mesh(R))
-        Ez += gfz(mesh(R))
+        Ex += gfx
+        Ey += gfy
+        Ez += gfz
 
 toc = time.time()
 logger.info(f'Computing electric fields took {toc-tic}s')
 
 tic = time.time()
 
-Ptot = solution.PowerDeposition1D()
+Ptot = solution.PowerDeposition1D(E=[Ex,Ey,Ez])
 TP = np.zeros(len(R_))
 for i,r in enumerate(R_):
     if r < R0+Rant:
@@ -158,7 +158,7 @@ logger.info(f'Computing power deposition took {toc-tic}s')
 PowerScalingFactor = (Power)/(sum(TP)) #Watt per meshpoint
 TOMASe = System({"e":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn,neutral_temperature=neutral_temperature)
 TOMASe.Epsilon1D(MAXH/meshscale,temperature=TEMP)
-Pe = solution.PowerDeposition1D(TOMASe.eps)
+Pe = solution.PowerDeposition1D(customdielectric=TOMASe.eps,E=[Ex,Ey,Ez])
 eP = np.zeros(len(R_))
 for i,r in enumerate(R_):
     if r < R0+Rant:
@@ -169,7 +169,7 @@ eP = [ep if ep>= 0 else 0 for ep in eP]
 
 TOMASi = System({"H":1},I,freq,Power,ne,Ti,Te,R0,Ra,mesh,gasnd=gasn,neutral_temperature=neutral_temperature)
 TOMASi.Epsilon1D(MAXH/meshscale,temperature=TEMP)
-Pi = solution.PowerDeposition1D(TOMASi.eps)
+Pi = solution.PowerDeposition1D(customdielectric=TOMASi.eps,E=[Ex,Ey,Ez])
 HP = np.zeros(len(R_))
 for i,r in enumerate(R_):
     if r < R0+Rant:
