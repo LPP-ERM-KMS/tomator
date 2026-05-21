@@ -51,9 +51,9 @@ MAXH=0.0008
 resolution = 1001 #for tomator
 meshscale = 2
 order_mesh = 3
-maxn = 50
+maxn = 40
 neutral_temperature = 55
-mode_numbers = [i for i in range(maxn)]
+mode_numbers = [i for i in range(-maxn,maxn)]
 R = np.linspace(R0-Ra,R0+Rant,int(2*Ra/MAXH))
 R_ = np.linspace(R0-Ra,R0+Ra,resolution)
 # split at antenna
