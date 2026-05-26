@@ -458,7 +458,10 @@ def modify_doc(doc):
                 line.location = closest_x;
                 label.x = closest_x;
                 label.y = closest_y + 0.01 * closest_y;  // Adjust this for label positioning
-                label.text = "Timestamp: " + closest_x.toFixed(2); // Display the exact discrete x value
+                label.text = "Timestamp: " +
+                    ((Math.abs(closest_x) < 1e-2 && closest_x !== 0)
+                        ? closest_x.toExponential(2)
+                        : closest_x.toFixed(2));
                 selected_timestamp_source.data = {timestamp: [closest_x]};
                 selected_timestamp_source.change.emit();
                 source.change.emit();

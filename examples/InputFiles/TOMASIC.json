@@ -85,7 +85,7 @@
     "pppl":{},
     "diffusion": {
         "bDfix": true,
-        "Dfix": 30000,
+        "Dfix": 100000,
         "bDbohm": false,
         "bDscaling": false,
         "Dfact": 0.2,
@@ -93,7 +93,7 @@
     },
     "convection": {
         "bVfix": true,
-        "Vfix": 20,
+        "Vfix": 1000,
         "bVscaling": false,
         "veq": 8,
         "Vfact": 4.0
@@ -176,7 +176,7 @@
         "dtRF": 1.0e-06,
         "dtRFvar": true,
         "dtRFmax": 1e-05,
-        "dtRFmin": 1e-07,
+        "dtRFmin": 1e-08,
         "dtRFconv": true
     },
     "advanced_time_step_settings": {
