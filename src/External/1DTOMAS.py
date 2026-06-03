@@ -43,7 +43,7 @@ logger.info('Started')
 
 tic = time.time()
 
-I = 1600 #A
+I = 2200 #A
 R0 = 0.780 #major radius
 Ra = 0.260 #minor radius
 Rant = 0.210 #antenna

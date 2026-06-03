@@ -91,7 +91,7 @@ class DataInterface(tk.Tk):
 
     def follow_simulation(self):
         # This will open a file dialog window to select a CSV file
-        default_directory = "../Data"
+        default_directory = os.environ.get('TOMATORRESULTS',"../Data")
         file_path = filedialog.askopenfilename(
             initialdir=default_directory,
             title="Select a CSV File",

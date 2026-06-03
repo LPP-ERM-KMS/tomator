@@ -1,6 +1,6 @@
 {
     "magnetic_field": {
-        "Bt": 0.0912,
+        "Bt": 0.1254,
         "Bv": 0.0000001,
         "Bh": 0.0000001
     },
@@ -85,7 +85,7 @@
     "pppl":{},
     "diffusion": {
         "bDfix": true,
-        "Dfix": 100000,
+        "Dfix": 5000,
         "bDbohm": false,
         "bDscaling": false,
         "Dfact": 0.2,
@@ -93,7 +93,7 @@
     },
     "convection": {
         "bVfix": true,
-        "Vfix": 1000,
+        "Vfix": 500,
         "bVscaling": false,
         "veq": 8,
         "Vfact": 4.0
@@ -195,7 +195,7 @@
         "cc": 91,
         "Nloopsave": 100,
         "bOutdt": true,
-        "dtsave": 1.0e-5
+        "dtsave": 5.0e-5
     },
     "solver_parameters": {
         "solvertolerance": 1e-10
